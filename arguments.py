@@ -26,12 +26,12 @@ args = {
 # The most common training arguments. There are 101 arguments available
 # see https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer#transformers.TrainingArguments
 training_args = {
-    "num_train_epochs"              : 5,
-    "learning_rate"                 : 1e-5,
+    "num_train_epochs"              : 20,
+    "learning_rate"                 : 1e-4,
     
     # these ones will depend on architecture and memory
-    "per_device_train_batch_size"   : 8,   
-    "gradient_accumulation_steps"   : 4,  
+    "per_device_train_batch_size"   : 64,   
+    "gradient_accumulation_steps"   : 1,  
     "per_device_eval_batch_size"    : 64,
 
     # save during the run? 'epoch' (every epoch) or 'steps', and maximum number to keep
