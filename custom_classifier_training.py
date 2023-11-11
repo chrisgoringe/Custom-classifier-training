@@ -24,6 +24,8 @@ def main():
             correct = sum(df["prediction"]==df["label"])
             print("{:>3}/{:>3} ({:>6.2f}%) correct".format(correct, count, 100*correct/count))
             print("Average probability assigned to correct label {:>6.2f}%".format(100*sum(scores)/count))
+            n_labels = df["label"].nunique()
+            print("{:>2} options, so random guesses would get {:>6.2f}%".format(n_labels, 100/n_labels))
 
         if args['mode'] == 'spotlight':
             try:

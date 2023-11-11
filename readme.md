@@ -47,13 +47,17 @@ Then for evaluation:
     "top_level_image_directory" : "path/to/my-images", 
 ```
 
-Use Task Manager to see if you are using shared GPU memory instead of just dedicated - if so, reduce batch size etc.
+Read through arguments.py to see other things you can change, it isn't very long.
 
 ## Pretrained models
 
 This script is for customising pretrained models (`base_model` in the configuration). It's been tested with `google/vit-base-patch16-224-in21k` and `google/efficientnet-b5` and should work with the other efficientnets (b0...b7 in increasing size and complexity) and ViT architectures. 
 
 It might well work with any transformers based model. If it fails, the most likely issue will be that you need to add a new ImageProcessor class in `_get_feature_extractor` in `src/prediction.py`. Please report successes or failures in the GitHub issues!
+
+## Spotlight
+
+[Spotlight](https://github.com/Renumics/spotlight) is a gui for analysing datasets. If you install it (probably just `pip install spotlight`) you can use `"mode":"spotlight"`, which works like evaluate, but launches spotlight with the resulting data.
 
 ## Use or share your model
 
