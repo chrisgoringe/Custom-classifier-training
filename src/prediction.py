@@ -52,8 +52,8 @@ def _generate_image_probabilites( image_paths ):
     df_updated = updated_dataset.to_pandas()
     return np.array( [ emb.tolist() if emb is not None else None for emb in df_updated["probabilities"].values ] )
 
-def predict( image_paths ):
+def predict( image_paths, labels ):
     probs = _generate_image_probabilites( image_paths ).tolist()
     preds = np.argmax(probs, axis=1).tolist()
-    return preds, probs, list([probs[i][x] for i,x in enumerate(preds)])
+    return preds, probs, list([probs[i][x] for i,x in enumerate(labels)])
 

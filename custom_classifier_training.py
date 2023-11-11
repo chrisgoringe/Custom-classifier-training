@@ -5,21 +5,27 @@ from src.prediction import predict
 from src.time_context import Timer
 from arguments import args, check_arguments
 
-def main():
-    check_arguments()
-
+def load_data():
     with Timer("load"):
         dh = DataHolder(args['top_level_image_directory'], args['save_model'], args['fraction_for_test'], args['test_pick_seed'])
         df = dh.get_dataframe()
+        return df
+    
+def main():
+    check_arguments()
+    df = load_data()
         
-    if args['mode'] == 'train':
+    if args['mode'] == 'train' or args['mode'] == 'train,evaluate':
         with Timer("train"): 
             finetune( df[df["split"] == "train"] )
 
-    if args['mode'] == 'evaluate' or args['mode'] == 'spotlight':
+        if args['mode'] == 'train,evaluate':
+            args['load_model'] = args['save_model']
+
+    if args['mode'] == 'evaluate' or args['mode'] == 'train,evaluate' or args['mode'] == 'spotlight':
         with Timer("predict"):
             if args['evaluate_test_only']: df = df[df["split"]=="test"]
-            df["prediction"], df["probs"], scores = predict( df["image"].values )
+            df["prediction"], df["probs"], scores = predict( df["image"].values, df["label"] )
             count = len(df)
             correct = sum(df["prediction"]==df["label"])
             print("{:>3}/{:>3} ({:>6.2f}%) correct".format(correct, count, 100*correct/count))
