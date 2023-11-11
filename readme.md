@@ -68,7 +68,7 @@ preprocessor_config.json
 
 If you have set a save_strategy during training there will also be a number of subdirectories (which are *big*) that you don't need.
 
-## Aknowledgements
+## Acknowledgements
 
 Idea inspired by bmf, who also provided lots of excellent discussion, feedback, and datasets!
 
