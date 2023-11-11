@@ -40,7 +40,7 @@ training_args = {
     "save_total_limit"              : 4,
 
     # evaluate during the run?
-    "evaluation_strategy"           : "no",
+    "evaluation_strategy"           : "epoch",
     "eval_steps"                    : 200,
 
     # Choose the best model, not the last model, to keep at the end. Requires save_strategy and evaluation_strategy to be the same (and not "no"). 
