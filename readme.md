@@ -1,6 +1,8 @@
 # Custom Classifier Training
 
-Script to train (and evaluate) a custom image classifier in a way that is suitable for use with the Custom Classifier ComfyUI nodes (or for any other use, for that matter).
+Script to train (and evaluate) a custom image classifier in a way that is suitable for use with the Custom Classifier ComfyUI nodes (coming soon!).
+
+They are generic models, so should work for any other use for that matter.
 
 ## Install
 
@@ -46,6 +48,12 @@ Then for evaluation:
 ```
 
 Use Task Manager to see if you are using shared GPU memory instead of just dedicated - if so, reduce batch size etc.
+
+## Pretrained models
+
+This script is for customising pretrained models (`base_model` in the configuration). It's been tested with `google/vit-base-patch16-224-in21k` and `google/efficientnet-b5` and should work with the other efficientnets (b0...b7 in increasing size and complexity) and ViT architectures. 
+
+It might well work with any transformers based model. If it fails, the most likely issue will be that you need to add a new ImageProcessor class in `_get_feature_extractor` in `src/prediction.py`. Please report successes or failures in the GitHub issues!
 
 ## Use or share your model
 
