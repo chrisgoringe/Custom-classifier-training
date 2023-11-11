@@ -39,7 +39,7 @@ training_args = {
     "save_steps"                    : 200,
     "save_total_limit"              : 4,
 
-    # evaluate during the run?
+    # evaluate during the run? set to "no" to speed up slightly.
     "evaluation_strategy"           : "epoch",
     "eval_steps"                    : 200,
 
