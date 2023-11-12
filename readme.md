@@ -24,6 +24,8 @@ pip install -r requirements.txt
 
 Create a subdirectory, say `images`, as your `top_level_image_directory`. In it create one subdirectory per category, named for the category. So, for instance, `images/good` and `images/bad`.
 
+Folders and files that start with `.` are ignored; folders which contain no images are ignored. Images are assumed to have extension `.png`, `.jpg` or `.jpeg`. Edit `src/data_holder.py` line 8 if you have other image extensions.
+
 ## Configuration
 
 Edit `arguments.py`. The comments should explain everything. Then just run `python custom_classifier_training.py`.
