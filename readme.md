@@ -47,6 +47,11 @@ Then for evaluation:
     "top_level_image_directory" : "path/to/my-images", 
 ```
 
+To combine the two (train and then evaluate the result) use 
+```python
+    "mode"                      : "train,evaluate",
+```
+
 Read through arguments.py to see other things you can change, it isn't very long.
 
 ## Pretrained models

@@ -1,6 +1,7 @@
 args = {
     # "train", "evaluate", or "spotlight"  (spotlight requires 'pip install spotlight')
-    "mode"                      : "train",
+    # or 'train,evaluate' which does a train, saves, and then evaluates the newly saved model
+    "mode"                      : "train,evaluate",
 
     # the base model (automatically downloaded if required) 
     # google/vit-base-patch16-224-in21k and google/efficientnet-b5 (or b0...b7) are good ones to try
@@ -39,8 +40,8 @@ training_args = {
     "save_steps"                    : 200,
     "save_total_limit"              : 4,
 
-    # evaluate during the run? set to "no" to speed up slightly.
-    "evaluation_strategy"           : "epoch",
+    # evaluate during the run? set to "no" to speed up slightly, 'epoch' to get updates
+    "evaluation_strategy"           : "no",
     "eval_steps"                    : 200,
 
     # Choose the best model, not the last model, to keep at the end. Requires save_strategy and evaluation_strategy to be the same (and not "no"). 
@@ -52,7 +53,7 @@ evaluation_args = {
 
 def check_arguments():
     if 'load_model' not in args or not args['load_model']:
-        assert args['mode']=='train', "If not training, need to specify a model to reload!"
+        assert args['mode']=='train' or args['mode']=='train,evaluate', "If not training, need to specify a model to reload!"
         args['load_model']=args['base_model']
 
     training_args['output_dir'] = args['save_model']
@@ -61,5 +62,5 @@ def check_arguments():
         if 'per_device_eval_batch_size' in training_args and training_args['per_device_eval_batch_size']:
             evaluation_args['per_device_eval_batch_size'] = training_args['per_device_eval_batch_size']
 
-    if args['mode']=='train':
+    if args['mode']=='train' or args['mode']=='train,evaluate':
         assert 'save_model' in args and args['save_model'], "Training needs a save_model location!"
