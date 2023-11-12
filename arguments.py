@@ -11,10 +11,10 @@ args = {
     "load_model"                : "",     
 
     # folder to save the resulting model in. Required for training.
-    "save_model"                : "my_model",
+    "save_model"                : "cg-b4-20",
 
     # path to the top level image directory, which should contain one subdirectory per image class, named for the image class
-    "top_level_image_directory" : "path/to/my/images", 
+    "top_level_image_directory" : "A:/classifier_training/cg", 
 
     # what fraction of images to reserve as test images (not used in training), and a random seed for picking them
     "fraction_for_test"         : 0.25,
