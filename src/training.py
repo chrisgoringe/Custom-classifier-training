@@ -2,6 +2,7 @@ from transformers import AutoImageProcessor, Trainer, TrainingArguments, Default
 from functools import partial
 import datasets
 from arguments import training_args, args
+#from .lora_style import PatchedModelWrapper
 
 def _transform(example_batch, image_processor):
     inputs = image_processor( [x.convert("RGB") for x in example_batch["image"]], return_tensors="pt" )
@@ -20,6 +21,8 @@ def finetune( df ):
         model = AutoModelForImageClassification.from_pretrained(args['load_model'], 
                                                                 num_labels=df["label"].nunique(), 
                                                                 ignore_mismatched_sizes=True)
+        
+        #pmw = PatchedModelWrapper(model, dim=32, dtype=model.dtype, device="cuda")
 
         Trainer(
             model=model,

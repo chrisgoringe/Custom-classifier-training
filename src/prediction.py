@@ -1,4 +1,4 @@
-from transformers import ViTImageProcessor,  EfficientNetImageProcessor
+from transformers import ViTImageProcessor,  EfficientNetImageProcessor, AutoImageProcessor
 from transformers import AutoModelForImageClassification
 import torch
 
@@ -10,8 +10,10 @@ from arguments import args, evaluation_args
 
 def _get_feature_extractor():
     if 'efficient' in args['base_model']:
-        return EfficientNetImageProcessor.from_pretrained( args['load_model'])
-    return ViTImageProcessor.from_pretrained( args['load_model'])
+        return EfficientNetImageProcessor.from_pretrained( args['load_model'] )
+    elif 'vit' in args['base_model']:
+        return ViTImageProcessor.from_pretrained( args['load_model'] )
+    return AutoImageProcessor.from_pretrained( args['load_model'] )
 
 def _extract_probabilities_image(model, feature_extractor, col_name):
     """Utility to compute probabilites for images."""

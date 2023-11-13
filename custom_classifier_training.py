@@ -2,8 +2,10 @@ import os
 from src.data_holder import DataHolder
 from src.training import finetune
 from src.prediction import predict
-from src.time_context import Timer
+from src.time_context import Timer 
 from arguments import args, check_arguments
+
+VERSION = "0.3"
 
 def load_data():
     with Timer("load"):

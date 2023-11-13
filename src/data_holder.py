@@ -33,7 +33,10 @@ class DataHolder:
         self.accum = 0.0
         random.seed(self.test_pick_seed)
         for i, dir in enumerate(self.directories):
+            before = len(df)
             for file in os.listdir(dir):
                 if valid_image(os.path.join(dir,file)):
                     df.loc[len(df)] = [os.path.join(dir,file), os.path.basename(dir), i, self.split()]
-        return df
+            print(f"{os.path.basename(dir)} contains {len(df)-before} images")
+        print(f"{len(df)} total images")
+        return df 
