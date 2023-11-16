@@ -27,19 +27,22 @@ class DataHolder:
 
     def split(self) -> str:
         return "test" if random.random() < self.fraction_for_test else "train"
+    
+    def image_stats(self):
+        pass
 
     def get_dataframe(self) -> pd.DataFrame:
-        df = pd.DataFrame(columns=["image","label_str","label","split"])
+        self.df = pd.DataFrame(columns=["image","label_str","label","split"])
         self.accum = 0.0
         random.seed(self.test_pick_seed)
         self.sizes = []
         for i, dir in enumerate(self.directories):
-            before = len(df)
+            before = len(self.df)
             for file in os.listdir(dir):
                 if valid_image(os.path.join(dir,file)):
-                    df.loc[len(df)] = [os.path.join(dir,file), os.path.basename(dir), i, self.split()]
-            print(f"{os.path.basename(dir)} contains {len(df)-before} images")
-            self.sizes.append(len(df)-before)
-        test_images = len(df[df["split"]=="test"])
-        print(f"{len(df)} total images ({test_images} test, {len(df)-test_images} train)")
-        return df 
+                    self.df.loc[len(self.df)] = [os.path.join(dir,file), os.path.basename(dir), i, self.split()]
+            print(f"{os.path.basename(dir)} contains {len(self.df)-before} images")
+            self.sizes.append(len(self.df)-before)
+        test_images = len(self.df[self.df["split"]=="test"])
+        print(f"{len(self.df)} total images ({test_images} test, {len(self.df)-test_images} train)")
+        return self.df 

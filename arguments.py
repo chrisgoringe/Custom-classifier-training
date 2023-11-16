@@ -11,14 +11,17 @@ args = {
     "load_model"                : "",     
 
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : "model_out",
+    "save_model"                : "training/bmf",
 
     # path to the top level image directory, which should contain one subdirectory per image class, named for the image class
-    "top_level_image_directory" : "images", 
+    "top_level_image_directory" : "training/bmf-images", 
 
     # what fraction of images to reserve as test images (not used in training), and a random seed for picking them
     "fraction_for_test"         : 0.25,
-    "test_pick_seed"            : 42,                    
+    "test_pick_seed"            : 42,        
+
+    # calculate evaluation rate on test set at end of each epoch?
+    "eval_each_epoch"           : True,            
 
     # when doing "evaluate", just evaluate the test images? This is always the case when doing evals during training.
     "evaluate_test_only"        : True, 
@@ -35,7 +38,7 @@ args = {
 # The most common training arguments. There are 101 arguments available
 # see https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer#transformers.TrainingArguments
 training_args = {
-    "num_train_epochs"              : 10,
+    "num_train_epochs"              : 5,
     "learning_rate"                 : 1e-4,
     
     # these ones will depend on architecture and memory
