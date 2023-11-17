@@ -20,7 +20,7 @@ def create_probability_calculator(model_directory, key, labels=[]):
 
 def main():
     model_directory = "C:\\Users\\chris\\Documents\\GitHub\\ComfyUI_windows_portable\\ComfyUI\\models\\customclassifier\\yg"
-    image_directory = "C:\\Users\\chris\\Documents\\GitHub\\ComfyUI_windows_portable\\ComfyUI\\output\\theonepercent"
+    image_directory = "C:\\Users\\chris\\Documents\\GitHub\\ComfyUI_windows_portable\\ComfyUI\\output\\thetwopercent"
     sort_category = 0
 
     cp = create_probability_calculator(model_directory, sort_category)
