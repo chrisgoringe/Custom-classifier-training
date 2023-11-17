@@ -9,6 +9,7 @@ They are generic models, so should work for any other use for that matter.
 In some suitable directory,
 ```
 git clone https://github.com/chrisgoringe/custom-classifier-training
+pip install git+https://github.com/openai/CLIP.git for aesthetic models
 ```
 
 ## Virtual environment
