@@ -24,6 +24,7 @@ class DataHolder:
                 json.dump({"categories":[os.path.basename(d) for d in self.directories]}, f)
         self.fraction_for_test = fraction_for_test
         self.test_pick_seed = test_pick_seed
+        self.df = None
 
     def split(self) -> str:
         return "test" if random.random() < self.fraction_for_test else "train"
@@ -32,17 +33,18 @@ class DataHolder:
         pass
 
     def get_dataframe(self) -> pd.DataFrame:
-        self.df = pd.DataFrame(columns=["image","label_str","label","split"])
-        self.accum = 0.0
-        random.seed(self.test_pick_seed)
-        self.sizes = []
-        for i, dir in enumerate(self.directories):
-            before = len(self.df)
-            for file in os.listdir(dir):
-                if valid_image(os.path.join(dir,file)):
-                    self.df.loc[len(self.df)] = [os.path.join(dir,file), os.path.basename(dir), i, self.split()]
-            print(f"{os.path.basename(dir)} contains {len(self.df)-before} images")
-            self.sizes.append(len(self.df)-before)
-        test_images = len(self.df[self.df["split"]=="test"])
-        print(f"{len(self.df)} total images ({test_images} test, {len(self.df)-test_images} train)")
+        if self.df is None:
+            self.df = pd.DataFrame(columns=["image","label_str","label","split"])
+            self.accum = 0.0
+            random.seed(self.test_pick_seed)
+            self.sizes = []
+            for i, dir in enumerate(self.directories):
+                before = len(self.df)
+                for file in os.listdir(dir):
+                    if valid_image(os.path.join(dir,file)):
+                        self.df.loc[len(self.df)] = [os.path.join(dir,file), os.path.basename(dir), i, self.split()]
+                print(f"{os.path.basename(dir)} contains {len(self.df)-before} images")
+                self.sizes.append(len(self.df)-before)
+            test_images = len(self.df[self.df["split"]=="test"])
+            print(f"{len(self.df)} total images ({test_images} test, {len(self.df)-test_images} train)")
         return self.df 
