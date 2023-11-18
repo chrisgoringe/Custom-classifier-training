@@ -20,10 +20,16 @@ def _extract_probabilities_image(model, feature_extractor, col_name):
     return pp
 
 class EvaluationCallback(TrainerCallback):
+    def __init__(self, eval_every):
+        self.eval_every = eval_every
+        self.last = 0
+
     eval_labels = None
     prepared_eval_ds = None
 
     def on_epoch_end(self, arguments, state, control, **kwargs):
+        if state.epoch < self.last + self.eval_every: return
+        self.last = state.epoch
         extract_fn = _extract_probabilities_image(kwargs['model'], kwargs['tokenizer'], "pixel_values")
         updated_dataset = self.prepared_eval_ds.map(
                 extract_fn,
@@ -100,7 +106,7 @@ def finetune( df, eval_df, category_sizes ):
             train_dataset=prepared_ds,
             eval_dataset=prepared_eval_ds,
             tokenizer=image_processor,
-            callbacks=[EvaluationCallback] if args['eval_each_epoch'] else [],
+            callbacks=[EvaluationCallback(args['eval_every_n_epochs'])] if args['eval_every_n_epochs'] else [],
         ).train()
 
         model.save_pretrained(args['save_model'])

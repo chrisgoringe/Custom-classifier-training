@@ -40,13 +40,16 @@ def main():
 
     if 'evaluate' in args['mode'] or 'spotlight' in args['mode']:
         with Timer("predict"):
-            if args['evaluate_test_only']: df = df[df["split"]=="test"]
             df["prediction"], df["probs"], scores = predict( df["image"].values, df["label"] )
-            count = len(df)
+            dft = df[df["split"]=="test"]
+            
+            count = len(dft)
+            correct = sum(dft["prediction"]==dft["label"])
+            print("In test set: {:>3}/{:>3} ({:>6.2f}%) correct".format(correct, count, 100*correct/count))
             correct = sum(df["prediction"]==df["label"])
-            print("{:>3}/{:>3} ({:>6.2f}%) correct".format(correct, count, 100*correct/count))
+            print("Overall set: {:>3}/{:>3} ({:>6.2f}%) correct".format(correct, count, 100*correct/count))
             print("Average probability assigned to correct label {:>6.2f}%".format(100*sum(scores)/count))
-            n_labels = df["label"].nunique()
+            n_labels = dft["label"].nunique()
             print("{:>2} options, so random guesses would get {:>6.2f}%".format(n_labels, 100/n_labels))
 
         if 'spotlight' in args['mode']:

@@ -15,8 +15,9 @@ def valid_directory(dir_path:str):
     return False
 
 class DataHolder:
-    def __init__(self, top_level:str, model_folder:str, fraction_for_test:float, test_pick_seed:int):
-        self.directories = [os.path.join(top_level,d) for d in os.listdir(top_level) if valid_directory(os.path.join(top_level,d))]
+    def __init__(self, top_level:str, model_folder:str=None, fraction_for_test:float=0.25, test_pick_seed:int=42):
+        self.labels = [d for d in os.listdir(top_level) if valid_directory(os.path.join(top_level,d))]
+        self.directories = [os.path.join(top_level,d) for d in self.labels]
         if model_folder:
             if not os.path.exists(model_folder):
                 os.makedirs(model_folder)
@@ -29,8 +30,8 @@ class DataHolder:
     def split(self) -> str:
         return "test" if random.random() < self.fraction_for_test else "train"
     
-    def image_stats(self):
-        pass
+    def weights(self):
+        return {label:len(self.df)/len(self.df[self.df['label_str']==label]) for label in self.labels}
 
     def get_dataframe(self) -> pd.DataFrame:
         if self.df is None:
@@ -43,8 +44,8 @@ class DataHolder:
                 for file in os.listdir(dir):
                     if valid_image(os.path.join(dir,file)):
                         self.df.loc[len(self.df)] = [os.path.join(dir,file), os.path.basename(dir), i, self.split()]
-                print(f"{os.path.basename(dir)} contains {len(self.df)-before} images")
+                print(f"    {os.path.basename(dir)} contains {len(self.df)-before} images")
                 self.sizes.append(len(self.df)-before)
             test_images = len(self.df[self.df["split"]=="test"])
-            print(f"{len(self.df)} total images ({test_images} test, {len(self.df)-test_images} train)")
+            print(f"    {len(self.df)} total images ({test_images} test, {len(self.df)-test_images} train)")
         return self.df 
