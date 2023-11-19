@@ -82,6 +82,6 @@ If you have set a save_strategy during training there will also be a number of s
 
 ## Acknowledgements
 
-Idea inspired by bmf, who also provided lots of excellent discussion, feedback, and datasets!
+Idea inspired by bmf (Đỗ Khang), who also provided lots of excellent discussion, feedback, and datasets!
 
 Training code loosely based on [renumics](https://github.com/Renumics).
