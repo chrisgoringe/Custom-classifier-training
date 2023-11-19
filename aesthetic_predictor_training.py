@@ -179,19 +179,22 @@ def train_predictor():
             self.every = every
             self.labels = labels
 
-        def on_epoch_end(self, arguments, state, control, **kwargs):
-            if state.epoch - self.last < self.every: return
-            self.last = state.epoch
+        def do_eval(self, state):
             print("\n\n====\nEpoch "+str(state.epoch)+": ")
             predictor.eval()
             evaluate(self.labels, eds, predictor, clipper, weights, "folder {:>1} average score {:>5.3f}", "weighted eval mse loss {:>6.3}")
-            tds.shuffle()
             predictor.train()
             print("====")
 
-        def on_train_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
-            self.on_epoch_end(args, state, control, **kwargs)
+        def on_epoch_end(self, arguments, state, control, **kwargs):
+            tds.shuffle()
+            if not self.every: return
+            if state.epoch - self.last < self.every: return
+            self.last = state.epoch
+            self.do_eval(state)
 
+        def on_train_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+            self.do_eval(state)
 
     with Timer('train model'):
         CustomTrainer(  model = predictor, 
@@ -199,7 +202,7 @@ def train_predictor():
                         eval_dataset = eds,
                         weights = weights if args['weight_category_loss'] else None,
                         args = TrainingArguments( remove_unused_columns=False, push_to_hub=False, output_dir=args['save_model'], **training_args ), 
-                        callbacks = [EvaluationCallback(every=args['eval_every_n_epochs'], labels=data.labels)] if args['eval_every_n_epochs'] else [], 
+                        callbacks = [EvaluationCallback(every=args['eval_every_n_epochs'], labels=data.labels)], 
                      ).train()
 
         predictor.remove_relu()
