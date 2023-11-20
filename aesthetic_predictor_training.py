@@ -79,17 +79,29 @@ class EvaluationCallback(TrainerCallback):
         def on_train_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
             if state.epoch != self.last: self.do_eval(state, kwargs['model'])
 
+def ab_report(ds:QuickDataset, prnt="AB: {:>5}/{:<5} correct ({:>5.2f}%)"):
+    right = 0
+    wrong = 0
+    true_predicted = list(zip(ds.df['score'], ds.df['predicted_score']))
+    for i, a in enumerate(true_predicted):
+        for b in true_predicted[i+1:]:
+            if a[0]==b[0]: continue
+            if (a[0]<b[0] and a[1]<b[1]) or (a[0]>b[0] and a[1]>b[1]): right += 1
+            else: wrong += 1
+    if prnt: print(prnt.format(right,right+wrong,100*right/(right+wrong)))
+    return right/(right+wrong)
+    
 
 def report(eds:QuickDataset, prnt:str, prntrmse:str="mse loss {:>6.3}"):
-    with Timer('Evaluate'):
-        loss_fn = torch.nn.MSELoss()
-        if prnt:
-            for x in eds.df['label_str'].unique():
-                df:DataFrame = eds.df[eds.df['label_str']==x]
-                std = statistics.stdev(df['predicted_score'].to_numpy()) if len(df)>1 else 0
-                print(prnt.format(x,statistics.mean(df['predicted_score'].to_numpy()),std))
-        rmse = loss_fn(torch.tensor(eds.df['score'].to_numpy()), torch.tensor(eds.df['predicted_score'].to_numpy()))
-        if prntrmse: print(prntrmse.format(rmse))
+    loss_fn = torch.nn.MSELoss()
+    if prnt:
+        for x in sorted(eds.df['label_str'].unique()):
+            df:DataFrame = eds.df[eds.df['label_str']==x]
+            std = statistics.stdev(df['predicted_score'].to_numpy()) if len(df)>1 else 0
+            print(prnt.format(x,statistics.mean(df['predicted_score'].to_numpy()),std))
+    rmse = loss_fn(torch.tensor(eds.df['score'].to_numpy()), torch.tensor(eds.df['predicted_score'].to_numpy()))
+    if prntrmse: print(prntrmse.format(rmse))
+    ab_report(eds)
     return rmse
 
 
@@ -136,7 +148,7 @@ def train_predictor():
     if args['mode']=='meta':
         eds.update_prediction(predictor)
         tds.update_prediction(predictor)
-        return report(eds,None,None), report(tds,None,None)
+        return report(eds,None,None), report(tds,None,None), ab_report(eds,None)
         
 
 def print_args():
@@ -152,12 +164,12 @@ if __name__=='__main__':
 
     if args['mode']=='meta':
         with open("meta.txt",'w') as f:
-            print("epochs,lr,train_loss,eval_loss", file=f)
+            print("epochs,lr,train_loss,eval_loss,ab", file=f)
             for lr in args['meta_lr']:
                 for epochs in args['meta_epochs']:
                     training_args['num_train_epochs'] = epochs
                     training_args['learning_rate'] = lr
-                    eval_loss, train_loss = train_predictor()
-                    print(f"{epochs},{lr},{train_loss},{eval_loss}",file=f, flush=True)
+                    eval_loss, train_loss, ab = train_predictor()
+                    print(f"{epochs},{lr},{train_loss},{eval_loss},{ab}",file=f, flush=True)
     else:
         train_predictor()
