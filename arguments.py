@@ -1,7 +1,7 @@
 args = {
     # "train", "evaluate", or "spotlight"  (spotlight requires 'pip install spotlight')
     # or 'train,evaluate' which does a train, saves, and then evaluates the newly saved model
-    # (not implemented for aesthetic)
+    # (for aesthetic, always does train and evaluate, spotlight can be added here)
     "mode"                      : "train,evaluate",
 
     # the base model (automatically downloaded if required)   patch16-384
@@ -22,18 +22,17 @@ args = {
     "fraction_for_test"         : 0.25,
     "test_pick_seed"            : 42,        
 
-    # evaluate test set at end of each n epochs
+    # evaluate test set at end of each n epochs (0 for 'don't')
     "eval_every_n_epochs"       : 50,            
 
-    # weight the loss by the inverse of the number of images in each category? 
+    # weight the loss by the inverse of the number of images in each category? Not applied in aesthetic trainer
     "weight_category_loss"      : True,
 
     # aesthetic model dropouts - default dropouts are [0.2,0.2,0.1]. 
-    # Dropouts are mostly to stop overtraining...
     "aesthetic_model_dropouts"  : [0.2,0.2,0.1],
 
     # The aesthetic model has no activators - this seems wrong to me. This inserts them.
-    "relu"                      : True,
+    "aesthetic_model_relu"      : True,
 
     # experimental - leave False!(not implemented for aesthetic)
     "transfer_learning": False,
@@ -44,7 +43,7 @@ args = {
 # The most common training arguments. There are 101 arguments available
 # see https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer#transformers.TrainingArguments
 training_args = {
-    "num_train_epochs"              : 1000,
+    "num_train_epochs"              : 200,
     "learning_rate"                 : 2e-5,
     
     # these ones will depend on architecture and memory

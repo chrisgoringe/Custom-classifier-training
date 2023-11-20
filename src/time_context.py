@@ -2,7 +2,7 @@ import time
 
 class Timer:
     depth = 0
-    max_depth = 1
+    max_depth = 2
     default_callback = print
     default_informat = " {:>20}"
     default_outformat = " {:>20} {:>9.2f} s"
