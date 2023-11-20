@@ -83,12 +83,14 @@ class EvaluationCallback(TrainerCallback):
 def report(eds:QuickDataset, prnt:str, prntrmse:str="mse loss {:>6.3}"):
     with Timer('Evaluate'):
         loss_fn = torch.nn.MSELoss()
-        for x in eds.df['label_str'].unique():
-            df:DataFrame = eds.df[eds.df['label_str']==x]
-            std = statistics.stdev(df['predicted_score'].to_numpy()) if len(df)>1 else 0
-            print(prnt.format(x,statistics.mean(df['predicted_score'].to_numpy()),std))
+        if prnt:
+            for x in eds.df['label_str'].unique():
+                df:DataFrame = eds.df[eds.df['label_str']==x]
+                std = statistics.stdev(df['predicted_score'].to_numpy()) if len(df)>1 else 0
+                print(prnt.format(x,statistics.mean(df['predicted_score'].to_numpy()),std))
         rmse = loss_fn(torch.tensor(eds.df['score'].to_numpy()), torch.tensor(eds.df['predicted_score'].to_numpy()))
-        print(prntrmse.format(rmse))
+        if prntrmse: print(prntrmse.format(rmse))
+    return rmse
 
 
 def train_predictor():
@@ -122,15 +124,20 @@ def train_predictor():
                         callbacks = [EvaluationCallback(every=args['eval_every_n_epochs'], datasets=[ds,eds], labels=["all","test"], shuffles=[False,True])], 
                      ).train()
 
-        #predictor.remove_relu()
         save_file(predictor.state_dict(),os.path.join(args['save_model'],"model.safetensors"))
 
-        if have_spotlight and 'spotlight' in args['mode']: 
-            ds.update_prediction(predictor)
-            try:
-                spotlight.show(ds.df)
-            except:
-                pass
+    if have_spotlight and 'spotlight' in args['mode']: 
+        ds.update_prediction(predictor)
+        try:
+            spotlight.show(ds.df)
+        except:
+            pass
+
+    if args['mode']=='meta':
+        eds.update_prediction(predictor)
+        tds.update_prediction(predictor)
+        return report(eds,None,None), report(tds,None,None)
+        
 
 def print_args():
     print("args:")
@@ -142,4 +149,15 @@ def print_args():
 
 if __name__=='__main__':
     print_args()
-    train_predictor()
+
+    if args['mode']=='meta':
+        with open("meta.txt",'w') as f:
+            print("epochs,lr,train_loss,eval_loss", file=f)
+            for lr in args['meta_lr']:
+                for epochs in args['meta_epochs']:
+                    training_args['num_train_epochs'] = epochs
+                    training_args['learning_rate'] = lr
+                    eval_loss, train_loss = train_predictor()
+                    print(f"{epochs},{lr},{train_loss},{eval_loss}",file=f, flush=True)
+    else:
+        train_predictor()

@@ -4,6 +4,10 @@ args = {
     # (for aesthetic, always does train and evaluate, spotlight can be added here)
     "mode"                      : "train,evaluate",
 
+    # with mode=='meta', use these metaparameters:
+    "meta_epochs" : [3,5,10],
+    "meta_lr"     : [2e-4, 5e-4, 1e-3],
+
     # the base model (automatically downloaded if required)   patch16-384
     # google/vit-base-patch16-224  and google/efficientnet-b5 (or b0...b7) are good ones to try
     # for aesthetic, models/sac+logos+ava1-l14-linearMSE.safetensors
@@ -23,7 +27,7 @@ args = {
     "test_pick_seed"            : 42,        
 
     # evaluate test set at end of each n epochs (0 for 'don't')
-    "eval_every_n_epochs"       : 50,            
+    "eval_every_n_epochs"       : 1,            
 
     # weight the loss by the inverse of the number of images in each category? Not applied in aesthetic trainer
     "weight_category_loss"      : True,
@@ -43,11 +47,11 @@ args = {
 # The most common training arguments. There are 101 arguments available
 # see https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer#transformers.TrainingArguments
 training_args = {
-    "num_train_epochs"              : 200,
-    "learning_rate"                 : 2e-5,
+    "num_train_epochs"              : 5,
+    "learning_rate"                 : 2e-4,
     
     # these ones will depend on architecture and memory
-    "per_device_train_batch_size"   : 32,   
+    "per_device_train_batch_size"   : 4,   
     "gradient_accumulation_steps"   : 1,  
     "per_device_eval_batch_size"    : 128,
 
