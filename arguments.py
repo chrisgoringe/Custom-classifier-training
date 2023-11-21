@@ -2,22 +2,24 @@ args = {
     # "train", "evaluate", or "spotlight"  (spotlight requires 'pip install spotlight')
     # or 'train,evaluate' which does a train, saves, and then evaluates the newly saved model
     # (for aesthetic, always does train and evaluate, spotlight can be added here)
-    "mode"                      : "train,evaluate",
+    "mode"                      : "meta",#"train,evaluate",
 
-    # with mode=='meta', use these metaparameters:
-    "meta_epochs" : [3,5,10],
-    "meta_lr"     : [2e-4, 5e-4, 1e-3],
+    # with mode=='meta', use these metaparameters (leave as [] to just use value below)
+    "meta_epochs" : [200],
+    "meta_lr"     : [3e-3],
+    "meta_batch"  : [4,8,16],
 
     # the base model (automatically downloaded if required)   patch16-384
     # google/vit-base-patch16-224  and google/efficientnet-b5 (or b0...b7) are good ones to try
     # for aesthetic, models/sac+logos+ava1-l14-linearMSE.safetensors
     "base_model"                : "models/sac+logos+ava1-l14-linearMSE.safetensors",    
+    "_base_model" : "google/vit-base-patch16-224",
 
     # if restarting a previous run, this is the folder to load from. If None or '', the base_model is used. Required for evaluate or spotlight
     "load_model"                : "",     
 
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : "training/anime-aesthetic",
+    "save_model"                : "training/aesthetic",
 
     # path to the top level image directory, which should contain one subdirectory per image class, named for the image class
     "top_level_image_directory" : "C:\\Users\\chris\\Documents\\GitHub\\ComfyUI_windows_portable\\ComfyUI\\output\\compare", 
@@ -27,10 +29,13 @@ args = {
     "test_pick_seed"            : 42,        
 
     # evaluate test set at end of each n epochs (0 for 'don't')
-    "eval_every_n_epochs"       : 1,            
+    "eval_every_n_epochs"       : 10,            
 
     # weight the loss by the inverse of the number of images in each category? Not applied in aesthetic trainer
     "weight_category_loss"      : True,
+
+    # loss model. Currently only 'mse' or 'ranking'. Only used for aesthetic trainer
+    "loss_model" : 'ranking',
 
     # aesthetic model dropouts - default dropouts are [0.2,0.2,0.1]. 
     "aesthetic_model_dropouts"  : [0.2,0.2,0.1],
@@ -47,11 +52,19 @@ args = {
 # The most common training arguments. There are 101 arguments available
 # see https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer#transformers.TrainingArguments
 training_args = {
-    "num_train_epochs"              : 5,
-    "learning_rate"                 : 2e-4,
+    # number of steps = images * epochs / batch
+    # rule of thumb: steps * learning_rate = 10   (images ~ 1000)
+    # 4e-4, batch 2, 50 epochs
+
+    "num_train_epochs"              : 100,
+    "learning_rate"                 : 4e-3,
+
+    #
+    "lr_scheduler_type" : "cosine",
+    "warmup_ratio" : 0.1,
     
     # these ones will depend on architecture and memory
-    "per_device_train_batch_size"   : 4,   
+    "per_device_train_batch_size"   : 8,   
     "gradient_accumulation_steps"   : 1,  
     "per_device_eval_batch_size"    : 128,
 

@@ -4,7 +4,7 @@ from safetensors.torch import save_file
 import os, random, statistics
 from src.time_context import Timer
 from src.data_holder import DataHolder
-from transformers import Trainer, TrainerControl, TrainerState, TrainingArguments, TrainerCallback
+from transformers import TrainerControl, TrainerState, TrainingArguments, TrainerCallback
 from pandas import DataFrame
 try:
     from renumics import spotlight
@@ -15,25 +15,7 @@ except:
 from arguments import training_args, args
 from src.clip import CLIP
 from src.aesthetic_predictor import AestheticPredictor
-
-class CustomTrainer(Trainer):
-    def __init__(self, model, train_dataset, eval_dataset, **kwargs):
-        super().__init__(model, **kwargs)
-        self.train_dataset = train_dataset
-        self.eval_dataset = eval_dataset
-        self.loss_fn = nn.MSELoss()
-
-    def compute_loss(self, model, inputs, return_outputs=False):
-        scores = inputs['y']
-        outputs = model(inputs['x'])
-        loss = self.loss_fn(scores, torch.squeeze( outputs ))
-        return (loss, outputs) if return_outputs else loss
-    
-    def get_train_dataloader(self):
-        return torch.utils.data.DataLoader(self.train_dataset, batch_size=training_args['per_device_train_batch_size'])
-    
-    def get_eval_dataloader(self, eds):
-        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=training_args['per_device_eval_batch_size'])
+from src.ap_trainers import CustomTrainer
     
 class QuickDataset(torch.utils.data.Dataset):
     def __init__(self, df:DataFrame):
@@ -92,7 +74,7 @@ def ab_report(ds:QuickDataset, prnt="AB: {:>5}/{:<5} correct ({:>5.2f}%)"):
     return right/(right+wrong)
     
 
-def report(eds:QuickDataset, prnt:str, prntrmse:str="mse loss {:>6.3}"):
+def report(eds:QuickDataset, prnt:str, prntrmse:str="rms error {:>6.3}"):
     loss_fn = torch.nn.MSELoss()
     if prnt:
         for x in sorted(eds.df['label_str'].unique()):
@@ -103,7 +85,6 @@ def report(eds:QuickDataset, prnt:str, prntrmse:str="mse loss {:>6.3}"):
     if prntrmse: print(prntrmse.format(rmse))
     ab_report(eds)
     return rmse
-
 
 def train_predictor():
     pretrained = os.path.join(args['load_model'],"model.safetensors") if ('load_model' in args and args['load_model']) else args['base_model']
@@ -129,12 +110,13 @@ def train_predictor():
     report(ds, "Start (train+eval): folder {:>1} average score {:>5.3f} +/ {:>5.3f}")
 
     with Timer('train model'):
-        CustomTrainer(  model = predictor, 
-                        train_dataset = tds,
-                        eval_dataset = eds,
-                        args = TrainingArguments( remove_unused_columns=False, push_to_hub=False, output_dir=args['save_model'], **training_args ), 
-                        callbacks = [EvaluationCallback(every=args['eval_every_n_epochs'], datasets=[ds,eds], labels=["all","test"], shuffles=[False,True])], 
-                     ).train()
+        train_args = TrainingArguments( remove_unused_columns=False, push_to_hub=False, output_dir=args['save_model'], **training_args )
+        callback = EvaluationCallback(every=args['eval_every_n_epochs'], datasets=[ds,eds], labels=["all","test"], shuffles=[False,True])
+
+        CustomTrainer.trainer(  loss = args['loss_model'], model = predictor, 
+                                train_dataset = tds, eval_dataset = eds, 
+                                args = train_args, callbacks = [callback,], 
+                            ).train()
 
         save_file(predictor.state_dict(),os.path.join(args['save_model'],"model.safetensors"))
 
@@ -164,12 +146,14 @@ if __name__=='__main__':
 
     if args['mode']=='meta':
         with open("meta.txt",'w') as f:
-            print("epochs,lr,train_loss,eval_loss,ab", file=f)
-            for lr in args['meta_lr']:
-                for epochs in args['meta_epochs']:
-                    training_args['num_train_epochs'] = epochs
-                    training_args['learning_rate'] = lr
-                    eval_loss, train_loss, ab = train_predictor()
-                    print(f"{epochs},{lr},{train_loss},{eval_loss},{ab}",file=f, flush=True)
+            print("epochs,lr,batch,train_loss,eval_loss,ab", file=f)
+            for lr in args['meta_lr'] if args['meta_lr'] else [training_args['learning_rate'],]:
+                for epochs in args['meta_epochs'] if args['meta_epochs'] else [training_args['num_train_epochs'],]:
+                    for batch in args['meta_batch'] if args['meta_batch'] else [training_args['per_device_train_batch_size'],]:
+                        training_args['num_train_epochs'] = epochs
+                        training_args['learning_rate'] = lr
+                        training_args['per_device_train_batch_size'] = batch
+                        eval_loss, train_loss, ab = train_predictor()
+                        print(f"{epochs},{lr},{batch},{train_loss},{eval_loss},{ab}",file=f, flush=True)
     else:
         train_predictor()

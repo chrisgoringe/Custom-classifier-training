@@ -1,6 +1,6 @@
 import os, json
 import pandas as pd
-import random
+import random, json
 
 def valid_image(filepath:str):
     if os.path.basename(filepath).startswith("."): return False
@@ -19,10 +19,13 @@ class DataHolder:
         self.labels = [d for d in os.listdir(top_level) if valid_directory(os.path.join(top_level,d))]
         self.directories = [os.path.join(top_level,d) for d in self.labels]
         if model_folder:
-            if not os.path.exists(model_folder):
-                os.makedirs(model_folder)
-            with open(os.path.join(model_folder,"categories.json"),'w') as f:
-                json.dump({"categories":[os.path.basename(d) for d in self.directories]}, f)
+            if os.path.exists(os.path.join(model_folder,'score.json')):
+                self.dataframe_from_scorefile(model_folder)
+            else:
+                if not os.path.exists(model_folder):
+                    os.makedirs(model_folder)
+                with open(os.path.join(model_folder,"categories.json"),'w') as f:
+                    json.dump({"categories":[os.path.basename(d) for d in self.directories]}, f)
         self.fraction_for_test = fraction_for_test
         self.test_pick_seed = test_pick_seed
         self.df = None
@@ -32,6 +35,13 @@ class DataHolder:
     
     def weights(self):
         return {label:len(self.df)/len(self.df[self.df['label_str']==label]) for label in self.labels}
+    
+    def dataframe_from_scorefile(self, image_folder):
+        with open(os.path.join(image_folder,"score.json"),'r') as f:
+            image_scores = json.load(f)
+            self.df = pd.DataFrame(columns=["image","label_str","split"])
+            for f in image_scores:
+                self.df.loc[len(self.df)] = [os.path.join(image_folder,f), str(image_scores[f]), self.split()]
 
     def get_dataframe(self) -> pd.DataFrame:
         if self.df is None:

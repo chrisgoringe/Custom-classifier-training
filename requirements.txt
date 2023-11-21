@@ -2,3 +2,6 @@ pandas
 datasets
 transformers
 transformers[torch]
+
+customtkinter
+spotlight
