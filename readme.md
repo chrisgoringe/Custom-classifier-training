@@ -1,31 +1,42 @@
 # Custom Classifier and Custom Aesthetic Training
 
-Script to train (and evaluate) a custom image classifier in a way that is suitable for use with the Custom Classifier ComfyUI nodes (coming soon!).
+(latest update 22 Nov 2023)
 
-They are generic models, so should work for any other use for that matter.
+Script to train (and evaluate) a custom image classifier in a way that is suitable for use with the Custom Classifier ComfyUI nodes (coming soon!). Also scripts to train (and evaluate) a custom aesthetic model for evaluating images according to personal taste (or another criteria).
+
+They are generic models, so should work for any other use.
 
 ## Install
 
 In some suitable directory,
 ```
 git clone https://github.com/chrisgoringe/custom-classifier-training
-pip install git+https://github.com/openai/CLIP.git for aesthetic models
 ```
 
 ## Virtual environment
 
-Any virtual environment that you use for torch stuff will probably work (for instance, if you run ComfyUI, use that one).
+Any virtual environment that you use for torch stuff will probably work (for instance, if you run ComfyUI, use that one). For the aesthetic models you might need 
+```
+pip install git+https://github.com/openai/CLIP.git  
+```
 
 If creating a new one, first [install torch](https://pytorch.org/get-started/locally/), then 
 ```
-pip install -r requirements.txt
+pip install git+https://github.com/openai/CLIP.git                   
+pip install -r requirements.txt                                      
 ```
+
+If any errors come up about uninstalled packages, try
+```
+pip install -r requirements.txt 
+```
+or just `pip install [name of package]`
 
 # Custom Classifier
 
 ## Setup your images
 
-Create a subdirectory, say `images`, as your `top_level_image_directory`. In it create one subdirectory per category, named for the category. So, for instance, `images/good` and `images/bad`.
+Create a subdirectory, say `images`, as your `top_level_image_directory`. In it create one subdirectory per category, named for the category. So, for instance, `images/dog` and `images/cat`.
 
 Folders and files that start with `.` are ignored; folders which contain no images are ignored. Images are assumed to have extension `.png`, `.jpg` or `.jpeg`. Edit `src/data_holder.py` line 8 if you have other image extensions.
 
@@ -43,11 +54,11 @@ Basic settings:
     "top_level_image_directory" : "path/to/images", 
 ```
 
-Read through arguments.py to see other things you can change, it isn't very long.
+Read through arguments.py to see other things you can change, it isn't very long. Most of the standard training options are in the second half (`training_args`), they get passed straight through to the transfomers trainer.
 
 ## Pretrained models 
 
-This script is for customising pretrained models (`base_model` in the configuration). It's been tested with `google/vit-base-patch16-224-in21k` and `google/efficientnet-b5` and should work with the other efficientnets (b0...b7 in increasing size and complexity) and ViT architectures. 
+This script is for customising pretrained models (`base_model` in the configuration). It's been tested with `google/vit-base-patch16-224` and `google/efficientnet-b5` and should work with the other efficientnets (b0...b7 in increasing size and complexity) and ViT architectures. 
 
 It might well work with any transformers based model. 
 
@@ -61,7 +72,12 @@ Create a subdirectory, say `images`, as your `top_level_image_directory`. In it 
 
 *Either* create a set of subdirectories with integer value names ('1', '2' etc) each of which contains images rated with that score, 
 
-*Or* create one or more arbitrary subdirectories of images, and provide a `score.json` file (which can be created by the human_aesthetic_score.py script).
+*Or* create one or more arbitrary subdirectories of images, and provide a `score.json` file (which can be created by the aesthetic_ab_scorer.py script - see below).
+
+IMHO the second option is superior, because it:
+- scores images on a continuum
+- copes with the fact that your preferences aren't consistently objectively linear
+- deals easily with adding new images
 
 ## Configuration and running
 
@@ -80,6 +96,8 @@ Basic settings:
 ```
 
 Read through arguments.py to see other things you can change, it isn't very long.
+
+`loss_model` allows you to train the model in one of two ways. 'mse' uses a mean square error loss - that is, the model will try to reproduce the absolute values of the scores given to the images. `ranking` uses a Margin Ranking Loss, which aims to reproduce the correct *ranking* of images ('which of these two is better?'). If you use `ranking` (which is my preferred approach), note that the batch_size needs to be an even number (because images are compared in pairs), and if you set learning_rate too high you might get into a state where the model rates every image the same. If loss goes to zero, that's the problem; just reduce learning rate (or increase warmup).
 
 ## Your aesthetic ratings: score.json
 
@@ -142,9 +160,17 @@ then `python aesthetic_score_from_model.py`
 
 ---
 
+# Metaparameter searching
+
+Use mode meta, and then provide lists of number of epochs, batch size, and learning rate. The code will permute through all of them and produce a comma separated file `meta.txt`. Good for finding the right training parameters.
+
+Currently only works with the aesthetic model training (mostly because it is really fast!).
+
+---
+
 # Spotlight
 
-[Spotlight](https://github.com/Renumics/spotlight) is a gui for analysing datasets. If you install it (probably just `pip install spotlight`) you can use `"mode":"spotlight"`, which works like evaluate, but launches spotlight with the resulting data.
+[Spotlight](https://github.com/Renumics/spotlight) is a gui for analysing datasets. If you install it you can use `"mode":"spotlight"`, which works like evaluate, but launches spotlight with the resulting data.
 
 ## Use or share your model - custom classifier
 

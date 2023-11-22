@@ -46,6 +46,7 @@ class DataHolder:
     def dataframe_from_scorefile(self, image_folder):
         with open(os.path.join(image_folder,"score.json"),'r') as f:
             image_scores = json.load(f)
+            image_scores.pop('#meta#',None)
             for f in image_scores:
                 self.df.loc[len(self.df)] = [os.path.join(image_folder,f), str(image_scores[f]), self.split()]
 
