@@ -55,4 +55,4 @@ def main():
         db.save()
 
 if __name__=='__main__':
-    main()
+    with Timer("Main"): main()

@@ -1,4 +1,4 @@
-import random, json, os, math
+import random, json, os, math, shutil
 from PIL import Image
 import time
 
@@ -17,6 +17,7 @@ class Database:
             with open(os.path.join(cls.image_directory,"score.json"),'r') as f:
                 cls.image_scores = json.load(f)
                 cls.meta = cls.image_scores.pop("#meta#",{})
+            shutil.copyfile(os.path.join(cls.image_directory,"score.json"), os.path.join(cls.image_directory,"score-backup.json"))
         except:
             print("Didn't reload scores")
             cls.image_scores = {}
@@ -63,7 +64,7 @@ class Database:
 
     def report(self):
         z = sum(self.image_scores[x]==0 for x in self.image_scores)
-        print("{:>4} images in {:>6.1f} s".format(sum(self.stats), time.monotonic()-self.started))
+        print("{:>4} image pairs in {:>6.1f} s".format(sum(self.stats), time.monotonic()-self.started))
         print(f"{z}/{len(self.image_scores)} of the images are rated zero")
         print("{:>3} choices matched prediction, {:>3} contradicted prediction [{:>3} not predicted] = ({:>5.2f}%) ".format(
             *self.stats, 100*self.stats[0]/(self.stats[0]+self.stats[1])))
