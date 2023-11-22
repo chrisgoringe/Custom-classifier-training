@@ -38,7 +38,10 @@ aesthetic_training_args = {
     "meta_lr"     : [1e-5,1e-4,1e-3],
     "meta_batch"  : [4,8,16],
 
-    # loss model. Currently only 'mse' or 'ranking'. 
+    # format string for meta.csv (epochs,lr,batch,train_loss,eval_loss,train_ab,eval_ab,time)
+    "meta_fmt"    : "{:>4},{:>8.2},{:>3},{:>8.4f},{:>8.4f},{:>6.4f},{:>6.4f},{:>6.1f}",
+
+    # loss model. 'mse' or 'ranking'. 
     "loss_model"                : 'ranking',
 
     # ignore unscored images when training?
