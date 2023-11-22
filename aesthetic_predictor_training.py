@@ -1,40 +1,54 @@
-import torch
-from safetensors.torch import save_file
-import os, random, statistics
 from src.time_context import Timer
-from src.data_holder import DataHolder
-from transformers import TrainerControl, TrainerState, TrainingArguments, TrainerCallback
-from pandas import DataFrame
-try:
-    from renumics import spotlight
-    have_spotlight = True
-except:
-    have_spotlight = False
+with Timer("Python imports"):
+    import torch
+    from safetensors.torch import save_file
+    import os, random, statistics
 
-from arguments import training_args, args
-from src.ap.clip import CLIP
-from src.ap.aesthetic_predictor import AestheticPredictor
-from src.ap.ap_trainers import CustomTrainer
+    from src.data_holder import DataHolder
+    from transformers import TrainerControl, TrainerState, TrainingArguments, TrainerCallback
+    from pandas import DataFrame
+    try:
+        from renumics import spotlight
+        have_spotlight = True
+    except:
+        have_spotlight = False
+
+    from arguments import training_args, args, get_args
+    from src.ap.clip import CLIP
+    from src.ap.aesthetic_predictor import AestheticPredictor
+    from src.ap.ap_trainers import CustomTrainer
     
 class QuickDataset(torch.utils.data.Dataset):
-    def __init__(self, df:DataFrame):
-        self.df = df
-        self.map = list(range(len(self)))
+    def __init__(self, df:DataFrame, split:str=None):
+        self._df = df
+        self.map = [i for i in range(len(df)) if (not split or df['split'].array[i]==split)]
         self.shuffle()
 
     def __getitem__(self, i):
-        x = self.df['features'].array[self.map[i]]
-        y = torch.tensor(self.df['score'].array[self.map[i]], dtype=torch.float)
+        x = self._df['features'].array[self.map[i]]
+        y = torch.tensor(self._df['score'].array[self.map[i]], dtype=torch.float)
         return {"x":x, "y":y}
 
     def __len__(self):
-        return len(self.df)
+        return len(self.map)
     
     def shuffle(self):
         random.shuffle(self.map)
 
     def update_prediction(self, predictor:AestheticPredictor):
-        self.df['predicted_score'] = (predictor.evaluate_files(self.df['image'], eval_mode=True))
+        self._df['predicted_score'] = (predictor.evaluate_files(self._df['image'], eval_mode=True))
+
+    def column(self, col:str) -> list:
+        return [self._df[col].array[x] for x in self.map]
+    
+    def column_where(self, col:str, match_col:str, match:str) -> list:
+        return [self._df[col].array[x] for x in self.map if self._df[match_col].array[x]==match] 
+    
+    def columns(self, *args) -> list:
+        cols = []
+        for x in self.map:
+            cols.append(tuple(self._df[col].array[x] for col in args))
+        return cols
 
 class EvaluationCallback(TrainerCallback):
         def __init__(self, every, datasets, labels, shuffles):
@@ -46,7 +60,7 @@ class EvaluationCallback(TrainerCallback):
             for dataset, label, _ in self.datasets:
                 with torch.no_grad():
                     dataset.update_prediction(predictor)
-                print(f"\n\n====\nEpoch {str(state.epoch)} ({label}): ")
+                print(f"====\nEpoch {str(state.epoch)} ({label}): ")
                 report(dataset, "folder {:>1} average score {:>5.3f} +/ {:>5.3f}")
                 print("====")
 
@@ -63,7 +77,7 @@ class EvaluationCallback(TrainerCallback):
 def ab_report(ds:QuickDataset, prnt="AB: {:>5}/{:<5} correct ({:>5.2f}%)"):
     right = 0
     wrong = 0
-    true_predicted = list(zip(ds.df['score'], ds.df['predicted_score']))
+    true_predicted = ds.columns('score','predicted_score')
     for i, a in enumerate(true_predicted):
         for b in true_predicted[i+1:]:
             if a[0]==b[0]: continue
@@ -72,15 +86,14 @@ def ab_report(ds:QuickDataset, prnt="AB: {:>5}/{:<5} correct ({:>5.2f}%)"):
     if prnt: print(prnt.format(right,right+wrong,100*right/(right+wrong)))
     return right/(right+wrong)
     
-
 def report(eds:QuickDataset, prnt:str, prntrmse:str="rms error {:>6.3}"):
     loss_fn = torch.nn.MSELoss()
     if prnt and not args['loss_model']=='ranking':
-        for x in sorted(eds.df['label_str'].unique()):
-            df:DataFrame = eds.df[eds.df['label_str']==x]
-            std = statistics.stdev(df['predicted_score'].to_numpy()) if len(df)>1 else 0
-            print(prnt.format(x,statistics.mean(df['predicted_score'].to_numpy()),std))
-    rmse = loss_fn(torch.tensor(eds.df['score'].to_numpy()), torch.tensor(eds.df['predicted_score'].to_numpy()))
+        for x in sorted(set(eds.column('label_str'))):
+            scores = eds.column_where('predicted_score','label_str',x)
+            std = statistics.stdev(scores) if len(scores)>1 else 0
+            print(prnt.format(x,statistics.mean(scores),std))
+    rmse = loss_fn(torch.tensor(eds.column('score')), torch.tensor(eds.column('predicted_score')))
     if prntrmse and not args['loss_model']=='ranking': print(prntrmse.format(rmse))
     ab_report(eds)
     return rmse
@@ -101,8 +114,8 @@ def train_predictor():
             df['features'] = [clipper.prepare_from_file(f, device="cpu") for f in df['image']]
             clipper.save_cache()
         df['score'] = [float(l) for l in df['label_str']]
-        tds = QuickDataset(df[df["split"] == 'train'])
-        eds = QuickDataset(df[df["split"] == 'test'])
+        tds = QuickDataset(df, 'train')
+        eds = QuickDataset(df, 'test')
 
     with torch.no_grad():
         ds.update_prediction(predictor)
@@ -122,36 +135,27 @@ def train_predictor():
     if have_spotlight and 'spotlight' in args['mode']: 
         ds.update_prediction(predictor)
         try:
-            spotlight.show(ds.df)
+            spotlight.show(ds._df)
         except:
             pass
 
     if args['mode']=='meta':
-        eds.update_prediction(predictor)
-        tds.update_prediction(predictor)
-        return report(eds,None,None), report(tds,None,None), ab_report(eds,None)
-
-def print_args():
-    print("args:")
-    for a in args:
-        print("{:>30} : {:<40}".format(a, str(args[a])))
-    print("trainging_args")
-    for a in training_args:
-        print("{:>30} : {:<40}".format(a, str(training_args[a])))
+        ds.update_prediction(predictor)
+        return report(eds,None,None), report(tds,None,None), ab_report(eds,None), ab_report(tds,None)
 
 if __name__=='__main__':
-    print_args()
+    get_args(aesthetic_training=True)
 
     if args['mode']=='meta':
-        with open("meta.txt",'w') as f:
-            print("epochs,lr,batch,train_loss,eval_loss,ab", file=f)
+        with open("meta.csv",'w') as f:
+            print("epochs,lr,batch,train_loss,eval_loss,train_ab,eval_ab", file=f)
             for lr in args['meta_lr'] if args['meta_lr'] else [training_args['learning_rate'],]:
                 for epochs in args['meta_epochs'] if args['meta_epochs'] else [training_args['num_train_epochs'],]:
                     for batch in args['meta_batch'] if args['meta_batch'] else [training_args['per_device_train_batch_size'],]:
                         training_args['num_train_epochs'] = epochs
                         training_args['learning_rate'] = lr
                         training_args['per_device_train_batch_size'] = batch
-                        eval_loss, train_loss, ab = train_predictor()
-                        print(f"{epochs},{lr},{batch},{train_loss},{eval_loss},{ab}",file=f, flush=True)
+                        eval_loss, train_loss, eval_ab, train_ab = train_predictor()
+                        print(f"{epochs},{lr},{batch},{train_loss},{eval_loss},{train_ab},{eval_ab}",file=f, flush=True)
     else:
         train_predictor()

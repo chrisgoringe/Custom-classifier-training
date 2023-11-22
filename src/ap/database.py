@@ -3,8 +3,9 @@ from PIL import Image
 import time
 
 class Database:
-    def __init__(self, img_dir, k=0.7):
+    def __init__(self, img_dir, args, k=0.7):
         self.image_directory = img_dir
+        self.args = args
         self.load()
         self.recursive_add()
         self.keys = list(self.image_scores.keys())
@@ -37,12 +38,20 @@ class Database:
         if self.missing_files:
             print(f"{len(self.missing_files)} image file{'s are' if len(self.missing_files)>1 else ' is'} in score.json but not found.")
             print("They will be kept in score.json but not made available to training.")
+        if self.args['ignore_score_zero']:
+            self.zeroes = {f:self.image_scores[f] for f in self.image_scores if self.image_scores[f]==0}
+            print(f"{len(self.zeroes)} image file{'s are' if len(self.zeroes)>1 else ' is'} in score.json but have score 0.")
+            print("They will be kept in score.json but not made available to training.")
+        else:
+            self.zeroes = {}
         self.remove_missing()
 
     def remove_missing(self):
         for file in self.missing_files: self.image_scores.pop(file)
+        for file in self.zeroes: self.image_scores.pop(file,None)  # in case it's in both
 
     def replace_missing(self):
+        for file in self.zeroes: self.image_scores[file] = self.zeroes[file]
         for file in self.missing_files: self.image_scores[file] = self.missing_files[file]
 
     def scores_for_matching(self, reg):

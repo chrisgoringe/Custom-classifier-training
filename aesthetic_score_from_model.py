@@ -1,4 +1,4 @@
-from arguments import args
+from arguments import args, get_args
 
 from src.ap.aesthetic_predictor import AestheticPredictor
 from src.ap.database import Database
@@ -8,6 +8,7 @@ from src.time_context import Timer
 import os, statistics, math
 
 def main():
+    get_args()
     assert args['top_level_image_directory'], "Need an image directory"
     assert args['load_model'], "Need to load a model"
 
@@ -38,6 +39,9 @@ def main():
     
     with Timer("Offset by mean and apply tanh") as logger:
         new_predictions = { a[1]: math.tanh(a[0]-mean) for a in all_predicted_scores if db.image_scores[a[1]]==0 }
+        if len(new_predictions)<2:
+            logger(f"Can't add fewer than two new images - got {len(new_predictions)}")
+            return
         std_predictions = statistics.stdev([new_predictions[a] for a in new_predictions])
         mean_predictions = statistics.mean([new_predictions[a] for a in new_predictions])
         logger(f"Std dev. of prediction scores = {std_predictions}")

@@ -3,7 +3,7 @@ from src.data_holder import DataHolder
 from src.training import finetune
 from src.prediction import predict
 from src.time_context import Timer 
-from arguments import args,evaluation_args,training_args
+from arguments import args,training_args,get_args
 
 VERSION = "0.3"
 
@@ -29,6 +29,7 @@ def check_arguments():
         assert 'save_model' in args and args['save_model'], "Training needs a save_model location!"
     
 def main():
+    get_args(category_training=True)
     check_arguments()
     df, category_sizes = load_data()
         
