@@ -2,27 +2,29 @@ args = {
     # "train", "evaluate", or "spotlight"  (spotlight requires 'pip install spotlight')
     # or 'train,evaluate' which does a train, saves, and then evaluates the newly saved model
     # (for aesthetic, always does train and evaluate, spotlight can be added here)
-    "mode"                      : "meta",#"train,evaluate",
+    "mode"                      : "train,evaluate",
 
-    # with mode=='meta', use these metaparameters (leave as [] to just use value below)
-    "meta_epochs" : [200],
-    "meta_lr"     : [3e-3],
+    # with mode=='meta', use these metaparameters (list of values to permute through)
+    "meta_epochs" : [50,100,200],
+    "meta_lr"     : [1e-3,3e-3,1e-2],
     "meta_batch"  : [4,8,16],
 
-    # the base model (automatically downloaded if required)   patch16-384
+    # the base model (automatically downloaded if required)   
     # google/vit-base-patch16-224  and google/efficientnet-b5 (or b0...b7) are good ones to try
     # for aesthetic, models/sac+logos+ava1-l14-linearMSE.safetensors
     "base_model"                : "models/sac+logos+ava1-l14-linearMSE.safetensors",    
-    "_base_model" : "google/vit-base-patch16-224",
 
     # if restarting a previous run, this is the folder to load from. If None or '', the base_model is used. Required for evaluate or spotlight
-    "load_model"                : "",     
+    "load_model"                : "training/aesthetic",     
 
     # folder to save the resulting model in. Required for training. 
     "save_model"                : "training/aesthetic",
 
-    # path to the top level image directory, which should contain one subdirectory per image class, named for the image class
+    # path to the top level image directory
     "top_level_image_directory" : "C:\\Users\\chris\\Documents\\GitHub\\ComfyUI_windows_portable\\ComfyUI\\output\\compare", 
+
+    # if there is a score.json file use this instead of the folder names for the score?
+    "use_score_file" : True,
 
     # what fraction of images to reserve as test images (not used in training), and a random seed for picking them
     "fraction_for_test"         : 0.25,
@@ -43,10 +45,8 @@ args = {
     # The aesthetic model has no activators - this seems wrong to me. This inserts them.
     "aesthetic_model_relu"      : True,
 
-    # experimental - leave False!(not implemented for aesthetic)
-    "transfer_learning": False,
-    "restart_layers": 0,
-    "thaw_layers": 7,
+    # The size (height) of the window used by the aesthetic_ab_scorer script
+    "ab_scorer_size"            : 600,
 }
 
 # The most common training arguments. There are 101 arguments available

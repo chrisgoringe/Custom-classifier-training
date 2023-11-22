@@ -83,13 +83,6 @@ def finetune( df, eval_df, category_sizes ):
         model = AutoModelForImageClassification.from_pretrained(args['load_model'], 
                                                                 num_labels=df["label"].nunique(), 
                                                                 ignore_mismatched_sizes=True)
-        
-        #pmw = PatchedModelWrapper(model, dim=32, dtype=model.dtype, device="cuda")
-        if args['transfer_learning']:
-            from .transfer_learning import TransferLearning
-            assert model.base_model_prefix == 'vit'
-            TransferLearning.prepare_model_for_transfer_learning(model, 
-                    TransferLearning.createRule(replace=args['restart_layers'], thaw=args['thaw_layers']))
             
         if args['weight_category_loss']:
             weights = [ sum(category_sizes)/category_sizes[i] for i in range(len(category_sizes)) ]

@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 from safetensors.torch import save_file
 import os, random, statistics
 from src.time_context import Timer
@@ -13,9 +12,9 @@ except:
     have_spotlight = False
 
 from arguments import training_args, args
-from src.clip import CLIP
-from src.aesthetic_predictor import AestheticPredictor
-from src.ap_trainers import CustomTrainer
+from src.ap.clip import CLIP
+from src.ap.aesthetic_predictor import AestheticPredictor
+from src.ap.ap_trainers import CustomTrainer
     
 class QuickDataset(torch.utils.data.Dataset):
     def __init__(self, df:DataFrame):
@@ -76,13 +75,13 @@ def ab_report(ds:QuickDataset, prnt="AB: {:>5}/{:<5} correct ({:>5.2f}%)"):
 
 def report(eds:QuickDataset, prnt:str, prntrmse:str="rms error {:>6.3}"):
     loss_fn = torch.nn.MSELoss()
-    if prnt:
+    if prnt and not args['loss_model']=='ranking':
         for x in sorted(eds.df['label_str'].unique()):
             df:DataFrame = eds.df[eds.df['label_str']==x]
             std = statistics.stdev(df['predicted_score'].to_numpy()) if len(df)>1 else 0
             print(prnt.format(x,statistics.mean(df['predicted_score'].to_numpy()),std))
     rmse = loss_fn(torch.tensor(eds.df['score'].to_numpy()), torch.tensor(eds.df['predicted_score'].to_numpy()))
-    if prntrmse: print(prntrmse.format(rmse))
+    if prntrmse and not args['loss_model']=='ranking': print(prntrmse.format(rmse))
     ab_report(eds)
     return rmse
 
@@ -91,11 +90,11 @@ def train_predictor():
     top_level_images = args['top_level_image_directory']
 
     with Timer('load models'):
-        clipper = CLIP()
+        clipper = CLIP(image_directory=top_level_images)
         predictor = AestheticPredictor(pretrained=pretrained, relu=args['aesthetic_model_relu'], clipper=clipper)
 
     with Timer('Prepare images'):
-        data = DataHolder(top_level=top_level_images)
+        data = DataHolder(top_level=top_level_images, save_model_folder=args['save_model'], use_score_file=args['use_score_file'])
         df = data.get_dataframe()
         ds = QuickDataset(df)
         with Timer('CLIP'):
@@ -131,7 +130,6 @@ def train_predictor():
         eds.update_prediction(predictor)
         tds.update_prediction(predictor)
         return report(eds,None,None), report(tds,None,None), ab_report(eds,None)
-        
 
 def print_args():
     print("args:")

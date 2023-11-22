@@ -17,9 +17,12 @@ class Timer:
         if Timer.depth <= Timer.max_depth:
             self.callback(">"*Timer.depth+self.informat.format(self.label))
         self._starttime = time.monotonic()
+        return self.message
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if Timer.depth <= Timer.max_depth:
             self.callback("<"*Timer.depth + self.outformat.format(self.label, time.monotonic()-self._starttime))
         Timer.depth -= 1
         
+    def message(self, m):
+        self.callback(" "*Timer.depth+" "+m)

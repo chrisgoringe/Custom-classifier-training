@@ -62,6 +62,9 @@ class AestheticPredictor(nn.Module):
         if as_sorted_tuple: scores.sort()
 
         return scores
+    
+    def evaluate_file(self, file):
+        return self.evaluate_files([file], eval_mode=True)[0]
             
     def evaluate_directory(self, directory, as_sorted_tuple=False, eval_mode=False):
         return self.evaluate_files([os.path.join(directory,f) for f in os.listdir(directory)], as_sorted_tuple, eval_mode)
