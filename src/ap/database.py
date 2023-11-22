@@ -1,4 +1,4 @@
-import random, json, os, math, shutil
+import random, json, os, math, shutil, regex
 from PIL import Image
 import time
 
@@ -11,6 +11,7 @@ class Database:
         self.k = k
         self.stats = [0,0,0]
         self.started = time.monotonic()
+        self.validate()
 
     def load(cls):
         try:
@@ -26,8 +27,27 @@ class Database:
     def save(self):
         with open(os.path.join(self.image_directory,"score.json"),'w') as f:
             self.image_scores['#meta#'] = self.meta
+            self.replace_missing()
             print(json.dumps(self.image_scores, indent=2),file=f)
             self.image_scores.pop('#meta#')
+            self.remove_missing()
+
+    def validate(self):
+        self.missing_files = {f:self.image_scores[f] for f in self.image_scores if not os.path.exists(os.path.join(self.image_directory, f))}
+        if self.missing_files:
+            print(f"{len(self.missing_files)} image file{'s are' if len(self.missing_files)>1 else ' is'} in score.json but not found.")
+            print("They will be kept in score.json but not made available to training.")
+        self.remove_missing()
+
+    def remove_missing(self):
+        for file in self.missing_files: self.image_scores.pop(file)
+
+    def replace_missing(self):
+        for file in self.missing_files: self.image_scores[file] = self.missing_files[file]
+
+    def scores_for_matching(self, reg):
+        r = regex.compile(reg)
+        return [self.image_scores[f] for f in self.image_scores if r.match(f)]
 
     def pick_images_and_scores(self):
         self.im1, self.im2 = random.sample(self.keys,2)
@@ -41,7 +61,7 @@ class Database:
         for f in os.listdir(dir):
             full = os.path.join(dir,f) 
             if os.path.isdir(full): self.recursive_add(full)
-            if os.path.splitext(f)[1] == ".png": 
+            if os.path.splitext(f)[1] == ".png" and dir!=self.image_directory: 
                 rel = os.path.relpath(full, self.image_directory)
                 if not rel in self.image_scores: self.image_scores[rel] = 0
 
@@ -66,7 +86,8 @@ class Database:
         z = sum(self.image_scores[x]==0 for x in self.image_scores)
         print("{:>4} image pairs in {:>6.1f} s".format(sum(self.stats), time.monotonic()-self.started))
         print(f"{z}/{len(self.image_scores)} of the images are rated zero")
-        print("{:>3} choices matched prediction, {:>3} contradicted prediction [{:>3} not predicted] = ({:>5.2f}%) ".format(
+        if (self.stats[0]+self.stats[1]):
+            print("{:>3} choices matched prediction, {:>3} contradicted prediction [{:>3} not predicted] = ({:>5.2f}%) ".format(
             *self.stats, 100*self.stats[0]/(self.stats[0]+self.stats[1])))
         print("A total of {:>6} comparisons have been made for {:>5} images ({:>5.2f} per image)".format(
             self.meta['evaluations'], len(self.image_scores), 2*self.meta['evaluations']/len(self.image_scores)))

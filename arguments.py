@@ -2,9 +2,9 @@ args = {
     # "train", "evaluate", or "spotlight"  (spotlight requires 'pip install spotlight')
     # or 'train,evaluate' which does a train, saves, and then evaluates the newly saved model
     # (for aesthetic, always does train and evaluate, spotlight can be added here)
-    "mode"                      : "train,evaluate",
+    "mode"                      : "",
 
-    # with mode=='meta', use these metaparameters (list of values to permute through)
+    # with mode=='meta' (currently aesthetic training only), use these metaparameters (list of values to permute through)
     "meta_epochs" : [50,100,200],
     "meta_lr"     : [1e-3,3e-3,1e-2],
     "meta_batch"  : [4,8,16],
@@ -47,6 +47,9 @@ args = {
 
     # The size (height) of the window used by the aesthetic_ab_scorer script
     "ab_scorer_size"            : 600,
+
+    # in AB scorer; optionally provide a list of regex strings; instead of running it will give statistics for images matching
+    "ab_analysis_regexes"       : [],#['^3','^4','^5','^6','^7','^batch2'],
 }
 
 # The most common training arguments. There are 101 arguments available
@@ -57,7 +60,7 @@ training_args = {
     # 4e-4, batch 2, 50 epochs
 
     "num_train_epochs"              : 100,
-    "learning_rate"                 : 4e-3,
+    "learning_rate"                 : 4e-4,
 
     #
     "lr_scheduler_type" : "cosine",

@@ -1,6 +1,7 @@
 import customtkinter
 from arguments import args
 from src.ap.database import Database
+import statistics
 
 class TheApp:
     def __init__(self, h, db:Database):
@@ -36,5 +37,15 @@ def main():
     db = Database(args['top_level_image_directory'])
     TheApp(args['ab_scorer_size'], db).app.mainloop()
 
+def analyse():
+    db = Database(args['top_level_image_directory'])
+    for r in args['ab_analysis_regexes']:
+        scores = db.scores_for_matching(r)
+        if len(scores)>1:
+            print("{:>20} : {:>3} images, score {:>6.3f} +/- {:>4.2f}".format(f"/{r}/",len(scores),statistics.mean(scores),statistics.stdev(scores)))
+
 if __name__=='__main__':
-    main()
+    if args['ab_analysis_regexes']:
+        analyse()
+    else:
+        main()
