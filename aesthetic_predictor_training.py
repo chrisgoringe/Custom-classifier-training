@@ -60,9 +60,8 @@ class EvaluationCallback(TrainerCallback):
             for dataset, label, _ in self.datasets:
                 with torch.no_grad():
                     dataset.update_prediction(predictor)
-                print(f"====\nEpoch {str(state.epoch)} ({label}): ")
+                print(f"==== Epoch {str(state.epoch)} ({label}): ")
                 report(dataset, "folder {:>1} average score {:>5.3f} +/ {:>5.3f}")
-                print("====")
 
         def on_epoch_end(self, arguments, state: TrainerState, control, **kwargs):
             for dataset, _, shuffle in self.datasets:
@@ -148,14 +147,17 @@ if __name__=='__main__':
 
     if args['mode']=='meta':
         with open("meta.csv",'w') as f:
-            print("epochs,lr,batch,train_loss,eval_loss,train_ab,eval_ab", file=f)
+            print("epochs,lr,batch,train_loss,eval_loss,train_ab,eval_ab,time", file=f)
             for lr in args['meta_lr'] if args['meta_lr'] else [training_args['learning_rate'],]:
                 for epochs in args['meta_epochs'] if args['meta_epochs'] else [training_args['num_train_epochs'],]:
                     for batch in args['meta_batch'] if args['meta_batch'] else [training_args['per_device_train_batch_size'],]:
                         training_args['num_train_epochs'] = epochs
                         training_args['learning_rate'] = lr
                         training_args['per_device_train_batch_size'] = batch
-                        eval_loss, train_loss, eval_ab, train_ab = train_predictor()
-                        print(f"{epochs},{lr},{batch},{train_loss},{eval_loss},{train_ab},{eval_ab}",file=f, flush=True)
+                        with Timer("meta-train") as m:
+                            eval_loss, train_loss, eval_ab, train_ab = train_predictor()
+                            time_taken = m(None)
+                        print(args['meta_fmt'].format(epochs, lr, batch, train_loss, eval_loss, train_ab, eval_ab, time_taken),file=f,flush=True)
+                        #print(f"{epochs},{lr},{batch},{train_loss},{eval_loss},{train_ab},{eval_ab}",file=f, flush=True)
     else:
         train_predictor()

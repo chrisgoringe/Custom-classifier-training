@@ -25,4 +25,5 @@ class Timer:
         Timer.depth -= 1
         
     def message(self, m):
-        self.callback(" "*Timer.depth+" "+m)
+        if m: self.callback(" "*Timer.depth+" "+m)
+        return time.monotonic()-self._starttime
