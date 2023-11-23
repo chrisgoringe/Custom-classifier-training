@@ -69,6 +69,7 @@ aesthetic_analysis_args = {
     # in AB scorer; optionally provide a list of regex strings; instead of running it will give statistics for images matching
     "ab_analysis_regexes"       : ['^3','^4','^5','^6','^7','^batch2','^batch3','^batch4'],
     "ignore_score_zero"         : True,
+    "use_model_scores_for_stats": True,
 }
 
 # The most common training arguments. There are 101 arguments available

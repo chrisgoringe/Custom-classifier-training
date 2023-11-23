@@ -149,7 +149,7 @@ def train_predictor():
         return ab_report(eds,None)
 
 if __name__=='__main__':
-    get_args(aesthetic_training=True)
+    get_args(aesthetic_training=True, aesthetic_model=True)
 
     if args['mode']=='meta':
         with open("meta.csv",'w') as f:
@@ -173,6 +173,7 @@ if __name__=='__main__':
         def newpf(params, scaleguide):
             efac = math.pow(2,scaleguide) * (0.8 + 0.4*random.random())
             p0 = int(params[0] * efac) if random.random()<0.5 else int(params[0] / efac)
+            if p0<2: p0=2
             p1 = (params[1] * efac) if random.random()<0.5 else (params[1] / efac)
             p2 = int(params[2] * efac) if random.random()<0.5 else int(params[2] / efac)
             p2 = 2*(p2//2)

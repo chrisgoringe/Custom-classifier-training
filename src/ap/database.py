@@ -13,7 +13,8 @@ class Database:
         self.stats = [0,0,0]     # agreed with db, disagreed with db, no prediction
         self.started = time.monotonic()
         self.validate()
-        self.model_score_stats = None  
+        self.model_score_stats = [0,0,0,0,0]  
+        self.model_scores = None
 
     def load(self):
         try:
@@ -36,7 +37,6 @@ class Database:
 
     def set_model_score(self, scorer):
         self.model_scores = {f:scorer(os.path.join(self.image_directory,f)) for f in self.image_scores}
-        self.model_score_stats = [0,0,0,0,0]
 
     def validate(self):
         self.missing_files = {f:self.image_scores[f] for f in self.image_scores if not os.path.exists(os.path.join(self.image_directory, f))}
@@ -45,8 +45,9 @@ class Database:
             print("They will be kept in score.json but not made available to training.")
         if self.args['ignore_score_zero']:
             self.zeroes = {f:self.image_scores[f] for f in self.image_scores if self.image_scores[f]==0}
-            print(f"{len(self.zeroes)} image file{'s are' if len(self.zeroes)>1 else ' is'} in score.json but have score 0.")
-            print("They will be kept in score.json but not made available to training.")
+            if self.zeroes:
+                print(f"{len(self.zeroes)} image file{'s are' if len(self.zeroes)>1 else ' is'} in score.json but have score 0.")
+                print("They will be kept in score.json but not made available to training.")
         else:
             self.zeroes = {}
         self.remove_missing()
@@ -62,6 +63,10 @@ class Database:
     def scores_for_matching(self, reg):
         r = regex.compile(reg)
         return [self.image_scores[f] for f in self.image_scores if r.match(f)]
+    
+    def model_scores_for_matching(self,reg):
+        r = regex.compile(reg)
+        return [self.model_scores[f] for f in self.model_scores if r.match(f)]
 
     def pick_images_and_scores(self):
         self.im1, self.im2 = random.sample(self.keys,2)
@@ -94,7 +99,7 @@ class Database:
         elif p<0.5: self.stats[1] += 1
         else: self.stats[2] += 1
         self.meta['evaluations'] = self.meta.get('evaluations',0) + 1
-        if self.model_score_stats is not None:
+        if self.model_scores is not None:
             if db_delta!=0 and self.model_scores[self.im1] != self.image_scores[self.im2]:
                 m_delta = 1 if (self.model_scores[self.im1] - self.image_scores[self.im2])>1 else -1
                 db_delta = 1 if db_delta>0 else -1
