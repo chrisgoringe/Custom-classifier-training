@@ -10,20 +10,21 @@ class Database:
         self.recursive_add()
         self.keys = list(self.image_scores.keys())
         self.k = k
-        self.stats = [0,0,0]
+        self.stats = [0,0,0]     # agreed with db, disagreed with db, no prediction
         self.started = time.monotonic()
         self.validate()
+        self.model_score_stats = None  
 
-    def load(cls):
+    def load(self):
         try:
-            with open(os.path.join(cls.image_directory,"score.json"),'r') as f:
-                cls.image_scores = json.load(f)
-                cls.meta = cls.image_scores.pop("#meta#",{})
-            shutil.copyfile(os.path.join(cls.image_directory,"score.json"), os.path.join(cls.image_directory,"score-backup.json"))
+            with open(os.path.join(self.image_directory,"score.json"),'r') as f:
+                self.image_scores = json.load(f)
+                self.meta = self.image_scores.pop("#meta#",{})
+            shutil.copyfile(os.path.join(self.image_directory,"score.json"), os.path.join(self.image_directory,"score-backup.json"))
         except:
             print("Didn't reload scores")
-            cls.image_scores = {}
-            cls.meta = {}
+            self.image_scores = {}
+            self.meta = {}
 
     def save(self):
         with open(os.path.join(self.image_directory,"score.json"),'w') as f:
@@ -32,6 +33,10 @@ class Database:
             print(json.dumps(self.image_scores, indent=2),file=f)
             self.image_scores.pop('#meta#')
             self.remove_missing()
+
+    def set_model_score(self, scorer):
+        self.model_scores = {f:scorer(os.path.join(self.image_directory,f)) for f in self.image_scores}
+        self.model_score_stats = [0,0,0,0,0]
 
     def validate(self):
         self.missing_files = {f:self.image_scores[f] for f in self.image_scores if not os.path.exists(os.path.join(self.image_directory, f))}
@@ -60,8 +65,6 @@ class Database:
 
     def pick_images_and_scores(self):
         self.im1, self.im2 = random.sample(self.keys,2)
-        self.s1 = self.image_scores[self.im1]
-        self.s2 = self.image_scores[self.im2]
         return (Image.open(os.path.join(self.image_directory,self.im1)), 
                 Image.open(os.path.join(self.image_directory,self.im2)))
 
@@ -74,21 +77,34 @@ class Database:
                 rel = os.path.relpath(full, self.image_directory)
                 if not rel in self.image_scores: self.image_scores[rel] = 0
 
+    def choices_made(self):
+        return sum(self.stats)
+
     def choice_made(self, k):
+        db_delta = self.image_scores[self.im1] - self.image_scores[self.im2]
         if k=='1':
-            delta = self.s1 - self.s2
-            p = 1.0/(1.0+math.pow(10,-delta))
+            p = 1.0/(1.0+math.pow(10,-db_delta))
             self.image_scores[self.im1] += self.k * (1-p)
             self.image_scores[self.im2] -= self.k * (1-p)
         elif k=='2':
-            delta = self.s2 - self.s1
-            p = 1.0/(1.0+math.pow(10,-delta))
+            p = 1.0/(1.0+math.pow(10,+db_delta))
             self.image_scores[self.im2] += self.k * (1-p)
             self.image_scores[self.im1] -= self.k * (1-p)
-        if delta>0: self.stats[0] += 1
-        if delta<0: self.stats[1] += 1
-        if delta==0: self.stats[2] += 1
+        if p>0.5: self.stats[0] += 1
+        elif p<0.5: self.stats[1] += 1
+        else: self.stats[2] += 1
         self.meta['evaluations'] = self.meta.get('evaluations',0) + 1
+        if self.model_score_stats is not None:
+            if db_delta!=0 and self.model_scores[self.im1] != self.image_scores[self.im2]:
+                m_delta = 1 if (self.model_scores[self.im1] - self.image_scores[self.im2])>1 else -1
+                db_delta = 1 if db_delta>0 else -1
+                choice_delta = 1 if k=='1' else -1
+                if choice_delta==m_delta and choice_delta==db_delta: self.model_score_stats[0] += 1 # all agreedb, model, human
+                elif choice_delta==m_delta: self.model_score_stats[1] += 1                          # db odd one out
+                elif choice_delta==db_delta: self.model_score_stats[2] += 1                         # model odd one out
+                else: self.model_score_stats[3] += 1                                                # choice odd one out
+            else:
+                self.model_score_stats[4] += 1                                                      # one of db or model said draw
         self.save()
 
     def report(self):
@@ -96,7 +112,12 @@ class Database:
         print("{:>4} image pairs in {:>6.1f} s".format(sum(self.stats), time.monotonic()-self.started))
         print(f"{z}/{len(self.image_scores)} of the images are rated zero")
         if (self.stats[0]+self.stats[1]):
-            print("{:>3} choices matched prediction, {:>3} contradicted prediction [{:>3} not predicted] = ({:>5.2f}%) ".format(
+            print("{:>3} choices matched db, {:>3} contradicted db [{:>3} not predicted] = ({:>5.2f}%) ".format(
             *self.stats, 100*self.stats[0]/(self.stats[0]+self.stats[1])))
         print("A total of {:>6} comparisons have been made for {:>5} images ({:>5.2f} per image)".format(
             self.meta['evaluations'], len(self.image_scores), 2*self.meta['evaluations']/len(self.image_scores)))
+        if self.model_score_stats is not None: 
+            strng = "{:>5} tests: {:>3} all agree; {:>3} db odd-one-out; {:>3} model odd-one-out; {:>3} human odd-one-out; {:>3} model or db draw"
+            strng=strng.format(sum(self.model_score_stats),*self.model_score_stats) 
+            print(strng)
+            print(strng, file=open("ab_stats.txt",'+a'))

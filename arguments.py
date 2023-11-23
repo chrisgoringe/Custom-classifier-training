@@ -1,6 +1,6 @@
 common_args = {
-    # "", "train", "evaluate", "meta", "spotlight", "analysis"
-    "mode"                      : "meta",
+    # "", "train", "evaluate", "meta", "spotlight", "analysis", "metasearch"
+    "mode"                      : "metasearch",
 
     # the base model (automatically downloaded if required)   
     # google/vit-base-patch16-224  and google/efficientnet-b5 (or b0...b7) are good ones to try
@@ -34,9 +34,9 @@ category_training_args = {
 
 aesthetic_training_args = {
     # with mode=='meta', use these metaparameters (list of values to permute through)
-    "meta_epochs" : [50,100,200],
-    "meta_lr"     : [1e-5,1e-4,1e-3],
-    "meta_batch"  : [4,8,16],
+    "meta_epochs" : [125,150,175],
+    "meta_lr"     : [1e-4],
+    "meta_batch"  : [128,256],
 
     # format string for meta.csv (epochs,lr,batch,train_loss,eval_loss,train_ab,eval_ab,time)
     "meta_fmt"    : "{:>4},{:>8.2},{:>3},{:>8.4f},{:>8.4f},{:>6.4f},{:>6.4f},{:>6.1f}",
@@ -46,7 +46,9 @@ aesthetic_training_args = {
 
     # ignore unscored images when training?
     "ignore_score_zero"         : True,
+}
 
+aesthetic_model_args = {
     # aesthetic model dropouts - default dropouts are [0.2,0.2,0.1]. 
     "aesthetic_model_dropouts"  : [0.2,0.2,0.1],
 
@@ -57,11 +59,16 @@ aesthetic_training_args = {
 aesthetic_ab_args = {
     # The size (height) of the window used by the aesthetic_ab_scorer script
     "ab_scorer_size"            : 600,
+    "ignore_score_zero"         : False,
+    "load_model"                : "training/aesthetic", 
+    "use_model_scores_for_stats": True,
+    "max_comparisons"           : 100,
 }
 
 aesthetic_analysis_args = {
     # in AB scorer; optionally provide a list of regex strings; instead of running it will give statistics for images matching
-    "ab_analysis_regexes"       : ['^3','^4','^5','^6','^7','^batch2','^batch3'],
+    "ab_analysis_regexes"       : ['^3','^4','^5','^6','^7','^batch2','^batch3','^batch4'],
+    "ignore_score_zero"         : True,
 }
 
 # The most common training arguments. There are 101 arguments available
@@ -71,15 +78,15 @@ training_args = {
     # rule of thumb: steps * learning_rate = 10   (images ~ 1000)
     # 4e-4, batch 2, 50 epochs
 
-    "num_train_epochs"              : 100,
-    "learning_rate"                 : 1e-4,
+    "num_train_epochs"              : 20,
+    "learning_rate"                 : 2e-4,
 
     #
     "lr_scheduler_type" : "cosine",
     "warmup_ratio" : 0.1,
     
     # these ones will depend on architecture and memory
-    "per_device_train_batch_size"   : 8,   
+    "per_device_train_batch_size"   : 12,   
     "gradient_accumulation_steps"   : 1,  
     "per_device_eval_batch_size"    : 128,
 
@@ -99,12 +106,13 @@ training_args = {
 class Args:
     args = {}
 
-def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=False, aesthetic_analysis=False):
+def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=False, aesthetic_analysis=False, aesthetic_model=False):
     for b, d in [(True, common_args),
                  (category_training,category_training_args),
                  (aesthetic_training, aesthetic_training_args),
                  (aesthetic_ab, aesthetic_ab_args),
-                 (aesthetic_analysis, aesthetic_analysis_args)]:
+                 (aesthetic_analysis, aesthetic_analysis_args),
+                 (aesthetic_model, aesthetic_model_args)]:
         if b:
             for k in d:
                 Args.args[k] = d[k]    

@@ -8,12 +8,12 @@ from src.time_context import Timer
 import os, statistics, math
 
 def main():
-    get_args()
+    get_args(aesthetic_ab=True, aesthetic_training=True)
     assert args['top_level_image_directory'], "Need an image directory"
     assert args['load_model'], "Need to load a model"
 
     with Timer("Load database and models"):
-        db = Database(args['top_level_image_directory'])
+        db = Database(args['top_level_image_directory'], args)
 
         clipper = CLIP(image_directory=args['top_level_image_directory'])
         predictor = AestheticPredictor(pretrained=os.path.join(args['load_model'],"model.safetensors"), 

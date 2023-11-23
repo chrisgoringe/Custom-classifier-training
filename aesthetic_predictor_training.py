@@ -2,7 +2,7 @@ from src.time_context import Timer
 with Timer("Python imports"):
     import torch
     from safetensors.torch import save_file
-    import os, random, statistics
+    import os, random, statistics, math, shutil
 
     from src.data_holder import DataHolder
     from transformers import TrainerControl, TrainerState, TrainingArguments, TrainerCallback
@@ -17,6 +17,8 @@ with Timer("Python imports"):
     from src.ap.clip import CLIP
     from src.ap.aesthetic_predictor import AestheticPredictor
     from src.ap.ap_trainers import CustomTrainer
+
+    from src.metaparameter_searcher import MetaparameterSearcher
     
 class QuickDataset(torch.utils.data.Dataset):
     def __init__(self, df:DataFrame, split:str=None):
@@ -141,6 +143,10 @@ def train_predictor():
     if args['mode']=='meta':
         ds.update_prediction(predictor)
         return report(eds,None,None), report(tds,None,None), ab_report(eds,None), ab_report(tds,None)
+    
+    if args['mode']=='metasearch':
+        ds.update_prediction(predictor)
+        return ab_report(eds,None)
 
 if __name__=='__main__':
     get_args(aesthetic_training=True)
@@ -152,12 +158,40 @@ if __name__=='__main__':
                 for epochs in args['meta_epochs'] if args['meta_epochs'] else [training_args['num_train_epochs'],]:
                     for batch in args['meta_batch'] if args['meta_batch'] else [training_args['per_device_train_batch_size'],]:
                         training_args['num_train_epochs'] = epochs
-                        training_args['learning_rate'] = lr
+                        training_args['learning_rate']= lr
                         training_args['per_device_train_batch_size'] = batch
                         with Timer("meta-train") as m:
                             eval_loss, train_loss, eval_ab, train_ab = train_predictor()
                             time_taken = m(None)
                         print(args['meta_fmt'].format(epochs, lr, batch, train_loss, eval_loss, train_ab, eval_ab, time_taken),file=f,flush=True)
                         #print(f"{epochs},{lr},{batch},{train_loss},{eval_loss},{train_ab},{eval_ab}",file=f, flush=True)
+    elif args['mode']=='metasearch':
+        initial = [ training_args['num_train_epochs'],training_args['learning_rate'],training_args['per_device_train_batch_size'] ]
+        def evalfn(params):
+            training_args['num_train_epochs'],training_args['learning_rate'],training_args['per_device_train_batch_size'] = params
+            return train_predictor()
+        def newpf(params, scaleguide):
+            efac = math.pow(2,scaleguide) * (0.8 + 0.4*random.random())
+            p0 = int(params[0] * efac) if random.random()<0.5 else int(params[0] / efac)
+            p1 = (params[1] * efac) if random.random()<0.5 else (params[1] / efac)
+            p2 = int(params[2] * efac) if random.random()<0.5 else int(params[2] / efac)
+            p2 = 2*(p2//2)
+            if (p2==0): p2=2
+            return [p0,p1,p2]
+        def callbk(params, score, bad, scale, tme, note):
+            print(f"{params} -> {score}  ({bad}, {scale}) {tme} s - {note}", file=open("metasearch.txt",'+a'))
+            print(f"{params} -> {score}  ({bad}, {scale}) {tme} s - {note}")
+        def best_so_far():
+            shutil.copytree(args['save_model'], args['save_model']+"-best", dirs_exist_ok=True)
+        
+        params, score = MetaparameterSearcher(initial_parameters=initial, 
+                                              evaluation_function=evalfn, 
+                                              new_parameter_function=newpf, 
+                                              callback=callbk, 
+                                              best_so_far_callback=best_so_far,
+                                              minimise=False).search()
+        print(f"Best parameters {params} -> {score}")
+        if os.path.exists(args['save_model']+"-best"):
+            shutil.copytree(args['save_model']+"-best", args['save_model'], dirs_exist_ok=True)
     else:
         train_predictor()

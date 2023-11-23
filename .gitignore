@@ -156,5 +156,5 @@ temp_model_save/
 tmp_trainer/
 notes/
 clipcache.safetensors
-meta*.csv
-
+*.csv
+*.txt
