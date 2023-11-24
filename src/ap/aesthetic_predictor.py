@@ -64,7 +64,8 @@ class AestheticPredictor(nn.Module):
         return scores
     
     def evaluate_image(self, image):
-        return self(self.clipper.get_image_features_tensor(image))
+        with torch.no_grad():
+            return self(self.clipper.get_image_features_tensor(image))
     
     def evaluate_file(self, file):
         return self.evaluate_files([file], eval_mode=True)[0]
