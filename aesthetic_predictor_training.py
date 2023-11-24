@@ -40,6 +40,14 @@ class QuickDataset(torch.utils.data.Dataset):
     def update_prediction(self, predictor:AestheticPredictor):
         self._df['predicted_score'] = (predictor.evaluate_files(self._df['image'], eval_mode=True))
 
+    def statistical_metadata(self):
+        scores = self.column('predicted_score')
+        return {
+            "n_images"              : str(len(self.map)),
+            "mean_predicted_score"  : str(statistics.mean(scores)),
+            "stdev_predicted_score" : str(statistics.stdev(scores)),
+        }
+
     def column(self, col:str) -> list:
         return [self._df[col].array[x] for x in self.map]
     
@@ -104,7 +112,7 @@ def train_predictor():
     top_level_images = args['top_level_image_directory']
 
     with Timer('load models'):
-        clipper = CLIP(image_directory=top_level_images)
+        clipper = CLIP(pretrained=args['clip_model'], image_directory=top_level_images)
         predictor = AestheticPredictor(pretrained=pretrained, relu=args['aesthetic_model_relu'], clipper=clipper)
 
     with Timer('Prepare images'):
@@ -130,22 +138,21 @@ def train_predictor():
                                 train_dataset = tds, eval_dataset = eds, 
                                 args = train_args, callbacks = [callback,], 
                             ).train()
-
-        save_file(predictor.state_dict(),os.path.join(args['save_model'],"model.safetensors"))
+        ds.update_prediction(predictor)
+        metadata = ds.statistical_metadata()
+        metadata['clip_model'] = args['clip_model']
+        save_file(predictor.state_dict(),os.path.join(args['save_model'],"model.safetensors"),metadata=ds.statistical_metadata())
 
     if have_spotlight and 'spotlight' in args['mode']: 
-        ds.update_prediction(predictor)
         try:
             spotlight.show(ds._df)
         except:
             pass
 
     if args['mode']=='meta':
-        ds.update_prediction(predictor)
         return report(eds,None,None), report(tds,None,None), ab_report(eds,None), ab_report(tds,None)
     
     if args['mode']=='metasearch':
-        ds.update_prediction(predictor)
         return ab_report(eds,None)
 
 if __name__=='__main__':

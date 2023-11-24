@@ -8,7 +8,7 @@ class CLIP:
         self.model, self.preprocess = clip.load(pretrained, device=device)
         self.device = device
         self.cached = {}
-        self.cachefile = os.path.join(image_directory,"clipcache.safetensors")
+        self.cachefile = os.path.join(image_directory,f"clipcache.{pretrained.replace('/','_')}.safetensors")
         try:
             self.cached = load_file(self.cachefile, device=self.device)
             print(f"Reloaded CLIPs from {self.cachefile} - delete this file if you don't want to do that")

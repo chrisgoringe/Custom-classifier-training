@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from safetensors.torch import save_file, load_file
+from safetensors.torch import load_file
 from .clip import CLIP
 import os
 
@@ -62,6 +62,9 @@ class AestheticPredictor(nn.Module):
         if as_sorted_tuple: scores.sort()
 
         return scores
+    
+    def evaluate_image(self, image):
+        return self(self.clipper.get_image_features_tensor(image))
     
     def evaluate_file(self, file):
         return self.evaluate_files([file], eval_mode=True)[0]

@@ -5,7 +5,11 @@ common_args = {
     # the base model (automatically downloaded if required)   
     # google/vit-base-patch16-224  and google/efficientnet-b5 (or b0...b7) are good ones to try
     # for aesthetic, models/sac+logos+ava1-l14-linearMSE.safetensors
-    "base_model"                : "models/sac+logos+ava1-l14-linearMSE.safetensors",    
+    "base_model"                : "models/sac+logos+ava1-l14-linearMSE.safetensors",
+
+    # clip model used (default 'ViT-L/14' is the one used for the pretrained model included)
+    # if you change this, you will need to delete the clipcache.safetensors fils
+    "clip_model"                : "ViT-L/14",
 
     # if restarting a previous run, this is the folder to load from. If None or '', the base_model is used. Required for evaluate or spotlight
     "load_model"                : "",     
@@ -107,7 +111,7 @@ training_args = {
 class Args:
     args = {}
 
-def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=False, aesthetic_analysis=False, aesthetic_model=False):
+def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=False, aesthetic_analysis=False, aesthetic_model=False, show_training_args=True):
     for b, d in [(True, common_args),
                  (category_training,category_training_args),
                  (aesthetic_training, aesthetic_training_args),
@@ -121,8 +125,9 @@ def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=Fal
     print("args:")
     for a in Args.args:
         print("{:>30} : {:<40}".format(a, str(args[a])))
-    print("trainging_args")
-    for a in training_args:
-        print("{:>30} : {:<40}".format(a, str(training_args[a])))
+    if show_training_args:
+        print("training_args")
+        for a in training_args:
+            print("{:>30} : {:<40}".format(a, str(training_args[a])))
 
 args = Args.args

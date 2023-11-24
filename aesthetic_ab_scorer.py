@@ -43,7 +43,7 @@ class TheApp:
             print(self.db.choices_made())
 
 def main():
-    get_args(aesthetic_ab=True, aesthetic_model=True)
+    get_args(aesthetic_ab=True, aesthetic_model=True, show_training_args=False)
     db = Database(args['top_level_image_directory'], args)
     if args['use_model_scores_for_stats']:
         assert args['load_model']
