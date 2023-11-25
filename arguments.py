@@ -37,32 +37,24 @@ category_training_args = {
 }
 
 aesthetic_training_args = {
-    # with mode=='meta', use these metaparameters (list of values to permute through)
-    "meta_epochs" : [125,150,175],
-    "meta_lr"     : [1e-4],
-    "meta_batch"  : [128,256],
-
-    # format string for meta.csv (epochs,lr,batch,train_loss,eval_loss,train_ab,eval_ab,time)
-    "meta_fmt"    : "{:>4},{:>8.2},{:>3},{:>8.4f},{:>8.4f},{:>6.4f},{:>6.4f},{:>6.1f}",
-
     # loss model. 'mse' or 'ranking'. 
     "loss_model"                : 'ranking',
 
     # ignore unscored images when training?
     "ignore_score_zero"         : True,
+
+    # aesthetic model dropouts - default dropouts are [0.2,0.2,0.1]. 
+    "aesthetic_model_dropouts"  : [0.2,0.2,0.1],
 }
 
 aesthetic_model_args = {
-    # aesthetic model dropouts - default dropouts are [0.2,0.2,0.1]. 
-    "aesthetic_model_dropouts"  : [0.2,0.2,0.1],
-
     # The aesthetic model has no activators - this seems wrong to me. This inserts them.
     "aesthetic_model_relu"      : True,
 }
 
 aesthetic_ab_args = {
     # The size (height) of the window used by the aesthetic_ab_scorer script
-    "ab_scorer_size"            : 600,
+    "ab_scorer_size"            : 800,
     "ignore_score_zero"         : False,
     "load_model"                : "training/aesthetic", 
     "use_model_scores_for_stats": True,
@@ -79,19 +71,13 @@ aesthetic_analysis_args = {
 # The most common training arguments. There are 101 arguments available
 # see https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer#transformers.TrainingArguments
 training_args = {
-    # number of steps = images * epochs / batch
-    # rule of thumb: steps * learning_rate = 10   (images ~ 1000)
-    # 4e-4, batch 2, 50 epochs
+    # These can be seatch using metasearch
+    "num_train_epochs"              : 30,
+    "learning_rate"                 : 6e-4,
+    "per_device_train_batch_size"   : 4,   
 
-    "num_train_epochs"              : 20,
-    "learning_rate"                 : 2e-4,
-
-    #
-    "lr_scheduler_type" : "cosine",
-    "warmup_ratio" : 0.1,
-    
-    # these ones will depend on architecture and memory
-    "per_device_train_batch_size"   : 12,   
+    "lr_scheduler_type"             : "cosine",
+    "warmup_ratio"                  : 0.1,
     "gradient_accumulation_steps"   : 1,  
     "per_device_eval_batch_size"    : 128,
 

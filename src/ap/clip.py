@@ -5,6 +5,7 @@ import os
 
 class CLIP:
     def __init__(self, pretrained="ViT-L/14", device="cuda", image_directory="."):
+        self.metadata = {"clip_model":pretrained}
         self.model, self.preprocess = clip.load(pretrained, device=device)
         self.device = device
         self.cached = {}
@@ -29,3 +30,6 @@ class CLIP:
     
     def save_cache(self):
         save_file(self.cached, self.cachefile)
+
+    def get_metadata(self):
+        return self.metadata

@@ -2,7 +2,7 @@ from src.time_context import Timer
 with Timer("Python imports"):
     import torch
     from safetensors.torch import save_file
-    import os, random, statistics, math, shutil
+    import os, random, statistics,  shutil
 
     from src.data_holder import DataHolder
     from transformers import TrainerControl, TrainerState, TrainingArguments, TrainerCallback
@@ -17,8 +17,9 @@ with Timer("Python imports"):
     from src.ap.clip import CLIP
     from src.ap.aesthetic_predictor import AestheticPredictor
     from src.ap.ap_trainers import CustomTrainer
+    from src.ap.aesthetic_metaparameter import AMP
 
-    from src.metaparameter_searcher import MetaparameterSearcher
+    from src.metaparameter_searcher import MetaparameterSearcher, ParameterSet
     
 class QuickDataset(torch.utils.data.Dataset):
     def __init__(self, df:DataFrame, split:str=None):
@@ -40,7 +41,7 @@ class QuickDataset(torch.utils.data.Dataset):
     def update_prediction(self, predictor:AestheticPredictor):
         self._df['predicted_score'] = (predictor.evaluate_files(self._df['image'], eval_mode=True))
 
-    def statistical_metadata(self):
+    def get_metadata(self):
         scores = self.column('predicted_score')
         return {
             "n_images"              : str(len(self.map)),
@@ -107,6 +108,13 @@ def report(eds:QuickDataset, prnt:str, prntrmse:str="rms error {:>6.3}"):
     ab_report(eds)
     return rmse
 
+def combine_metadata(*args):
+    metadata = {}
+    for dic in args:
+        for k in dic:
+            metadata[k] = dic[k]
+    return metadata
+
 def train_predictor():
     pretrained = os.path.join(args['load_model'],"model.safetensors") if ('load_model' in args and args['load_model']) else args['base_model']
     top_level_images = args['top_level_image_directory']
@@ -139,9 +147,10 @@ def train_predictor():
                                 args = train_args, callbacks = [callback,], 
                             ).train()
         ds.update_prediction(predictor)
-        metadata = ds.statistical_metadata()
-        metadata['clip_model'] = args['clip_model']
-        save_file(predictor.state_dict(),os.path.join(args['save_model'],"model.safetensors"),metadata=ds.statistical_metadata())
+
+        metadata = combine_metadata( ds.get_metadata(), clipper.get_metadata(), predictor.get_metadata() )
+
+        save_file(predictor.state_dict(),os.path.join(args['save_model'],"model.safetensors"),metadata=metadata)
 
     if have_spotlight and 'spotlight' in args['mode']: 
         try:
@@ -158,43 +167,23 @@ def train_predictor():
 if __name__=='__main__':
     get_args(aesthetic_training=True, aesthetic_model=True)
 
-    if args['mode']=='meta':
-        with open("meta.csv",'w') as f:
-            print("epochs,lr,batch,train_loss,eval_loss,train_ab,eval_ab,time", file=f)
-            for lr in args['meta_lr'] if args['meta_lr'] else [training_args['learning_rate'],]:
-                for epochs in args['meta_epochs'] if args['meta_epochs'] else [training_args['num_train_epochs'],]:
-                    for batch in args['meta_batch'] if args['meta_batch'] else [training_args['per_device_train_batch_size'],]:
-                        training_args['num_train_epochs'] = epochs
-                        training_args['learning_rate']= lr
-                        training_args['per_device_train_batch_size'] = batch
-                        with Timer("meta-train") as m:
-                            eval_loss, train_loss, eval_ab, train_ab = train_predictor()
-                            time_taken = m(None)
-                        print(args['meta_fmt'].format(epochs, lr, batch, train_loss, eval_loss, train_ab, eval_ab, time_taken),file=f,flush=True)
-                        #print(f"{epochs},{lr},{batch},{train_loss},{eval_loss},{train_ab},{eval_ab}",file=f, flush=True)
-    elif args['mode']=='metasearch':
-        initial = [ training_args['num_train_epochs'],training_args['learning_rate'],training_args['per_device_train_batch_size'] ]
-        def evalfn(params):
-            training_args['num_train_epochs'],training_args['learning_rate'],training_args['per_device_train_batch_size'] = params
+    if args['mode']=='metasearch':
+        initial = ParameterSet.from_args( training_args )
+        def evalfn(params:ParameterSet):
+            params.to_args(training_args)
             return train_predictor()
-        def newpf(params, scaleguide):
-            efac = math.pow(2,scaleguide) * (0.8 + 0.4*random.random())
-            p0 = int(params[0] * efac) if random.random()<0.5 else int(params[0] / efac)
-            if p0<2: p0=2
-            p1 = (params[1] * efac) if random.random()<0.5 else (params[1] / efac)
-            p2 = int(params[2] * efac) if random.random()<0.5 else int(params[2] / efac)
-            p2 = 2*(p2//2)
-            if (p2==0): p2=2
-            return [p0,p1,p2]
-        def callbk(params, score, bad, scale, tme, note):
-            print(f"{params} -> {score}  ({bad}, {scale}) {tme} s - {note}", file=open("metasearch.txt",'+a'))
-            print(f"{params} -> {score}  ({bad}, {scale}) {tme} s - {note}")
+        def callbk(params:ParameterSet, score, bad, tme, note):
+            params.print()
+            params.print(open("metasearch.txt",'+a'))
+            txt = "Score {:>5.2f}% ({:>1}) {:>6.1f}s - {:<30}".format(100*score, bad, tme, note)
+            print(txt, file=open("metasearch.txt",'+a'))
+            print(txt)
         def best_so_far():
             shutil.copytree(args['save_model'], args['save_model']+"-best", dirs_exist_ok=True)
         
         params, score = MetaparameterSearcher(initial_parameters=initial, 
                                               evaluation_function=evalfn, 
-                                              new_parameter_function=newpf, 
+                                              new_parameter_function=AMP(even_batch=True).update_mps, 
                                               callback=callbk, 
                                               best_so_far_callback=best_so_far,
                                               minimise=False).search()
