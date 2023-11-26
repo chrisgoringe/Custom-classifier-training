@@ -121,7 +121,7 @@ class Database:
 
         if self.model_scores is not None:
             if db_delta!=0 and self.model_scores[self.ims[win]] != self.image_scores[self.ims[loss]]:
-                m_delta = 1 if (self.model_scores[self.ims[win]] - self.image_scores[self.ims[loss]])>1 else -1
+                m_delta = 1 if (self.model_scores[self.ims[win]] - self.model_scores[self.ims[loss]])>1 else -1
                 db_delta = 1 if db_delta>0 else -1
                 choice_delta = 1 
                 if choice_delta==m_delta and choice_delta==db_delta: self.model_score_stats[0] += 1 # all agreedb, model, human
@@ -139,7 +139,7 @@ class Database:
 
         db_choice_match_percentage = 100*self.stats[0]/(self.stats[0]+self.stats[1])
         total_ever = sum(self.image_compare_count[x] for x in self.image_compare_count)
-        
+
         if (self.stats[0]+self.stats[1]):
             print("{:>3} choices matched db, {:>3} contradicted db [{:>3} not predicted] = ({:>5.2f}%) ".format(
             *self.stats, db_choice_match_percentage))
