@@ -37,7 +37,7 @@ class TheApp:
             self.pick_images()
         elif k=='r':
             self.db.report()
-        if self.db.choices_made()==args['max_comparisons']:
+        if self.db.choices_made()==args['max_comparisons']*(self.image_count-1):
             self.db.report()
             self.app.quit()
         if self.db.choices_made() % 10 == 0:
