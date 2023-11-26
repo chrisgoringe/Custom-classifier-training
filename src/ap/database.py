@@ -78,11 +78,11 @@ class Database:
         r = regex.compile(reg)
         return [self.model_scores[f] for f in self.model_scores if r.match(f)]
 
-    def pick_images_and_scores(self):
-        self.im1, self.im2 = random.choices(self.keys,weights=self.weights,k=2)
-        if self.im1==self.im2: return self.pick_images_and_scores()
-        return (Image.open(os.path.join(self.image_directory,self.im1)), 
-                Image.open(os.path.join(self.image_directory,self.im2)))
+    def pick_images(self, number):
+        self.ims = random.choices(self.keys,weights=self.weights,k=number)
+        for i in range(number-1): 
+            if self.ims[i] in self.ims[i+1:]: return self.pick_images(number)
+        return (Image.open(os.path.join(self.image_directory,im)) for im in self.ims)
 
     def recursive_add(self, dir=None):
         dir = dir or self.image_directory
@@ -99,34 +99,38 @@ class Database:
         return sum(self.stats)
 
     def choice_made(self, k):
-        self.image_compare_count[self.im1] += 1
-        self.image_compare_count[self.im2] += 1
+        for i in range(len(self.ims)):
+            if i==k: continue
+            self.pair_choice_made(k,i)
+        self.save()
+
+    def pair_choice_made(self, win, loss):
+        self.image_compare_count[self.ims[win]] += 1
+        self.image_compare_count[self.ims[loss]] += 1
         
-        db_delta = self.image_scores[self.im1] - self.image_scores[self.im2]
-        if k=='1':
-            p = 1.0/(1.0+math.pow(10,-db_delta))
-            self.image_scores[self.im1] += self.k * (1-p)
-            self.image_scores[self.im2] -= self.k * (1-p)
-        elif k=='2':
-            p = 1.0/(1.0+math.pow(10,+db_delta))
-            self.image_scores[self.im2] += self.k * (1-p)
-            self.image_scores[self.im1] -= self.k * (1-p)
+        db_delta = self.image_scores[self.ims[win]] - self.image_scores[self.ims[loss]]
+
+        p = 1.0/(1.0+math.pow(10,-db_delta))
+        self.image_scores[self.ims[win]] += self.k * (1-p)
+        self.image_scores[self.ims[loss]] -= self.k * (1-p)
+
         if p>0.5: self.stats[0] += 1
         elif p<0.5: self.stats[1] += 1
         else: self.stats[2] += 1
         self.meta['evaluations'] = self.meta.get('evaluations',0) + 1
+
         if self.model_scores is not None:
-            if db_delta!=0 and self.model_scores[self.im1] != self.image_scores[self.im2]:
-                m_delta = 1 if (self.model_scores[self.im1] - self.image_scores[self.im2])>1 else -1
+            if db_delta!=0 and self.model_scores[self.ims[win]] != self.image_scores[self.ims[loss]]:
+                m_delta = 1 if (self.model_scores[self.ims[win]] - self.image_scores[self.ims[loss]])>1 else -1
                 db_delta = 1 if db_delta>0 else -1
-                choice_delta = 1 if k=='1' else -1
+                choice_delta = 1 
                 if choice_delta==m_delta and choice_delta==db_delta: self.model_score_stats[0] += 1 # all agreedb, model, human
                 elif choice_delta==m_delta: self.model_score_stats[1] += 1                          # db odd one out
                 elif choice_delta==db_delta: self.model_score_stats[2] += 1                         # model odd one out
                 else: self.model_score_stats[3] += 1                                                # choice odd one out
             else:
                 self.model_score_stats[4] += 1                                                      # one of db or model said draw
-        self.save()
+        
 
     def report(self):
         z = sum(self.image_scores[x]==0 for x in self.image_scores)

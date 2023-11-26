@@ -1,7 +1,7 @@
 import os
 from src.data_holder import DataHolder
-from src.training import finetune
-from src.prediction import predict
+from src.cat.training import finetune
+from src.cat.prediction import predict
 from src.time_context import Timer 
 from arguments import args,training_args,get_args
 
@@ -20,10 +20,6 @@ def check_arguments():
         args['load_model']=args['base_model']
 
     training_args['output_dir'] = args['save_model']
-
-    if 'per_device_eval_batch_size' not in evaluation_args or not evaluation_args['per_device_eval_batch_size']:
-        if 'per_device_eval_batch_size' in training_args and training_args['per_device_eval_batch_size']:
-            evaluation_args['per_device_eval_batch_size'] = training_args['per_device_eval_batch_size']
 
     if 'train' in args['mode']:
         assert 'save_model' in args and args['save_model'], "Training needs a save_model location!"

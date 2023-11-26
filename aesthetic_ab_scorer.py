@@ -7,32 +7,33 @@ from src.time_context import Timer
 import os
 
 class TheApp:
-    def __init__(self, h, db:Database):
+    def __init__(self, height, ratio, image_count, db:Database):
         self.app = customtkinter.CTk()
         self.app.title("H.A.S.")
-        self.app.geometry(f"{h*2}x{h}")
-        self.a = customtkinter.CTkLabel(self.app, text="")
-        self.b = customtkinter.CTkLabel(self.app, text="")
-        self.app.grid_columnconfigure(1, weight=1)
-        self.a.grid(row=0, column=0)
-        self.b.grid(row=0, column=2, sticky="e")
+        self.app.geometry(f"{height*ratio*image_count}x{height}")
+        self.ab = [customtkinter.CTkLabel(self.app, text="") for _ in range(image_count)]
+        for i, label in enumerate(self.ab):
+            label.grid(row=0, column=2*i)
+            if i: self.app.grid_columnconfigure(2*i-1, weight=1)
+
         self.db = db
-        self.h = h
+        self.height = height
+        self.image_count = image_count
         self.app.bind("<KeyRelease>", self.keyup)
         self.pick_images()
         
     def pick_images(self):
-        im1, im2 = self.db.pick_images_and_scores()
-        self.a.configure(image = customtkinter.CTkImage(light_image=im1, size=(int(self.h*im1.width/im1.height),self.h)))
-        self.b.configure(image = customtkinter.CTkImage(light_image=im2, size=(int(self.h*im2.width/im2.height),self.h)))
+        ims = self.db.pick_images(self.image_count)
+        for i, im in enumerate(ims):
+            self.ab[i].configure(image = customtkinter.CTkImage(light_image=im, size=(int(self.height*im.width/im.height),self.height)))
 
     def keyup(self,k):
         k = k.char
         if (k=='q'): 
             self.db.report()
             self.app.quit()
-        elif k=='1' or k=='2': 
-            self.db.choice_made(k)
+        elif k in "1234567"[:self.image_count]: 
+            self.db.choice_made(int(k)-1)
             self.pick_images()
         elif k=='r':
             self.db.report()
@@ -54,7 +55,7 @@ def main():
                                     relu=args['aesthetic_model_relu'])
             db.set_model_score(ap.evaluate_file)
 
-    TheApp(args['ab_scorer_size'], db).app.mainloop()
+    TheApp(args['ab_scorer_size'], args['ab_max_width_ratio'], args['ab_image_count'], db).app.mainloop()
 
 if __name__=='__main__':
     main()

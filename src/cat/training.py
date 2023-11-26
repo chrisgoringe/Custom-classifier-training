@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from functools import partial
 import datasets
-from arguments import training_args, args, evaluation_args
+from arguments import training_args, args
 
 def _extract_probabilities_image(model, feature_extractor, col_name):
     """Utility to compute probabilites for images."""
@@ -34,7 +34,7 @@ class EvaluationCallback(TrainerCallback):
         updated_dataset = self.prepared_eval_ds.map(
                 extract_fn,
                 batched=True,
-                batch_size=evaluation_args['per_device_eval_batch_size'],
+                batch_size=args['per_device_eval_batch_size'],
                 remove_columns="image",
             ).to_pandas()
         ps = np.array( [ emb.tolist() if emb is not None else None for emb in updated_dataset["probabilities"].values ] )

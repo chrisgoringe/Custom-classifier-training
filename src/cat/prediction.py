@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import datasets
 
-from arguments import args, evaluation_args
+from arguments import args
 
 def _get_feature_extractor():
     if 'efficient' in args['base_model']:
@@ -47,7 +47,7 @@ def _generate_image_probabilites( image_paths ):
     updated_dataset = dataset.map(
         extract_fn,
         batched=True,
-        batch_size=evaluation_args['per_device_eval_batch_size'],
+        batch_size=args['per_device_eval_batch_size'],
         remove_columns="image",
     ) 
 

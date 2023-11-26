@@ -1,5 +1,5 @@
 common_args = {
-    # "", "train", "evaluate", "meta", "spotlight", "analysis", "metasearch"
+    # "", "train", "evaluate", "spotlight", "metasearch"
     "mode"                      : "metasearch",
 
     # the base model (automatically downloaded if required)   
@@ -7,11 +7,7 @@ common_args = {
     # for aesthetic, models/sac+logos+ava1-l14-linearMSE.safetensors
     "base_model"                : "models/sac+logos+ava1-l14-linearMSE.safetensors",
 
-    # clip model used (default 'ViT-L/14' is the one used for the pretrained model included)
-    # if you change this, you will need to delete the clipcache.safetensors fils
-    "clip_model"                : "ViT-L/14",
-
-    # if restarting a previous run, this is the folder to load from. If None or '', the base_model is used. Required for evaluate or spotlight
+    # if restarting a previous run, this is the folder to load from. If None or '', the base_model is used. 
     "load_model"                : "training/aesthetic",     
 
     # folder to save the resulting model in. Required for training. 
@@ -21,14 +17,14 @@ common_args = {
     "top_level_image_directory" : "a:/aesthetic/training", 
 
     # if there is a score.json file use this instead of the folder names for the score?
-    "use_score_file" : True,
+    "use_score_file"            : True,
 
     # what fraction of images to reserve as test images (not used in training), and a random seed for picking them
     "fraction_for_test"         : 0.25,
     "test_pick_seed"            : 42,        
-
-    # evaluate test set at end of each n epochs (0 for 'don't')
-    "eval_every_n_epochs"       : 10,            
+    
+    # evaluate test set at end of each n epochs (0 for 'don't') - only has meaning during training
+    "eval_every_n_epochs"       : 10,    
 }
 
 category_training_args = {
@@ -53,25 +49,32 @@ aesthetic_model_args = {
 }
 
 aesthetic_ab_args = {
+    # Number of images to show (2-8)
+    "ab_image_count"            : 2,
+
     # The size (height) of the window used by the aesthetic_ab_scorer script
-    "ab_scorer_size"            : 800,
-    "ignore_score_zero"         : False,
-    "load_model"                : "training/aesthetic", 
+    "ab_scorer_size"            : 600,
+
+    # The maximum width/height of images (1 for square)
+    "ab_max_width_ratio"        : 1, 
+
+    # Load a model and evaluate the images with that as well? Only relevance is in the generation of stats.
     "use_model_scores_for_stats": False,
+
+    # How many comparison runs?
     "max_comparisons"           : 100,
 }
 
 aesthetic_analysis_args = {
     # in AB scorer; optionally provide a list of regex strings; instead of running it will give statistics for images matching
     "ab_analysis_regexes"       : ['^3','^4','^5','^6','^7','^batch2','^batch3','^batch4'],
-    "ignore_score_zero"         : True,
     "use_model_scores_for_stats": True,
 }
 
-# The most common training arguments. There are 101 arguments available
+# training_args are passed directly into the TrainingArguments object.
+# Below are the most common of the 101 arguments available
 # see https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer#transformers.TrainingArguments
 training_args = {
-    # These can be seatch using metasearch
     "num_train_epochs"              : 30,
     "learning_rate"                 : 1e-4,
     "per_device_train_batch_size"   : 4,   
@@ -94,8 +97,15 @@ training_args = {
     "load_best_model_at_end"        : False,    
 }
 
+# Default values that get overwritten by any of the above
 class Args:
-    args = {}
+    args = {
+        # If set to true, images from the score file with a score of zero are ignored
+        # most likely to be useful when 
+        "ignore_score_zero"         : False,
+        # clip model used by aesthetic scorer (default 'ViT-L/14' is the one used for the pretrained model included)
+        "clip_model"                : "ViT-L/14",
+    }
 
 def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=False, aesthetic_analysis=False, aesthetic_model=False, show_training_args=True):
     for b, d in [(True, common_args),
