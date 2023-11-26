@@ -120,16 +120,14 @@ class Database:
         self.meta['evaluations'] = self.meta.get('evaluations',0) + 1
 
         if self.model_scores is not None:
-            if db_delta!=0 and self.model_scores[self.ims[win]] != self.image_scores[self.ims[loss]]:
-                m_delta = 1 if (self.model_scores[self.ims[win]] - self.model_scores[self.ims[loss]])>1 else -1
-                db_delta = 1 if db_delta>0 else -1
-                choice_delta = 1 
-                if choice_delta==m_delta and choice_delta==db_delta: self.model_score_stats[0] += 1 # all agreedb, model, human
-                elif choice_delta==m_delta: self.model_score_stats[1] += 1                          # db odd one out
-                elif choice_delta==db_delta: self.model_score_stats[2] += 1                         # model odd one out
-                else: self.model_score_stats[3] += 1                                                # choice odd one out
+            m_delta = (self.model_scores[self.ims[win]] - self.model_scores[self.ims[loss]])
+            if db_delta!=0 and m_delta!=0:
+                if m_delta>0 and db_delta>0: self.model_score_stats[0] += 1   # all agreedb, model, human
+                elif db_delta<0 and m_delta<0: self.model_score_stats[3] += 1 # choice odd one out
+                elif m_delta<0: self.model_score_stats[2] += 1                # model odd one out
+                else: self.model_score_stats[1] += 1                          # db odd one out                       
             else:
-                self.model_score_stats[4] += 1                                                      # one of db or model said draw
+                self.model_score_stats[4] += 1                                # one of db or model said draw
         
 
     def report(self):

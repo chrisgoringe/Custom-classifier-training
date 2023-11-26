@@ -59,7 +59,7 @@ aesthetic_ab_args = {
     "ab_max_width_ratio"        : 1, 
 
     # Load a model and evaluate the images with that as well? Only relevance is in the generation of stats.
-    "use_model_scores_for_stats": False,
+    "use_model_scores_for_stats": True,
 
     # How many comparison runs?
     "max_comparisons"           : 100,
@@ -67,7 +67,7 @@ aesthetic_ab_args = {
 
 aesthetic_analysis_args = {
     # in AB scorer; optionally provide a list of regex strings; instead of running it will give statistics for images matching
-    "ab_analysis_regexes"       : ['^3','^4','^5','^6','^7','^batch2','^batch3','^batch4'],
+    "ab_analysis_regexes"       : ['^3','^4','^5','^6','^7','^batch1',],
     "use_model_scores_for_stats": True,
 }
 
@@ -105,6 +105,8 @@ class Args:
         "ignore_score_zero"         : False,
         # clip model used by aesthetic scorer (default 'ViT-L/14' is the one used for the pretrained model included)
         "clip_model"                : "ViT-L/14",
+
+        "aesthetic_model_dropouts"  : [0.2,0.2,0.1],
     }
 
 def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=False, aesthetic_analysis=False, aesthetic_model=False, show_training_args=True):

@@ -40,6 +40,13 @@ class AestheticPredictor(nn.Module):
         self.device = device
         self.clipper = clipper
 
+        if 'mean_predicted_score' in self.metadata:
+            mean = float(self.metadata['mean_predicted_score'])
+            std = float(self.metadata['stdev_predicted_score'])
+            self.scale = lambda a : float((a-mean)/std)
+        else:
+            self.scale = lambda a : float(a)
+
     def load_metadata_and_sd(self, pretrained):
         if pretrained:
             with open(pretrained, "rb") as f:

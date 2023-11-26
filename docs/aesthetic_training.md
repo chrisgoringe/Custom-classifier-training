@@ -32,4 +32,18 @@ maths details here
 
 ## A step-by-step recipe
 
+### Gathering images
 
+folder structure, names of files generated
+
+### Running AB testing
+
+meaning of stats generated
+
+### Training
+
+metadatasearch
+
+### Using
+
+a script to use it, or Comfy nodes
