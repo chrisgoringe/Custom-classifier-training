@@ -48,7 +48,7 @@ class DataHolder:
             image_scores = json.load(f)
             image_scores.pop('#meta#',None)
             for f in image_scores:
-                self.df.loc[len(self.df)] = [os.path.join(image_folder,f), str(image_scores[f]), self.split()]
+                self.df.loc[len(self.df)] = [os.path.join(image_folder,f), str(image_scores[f][0] if isinstance(image_scores[f],list) else image_scores[f]), self.split()]
 
     def dataframe_from_directory_structure(self, image_folder):
         random.seed(self.test_pick_seed)

@@ -12,7 +12,7 @@ common_args = {
     "clip_model"                : "ViT-L/14",
 
     # if restarting a previous run, this is the folder to load from. If None or '', the base_model is used. Required for evaluate or spotlight
-    "load_model"                : "",     
+    "load_model"                : "training/aesthetic",     
 
     # folder to save the resulting model in. Required for training. 
     "save_model"                : "training/aesthetic",
@@ -57,7 +57,7 @@ aesthetic_ab_args = {
     "ab_scorer_size"            : 800,
     "ignore_score_zero"         : False,
     "load_model"                : "training/aesthetic", 
-    "use_model_scores_for_stats": True,
+    "use_model_scores_for_stats": False,
     "max_comparisons"           : 100,
 }
 
@@ -73,7 +73,7 @@ aesthetic_analysis_args = {
 training_args = {
     # These can be seatch using metasearch
     "num_train_epochs"              : 30,
-    "learning_rate"                 : 6e-4,
+    "learning_rate"                 : 1e-4,
     "per_device_train_batch_size"   : 4,   
 
     "lr_scheduler_type"             : "cosine",

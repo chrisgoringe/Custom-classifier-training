@@ -3,36 +3,46 @@ from PIL import Image
 import time
 
 class Database:
-    def __init__(self, img_dir, args, k=0.7):
+    def __init__(self, img_dir, args, k=0.7, weight_fn=lambda a:math.pow(0.8,a)):
         self.image_directory = img_dir
         self.args = args
         self.load()
         self.recursive_add()
         self.keys = list(self.image_scores.keys())
+        self.weights = list(weight_fn(self.image_compare_count[k]) for k in self.keys)
         self.k = k
         self.stats = [0,0,0]     # agreed with db, disagreed with db, no prediction
         self.started = time.monotonic()
         self.validate()
         self.model_score_stats = [0,0,0,0,0]  
         self.model_scores = None
-
+        
     def load(self):
         try:
+            self.image_compare_count = {}
             with open(os.path.join(self.image_directory,"score.json"),'r') as f:
                 self.image_scores = json.load(f)
                 self.meta = self.image_scores.pop("#meta#",{})
+                for im in self.image_scores:
+                    if isinstance(self.image_scores[im],list):
+                        self.image_compare_count[im] = self.image_scores[im][1]
+                        self.image_scores[im] = self.image_scores[im][0]
+                    else:
+                        self.image_compare_count[im] = 0
             shutil.copyfile(os.path.join(self.image_directory,"score.json"), os.path.join(self.image_directory,"score-backup.json"))
         except:
             print("Didn't reload scores")
             self.image_scores = {}
             self.meta = {}
+            self.image_compare_count = {}
+        
 
     def save(self):
         with open(os.path.join(self.image_directory,"score.json"),'w') as f:
-            self.image_scores['#meta#'] = self.meta
             self.replace_missing()
-            print(json.dumps(self.image_scores, indent=2),file=f)
-            self.image_scores.pop('#meta#')
+            to_save = {f:(self.image_scores[f],self.image_compare_count[f]) for f in self.image_scores}
+            to_save['#meta#'] = self.meta
+            print(json.dumps(to_save, indent=2),file=f)
             self.remove_missing()
 
     def set_model_score(self, scorer):
@@ -69,7 +79,8 @@ class Database:
         return [self.model_scores[f] for f in self.model_scores if r.match(f)]
 
     def pick_images_and_scores(self):
-        self.im1, self.im2 = random.sample(self.keys,2)
+        self.im1, self.im2 = random.choices(self.keys,weights=self.weights,k=2)
+        if self.im1==self.im2: return self.pick_images_and_scores()
         return (Image.open(os.path.join(self.image_directory,self.im1)), 
                 Image.open(os.path.join(self.image_directory,self.im2)))
 
@@ -80,12 +91,17 @@ class Database:
             if os.path.isdir(full): self.recursive_add(full)
             if os.path.splitext(f)[1] == ".png" and dir!=self.image_directory: 
                 rel = os.path.relpath(full, self.image_directory)
-                if not rel in self.image_scores: self.image_scores[rel] = 0
+                if not rel in self.image_scores: 
+                    self.image_scores[rel] = 0
+                    self.image_compare_count[rel] = 0
 
     def choices_made(self):
         return sum(self.stats)
 
     def choice_made(self, k):
+        self.image_compare_count[self.im1] += 1
+        self.image_compare_count[self.im2] += 1
+        
         db_delta = self.image_scores[self.im1] - self.image_scores[self.im2]
         if k=='1':
             p = 1.0/(1.0+math.pow(10,-db_delta))
@@ -116,13 +132,19 @@ class Database:
         z = sum(self.image_scores[x]==0 for x in self.image_scores)
         print("{:>4} image pairs in {:>6.1f} s".format(sum(self.stats), time.monotonic()-self.started))
         print(f"{z}/{len(self.image_scores)} of the images are rated zero")
+        db_choice_match_percentage = 100*self.stats[0]/(self.stats[0]+self.stats[1])
+        total_ever = sum(self.image_compare_count[x] for x in self.image_compare_count)
         if (self.stats[0]+self.stats[1]):
             print("{:>3} choices matched db, {:>3} contradicted db [{:>3} not predicted] = ({:>5.2f}%) ".format(
-            *self.stats, 100*self.stats[0]/(self.stats[0]+self.stats[1])))
+            *self.stats, db_choice_match_percentage))
         print("A total of {:>6} comparisons have been made for {:>5} images ({:>5.2f} per image)".format(
             self.meta['evaluations'], len(self.image_scores), 2*self.meta['evaluations']/len(self.image_scores)))
-        if self.model_score_stats is not None: 
-            strng = "{:>5} tests: {:>3} all agree; {:>3} db odd-one-out; {:>3} model odd-one-out; {:>3} human odd-one-out; {:>3} model or db draw"
-            strng=strng.format(sum(self.model_score_stats),*self.model_score_stats) 
+        if self.model_score_stats is not None and sum(self.model_score_stats): 
+            strng = "{:>3} all agree; {:>3} db odd-one-out; {:>3} model odd-one-out; {:>3} human odd-one-out; {:>3} model or db draw; {:>5.2f}%"
+            strng=strng.format(*self.model_score_stats, db_choice_match_percentage) 
             print(strng)
             print(strng, file=open("ab_stats.txt",'+a'))
+        strng = "{:>6} tests: {:>5.2f}%"
+        strng=strng.format(total_ever, db_choice_match_percentage) 
+        print(strng)
+        print(strng, file=open("ab_stats.txt",'+a'))

@@ -17,7 +17,7 @@ def main():
 
         clipper = CLIP(image_directory=args['top_level_image_directory'])
         predictor = AestheticPredictor(pretrained=os.path.join(args['load_model'],"model.safetensors"), 
-                                    relu=args['aesthetic_model_relu'], clipper=clipper)
+                                    relu=args.get('aesthetic_model_relu',True), clipper=clipper)
     
     with Timer("Analyse existing non-zero scores") as logger:
         all_non_zero_scores = [db.image_scores[f] for f in db.image_scores if db.image_scores[f]!=0]
@@ -34,7 +34,7 @@ def main():
                                             as_sorted_tuple=True, eval_mode=True)
         clipper.save_cache()
         
-        all_predicted_scores = [(a[0], os.path.relpath(a[1],args['top_level_image_directory'])) for a in all_predicted_scores ]
+        all_predicted_scores = [(float(a[0]), os.path.relpath(a[1],args['top_level_image_directory'])) for a in all_predicted_scores ]
         mean = statistics.mean([a[0] for a in all_predicted_scores])
     
     with Timer("Offset by mean and apply tanh") as logger:
