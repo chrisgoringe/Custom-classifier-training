@@ -132,9 +132,9 @@ class Database:
         
 
     def report(self):
-        z = sum(self.image_scores[x]==0 for x in self.image_scores)
+        z = sum(self.image_compare_count[x]==0 for x in self.image_scores)
         print("{:>4} comparisons in {:>6.1f} s".format(sum(self.stats), time.monotonic()-self.started))
-        print(f"{z}/{len(self.image_scores)} of the images are rated zero")
+        print(f"{z}/{len(self.image_scores)} of the images have no comparisons yet")
 
         db_choice_match_percentage = 100*self.stats[0]/(self.stats[0]+self.stats[1])
         total_ever = sum(self.image_compare_count[x] for x in self.image_compare_count)
