@@ -1,4 +1,4 @@
-import random, json, os, math, shutil, regex
+import random, json, os, math, shutil, regex, statistics
 from PIL import Image
 import time
 
@@ -16,6 +16,7 @@ class Database:
         self.validate()
         self.model_score_stats = [0,0,0,0,0]  
         self.model_scores = None
+        self.set_scaling_function()
         
     def load(self):
         try:
@@ -31,12 +32,11 @@ class Database:
                         self.image_compare_count[im] = 0
             shutil.copyfile(os.path.join(self.image_directory,"score.json"), os.path.join(self.image_directory,"score-backup.json"))
         except:
-            print("Didn't reload scores")
+            print(f"Database didn't reload scores from {os.path.join(self.image_directory,'score.json')}")
             self.image_scores = {}
             self.meta = {}
             self.image_compare_count = {}
         
-
     def save(self):
         with open(os.path.join(self.image_directory,"score.json"),'w') as f:
             self.replace_missing()
@@ -70,6 +70,15 @@ class Database:
         for file in self.zeroes: self.image_scores[file] = self.zeroes[file]
         for file in self.missing_files: self.image_scores[file] = self.missing_files[file]
 
+    def set_scaling_function(self):
+        non_zeros = list(self.image_scores[f] for f in self.image_scores if self.image_scores[f]!=0)
+        if len(non_zeros)>1: 
+            mean = statistics.mean(non_zeros)
+            stdev = statistics.stdev(non_zeros)
+            self.scale = lambda a : (a-mean)/stdev
+        else:
+            self.scale = lambda a : a
+    
     def scores_for_matching(self, reg):
         r = regex.compile(reg)
         return [self.image_scores[f] for f in self.image_scores if r.match(f)]
@@ -90,7 +99,7 @@ class Database:
         for f in os.listdir(dir):
             full = os.path.join(dir,f) 
             if os.path.isdir(full): self.recursive_add(full)
-            if os.path.splitext(f)[1] == ".png" and dir!=self.image_directory: 
+            if os.path.splitext(f)[1] == ".png": 
                 rel = os.path.relpath(full, self.image_directory)
                 if not rel in self.image_scores: 
                     self.image_scores[rel] = 0

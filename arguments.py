@@ -14,7 +14,7 @@ common_args = {
     "save_model"                : "training/aesthetic",
 
     # path to the top level image directory
-    "top_level_image_directory" : "a:/aesthetic/training", 
+    "top_level_image_directory" : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\bbp1",#"a:/aesthetic/training", 
 
     # if there is a score.json file use this instead of the folder names for the score?
     "use_score_file"            : True,
