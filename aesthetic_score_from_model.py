@@ -8,7 +8,7 @@ from src.time_context import Timer
 import os, statistics
 
 def main():
-    get_args(aesthetic_model=True)
+    get_args(aesthetic_model=True, show_training_args=False)
     assert args['top_level_image_directory'], "Need an image directory"
     assert args['load_model'], "Need to load a model"
 
