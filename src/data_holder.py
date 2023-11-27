@@ -2,6 +2,7 @@ import os, json
 import pandas as pd
 import random, json
 
+
 def valid_image(filepath:str):
     if os.path.basename(filepath).startswith("."): return False
     _,ext = os.path.splitext(filepath)
@@ -61,3 +62,4 @@ class DataHolder:
 
     def get_dataframe(self) -> pd.DataFrame:
         return self.df 
+    
