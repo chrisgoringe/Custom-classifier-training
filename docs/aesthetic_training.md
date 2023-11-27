@@ -28,7 +28,9 @@ If the `model` isn't good enough, more training is probably not the answer, and 
 
 ### You want maths? We've got maths
 
-maths details here
+The update to the database scores for images is based on the ELO scoring system (used to rank chess players, among other things). When two images are compared, the probability that A will be prefered to B is given by `P(A>B) = 1 / (1+10^-delta)`, where delta is difference between the current rating of the two images. When the comparison takes place, the ratings of each are updated by calculating the unlikeliness of the result (`1-P`), multiplying it by a constant `K`. This value, `K(1-P)`, is added to the rating of the preferred image, and subtracted from that of the other. Since the model is trained on comparisons of values, not absolute values, the actual value of K doesn't matter (but it's 0.8, because reasons).
+
+The model is trained by default using a MarginRankingLoss, which essentially rates the model on how accurately it reconstructs the ordering of images, rather than the absolute values of their scores. For this reason, both the database and model outputs should be rescaled before use; I have adopted the convention of rescaling them to a mean value of zero and standard deviation of one (with that mean and standard deviation calculated across the whole set of training images).
 
 ## A step-by-step recipe
 
@@ -39,6 +41,15 @@ folder structure, names of files generated
 ### Running AB testing
 
 meaning of stats generated
+
+
+after model has been trained, human odd-one-outs go up (because model close to database).
+as you do ABs and improve database, human odd-one-outs should go down and model up
+
+
+you're trying to pull the model towards the human. AB training pulls the DB towards the human, model training pulls the model towards the DB.
+
+So roughly: human odd-one-out > model odd-one-out means you need more AB; the other way around means you might consider training
 
 ### Training
 

@@ -3,13 +3,13 @@ from PIL import Image
 import time
 
 class Database:
-    def __init__(self, img_dir, args, k=0.7, weight_fn=lambda a:math.pow(0.8,a)):
+    def __init__(self, img_dir, args, k=0.7, low_count_weight=0):
         self.image_directory = img_dir
         self.args = args
+        self.weight_fn = lambda a:math.pow(1-low_count_weight,a)
         self.load()
         self.recursive_add()
         self.keys = list(self.image_scores.keys())
-        self.weights = list(weight_fn(self.image_compare_count[k]) for k in self.keys)
         self.k = k
         self.stats = [0,0,0]     # agreed with db, disagreed with db, no prediction
         self.started = time.monotonic()
@@ -79,7 +79,8 @@ class Database:
         return [self.model_scores[f] for f in self.model_scores if r.match(f)]
 
     def pick_images(self, number):
-        self.ims = random.choices(self.keys,weights=self.weights,k=number)
+        weights = list(self.weight_fn(self.image_compare_count[k]) for k in self.keys)
+        self.ims = random.choices(self.keys,weights=weights,k=number)
         for i in range(number-1): 
             if self.ims[i] in self.ims[i+1:]: return self.pick_images(number)
         return (Image.open(os.path.join(self.image_directory,im)) for im in self.ims)

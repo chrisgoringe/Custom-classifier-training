@@ -52,6 +52,9 @@ aesthetic_ab_args = {
     # Number of images to show (2-8)
     "ab_image_count"            : 2,
 
+    # How strongly to prefer images with fewer comparisons (0 = no weighting). Probability weighted by (1-lcw)^(comparisons)
+    "low_count_weight"          : 0.3,
+
     # The size (height) of the window used by the aesthetic_ab_scorer script
     "ab_scorer_size"            : 600,
 
@@ -67,7 +70,7 @@ aesthetic_ab_args = {
 
 aesthetic_analysis_args = {
     # in AB scorer; optionally provide a list of regex strings; instead of running it will give statistics for images matching
-    "ab_analysis_regexes"       : ['^3','^4','^5','^6','^7','^batch1',],
+    "ab_analysis_regexes"       : ['^3','^4','^5','^6','^7','^batch1','^one_stdev','^one_point_two'],
     "use_model_scores_for_stats": True,
 }
 
