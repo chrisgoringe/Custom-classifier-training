@@ -154,11 +154,10 @@ class Database:
         print("A total of {:>6} comparisons have been made for {:>5} images ({:>5.2f} per image)".format(
             self.meta['evaluations'], len(self.image_scores), 2*self.meta['evaluations']/len(self.image_scores)))
         if self.model_score_stats is not None and sum(self.model_score_stats): 
-            strng = "{:>3} all agree; {:>3} db odd-one-out; {:>3} model odd-one-out; {:>3} human odd-one-out; {:>3} model or db draw; {:>5.2f}%"
-            strng=strng.format(*self.model_score_stats, db_choice_match_percentage) 
-            print(strng)
-            print(strng, file=open("ab_stats.txt",'+a'))
-        strng = "{:>6} tests: {:>5.2f}%"
-        strng=strng.format(total_ever, db_choice_match_percentage) 
+            strng = "all agree {:>3} ; model-choice agree {:>3} ; db-choice agree {:>3} ; db-model agree {:>3} "
+            strng=strng.format(self.model_score_stats[0], self.model_score_stats[0]+self.model_score_stats[1], self.model_score_stats[0]+self.model_score_stats[2], self.model_score_stats[0]+self.model_score_stats[3] ) 
+        else:
+            strng = "{:>6} tests: {:>5.2f}%"
+            strng=strng.format(total_ever, db_choice_match_percentage) 
         print(strng)
         print(strng, file=open("ab_stats.txt",'+a'))

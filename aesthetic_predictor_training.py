@@ -28,8 +28,7 @@ class EvaluationCallback(TrainerCallback):
             for dataset, label, _ in self.datasets:
                 with torch.no_grad():
                     dataset.update_prediction(predictor)
-                print(f"==== Epoch {str(state.epoch)} ({label}): ")
-                report(dataset, "folder {:>1} average score {:>5.3f} +/ {:>5.3f}")
+                Timer.message("==== Epoch {:>3} ({:8}): rmse {:>6.3f} ab {:>5.2f}%".format(state.epoch,label,get_rmse(dataset),100*get_ab_score(dataset)))
 
         def on_epoch_end(self, arguments, state: TrainerState, control, **kwargs):
             for dataset, _, shuffle in self.datasets:
@@ -41,28 +40,20 @@ class EvaluationCallback(TrainerCallback):
         def on_train_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
             if state.epoch != self.last: self.do_eval(state, kwargs['model'])
 
-def ab_report(ds:QuickDataset, prnt="AB: {:>5}/{:<5} correct ({:>5.2f}%)"):
+def get_ab_score(ds:QuickDataset):
     right = 0
     wrong = 0
     true_predicted = ds.columns('score','predicted_score')
     for i, a in enumerate(true_predicted):
         for b in true_predicted[i+1:]:
-            if a[0]==b[0]: continue
+            if a[0]==b[0] or a[1]==b[1]: continue
             if (a[0]<b[0] and a[1]<b[1]) or (a[0]>b[0] and a[1]>b[1]): right += 1
             else: wrong += 1
-    if prnt: print(prnt.format(right,right+wrong,100*right/(right+wrong)))
-    return right/(right+wrong)
+    return right/(right+wrong) if (right+wrong) else 0
     
-def report(eds:QuickDataset, prnt:str, prntrmse:str="rms error {:>6.3}"):
+def get_rmse(eds:QuickDataset):
     loss_fn = torch.nn.MSELoss()
-    if prnt and not args['loss_model']=='ranking':
-        for x in sorted(set(eds.column('label_str'))):
-            scores = eds.column_where('predicted_score','label_str',x)
-            std = statistics.stdev(scores) if len(scores)>1 else 0
-            print(prnt.format(x,statistics.mean(scores),std))
     rmse = loss_fn(torch.tensor(eds.column('score')), torch.tensor(eds.column('predicted_score')))
-    if prntrmse and not args['loss_model']=='ranking': print(prntrmse.format(rmse))
-    ab_report(eds)
     return rmse
 
 def combine_metadata(*args):
@@ -80,7 +71,7 @@ def train_predictor():
         clipper = CLIP(pretrained=args['clip_model'], image_directory=top_level_images)
         predictor = AestheticPredictor(pretrained=pretrained, relu=args['aesthetic_model_relu'], clipper=clipper)
 
-    with Timer('Prepare images'):
+    with Timer('Prepare images') as logger:
         data = DataHolder(top_level=top_level_images, save_model_folder=args['save_model'], use_score_file=args['use_score_file'])
         df = data.get_dataframe()
         ds = QuickDataset(df)
@@ -90,14 +81,16 @@ def train_predictor():
         df['score'] = [float(l) for l in df['label_str']]
         tds = QuickDataset(df, 'train')
         eds = QuickDataset(df, 'test')
+        logger(f"{len(ds)} images ({len(tds)} training, {len(eds)} evaluation)")
 
-    with torch.no_grad():
-        ds.update_prediction(predictor)
-    report(ds, "Start (train+eval): folder {:>1} average score {:>5.3f} +/ {:>5.3f}")
+    with Timer('Predict values') as logger:
+        with torch.no_grad():
+            ds.update_prediction(predictor)
+        logger("==== Start (all images): rmse {:>6.3f} ab {:>5.2f}%".format(get_rmse(ds),100*get_ab_score(ds)))
 
     with Timer('train model'):
         train_args = TrainingArguments( remove_unused_columns=False, push_to_hub=False, output_dir=args['save_model'], **training_args )
-        callback = EvaluationCallback(every=args['eval_every_n_epochs'], datasets=[ds,eds], labels=["all","test"], shuffles=[False,True])
+        callback = EvaluationCallback(every=args['eval_every_n_epochs'], datasets=[ds,eds], labels=["all images"," test set "], shuffles=[True,True])
 
         CustomTrainer.trainer(  loss = args['loss_model'], model = predictor, 
                                 train_dataset = tds, eval_dataset = eds, 
@@ -108,12 +101,9 @@ def train_predictor():
         metadata = combine_metadata( ds.get_metadata(), clipper.get_metadata(), predictor.get_metadata() )
 
         save_file(predictor.state_dict(),os.path.join(args['save_model'],"model.safetensors"),metadata=metadata)
-
-    if args['mode']=='meta':
-        return report(eds,None,None), report(tds,None,None), ab_report(eds,None), ab_report(tds,None)
-    
+   
     if args['mode']=='metasearch':
-        return ab_report(eds,None)
+        return get_ab_score(eds)
 
 if __name__=='__main__':
     get_args(aesthetic_training=True, aesthetic_model=True)

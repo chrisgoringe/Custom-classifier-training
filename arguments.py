@@ -8,18 +8,15 @@ common_args = {
     "base_model"                : "models/sac+logos+ava1-l14-linearMSE.safetensors",
 
     # if restarting a previous run, this is the folder to load from. If None or '', the base_model is used. 
-    "load_model"                : "training/aesthetic",     
+    "load_model"                : "training/aesthetic2",     
 
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : "training/aesthetic",
+    "save_model"                : "training/aesthetic3",
 
     # path to the top level image directory
-    "top_level_image_directory" : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\bbp1",#"a:/aesthetic/training", 
+    "top_level_image_directory" : "a:/aesthetic/training", 
 
-    # if there is a score.json file use this instead of the folder names for the score?
-    "use_score_file"            : True,
-
-    # what fraction of images to reserve as test images (not used in training), and a random seed for picking them
+    # what fraction of images to reserve as test images (when training), and a random seed for picking them
     "fraction_for_test"         : 0.25,
     "test_pick_seed"            : 42,        
     
@@ -28,7 +25,7 @@ common_args = {
 }
 
 category_training_args = {
-    # weight the loss by the inverse of the number of images in each category? Not applied in aesthetic trainer
+    # weight the loss by the inverse of the number of images in each category? Not applied in aesthetic trainer, so ignore it!
     "weight_category_loss"      : True,
 }
 
@@ -69,7 +66,6 @@ aesthetic_ab_args = {
 }
 
 aesthetic_analysis_args = {
-    # in AB scorer; optionally provide a list of regex strings; instead of running it will give statistics for images matching
     "ab_analysis_regexes"       : ['^3','^4','^5','^6','^7','^batch1','^one_stdev','^one_point_two'],
     "use_model_scores_for_stats": True,
 }
@@ -77,6 +73,9 @@ aesthetic_analysis_args = {
 # training_args are passed directly into the TrainingArguments object.
 # Below are the most common of the 101 arguments available
 # see https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer#transformers.TrainingArguments
+#
+# If you use metasearch as the mode, the first three (epochs, lr, batch) will be varied across multiple runs,
+# but these are the start points
 training_args = {
     "num_train_epochs"              : 30,
     "learning_rate"                 : 1e-4,
@@ -96,11 +95,14 @@ training_args = {
     "evaluation_strategy"           : "no",
     "eval_steps"                    : 200,
 
+    # show logging messages during training? "steps" is default
+    "logging_strategy"              : "no",
+
     # Choose the best model, not the last model, to keep at the end. Requires save_strategy and evaluation_strategy to be the same (and not "no"). 
     "load_best_model_at_end"        : False,    
 }
 
-# Default values that get overwritten by any of the above
+# Default values that get overwritten by any of the above - generally things that used to be options but really shouldn't be
 class Args:
     args = {
         # If set to true, images from the score file with a score of zero are ignored
@@ -110,6 +112,9 @@ class Args:
         "clip_model"                : "ViT-L/14",
 
         "aesthetic_model_dropouts"  : [0.2,0.2,0.1],
+
+        # if there is a score.json file use this instead of the folder names for the score?
+        "use_score_file"            : True,
     }
 
 def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=False, aesthetic_analysis=False, aesthetic_model=False, show_training_args=True):
