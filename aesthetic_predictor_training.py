@@ -3,7 +3,7 @@ from src.time_context import Timer
 with Timer("Python imports"):
     import torch
     from safetensors.torch import save_file
-    import os, statistics,  shutil
+    import os, shutil
 
     from src.data_holder import DataHolder
     from transformers import TrainerControl, TrainerState, TrainingArguments, TrainerCallback
@@ -69,7 +69,10 @@ def train_predictor():
 
     with Timer('load models'):
         clipper = CLIP(pretrained=args['clip_model'], image_directory=top_level_images)
-        predictor = AestheticPredictor(pretrained=pretrained, relu=args['aesthetic_model_relu'], clipper=clipper)
+        predictor = AestheticPredictor(pretrained=pretrained, clipper=clipper, 
+                                       relu=args['aesthetic_model_relu'], 
+                                       dropouts=args['aesthetic_model_dropouts'], 
+                                       layers=args['custom_hidden_layers'])
 
     with Timer('Prepare images') as logger:
         data = DataHolder(top_level=top_level_images, save_model_folder=args['save_model'], use_score_file=args['use_score_file'])
@@ -103,7 +106,7 @@ def train_predictor():
         save_file(predictor.state_dict(),os.path.join(args['save_model'],"model.safetensors"),metadata=metadata)
    
     if args['mode']=='metasearch':
-        return get_ab_score(eds)
+        return get_ab_score(eds), get_ab_score(ds)
 
 if __name__=='__main__':
     get_args(aesthetic_training=True, aesthetic_model=True)
@@ -113,23 +116,21 @@ if __name__=='__main__':
         def evalfn(params:ParameterSet):
             params.to_args(training_args)
             return train_predictor()
-        def callbk(params:ParameterSet, score, bad, tme, note):
-            params.print()
-            params.print(open("metasearch.txt",'+a'))
-            txt = "Score {:>5.2f}% ({:>1}) {:>6.1f}s - {:<30}".format(100*score, bad, tme, note)
+        def callbk(params:ParameterSet, score, all_score, bad, tme, note):
+            txt = params.description + " : {:>5.2f}%  (all {:>5.2f}%)  ({:>1}) {:>6.1f}s - {:<30}".format(100*score, 100*all_score, bad, tme, note)
             print(txt, file=open("metasearch.txt",'+a'))
-            print(txt)
         def best_so_far():
             shutil.copytree(args['save_model'], args['save_model']+"-best", dirs_exist_ok=True)
         
-        params, score = MetaparameterSearcher(initial_parameters=initial, 
-                                              evaluation_function=evalfn, 
-                                              new_parameter_function=AMP(even_batch=True).update_mps, 
-                                              callback=callbk, 
-                                              best_so_far_callback=best_so_far,
-                                              minimise=False).search()
-        print(f"Best parameters {params} -> {score}")
-        if os.path.exists(args['save_model']+"-best"):
-            shutil.copytree(args['save_model']+"-best", args['save_model'], dirs_exist_ok=True)
+        with Timer("Metaparameter search"):
+            params, score = MetaparameterSearcher(initial_parameters=initial, 
+                                                evaluation_function=evalfn, 
+                                                new_parameter_function=AMP(even_batch=True).update_mps, 
+                                                callback=callbk, 
+                                                best_so_far_callback=best_so_far,
+                                                minimise=False).search()
+            print(f"Best parameters {params} -> {score}")
+            if os.path.exists(args['save_model']+"-best"):
+                shutil.copytree(args['save_model']+"-best", args['save_model'], dirs_exist_ok=True)
     else:
         train_predictor()

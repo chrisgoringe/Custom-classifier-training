@@ -5,15 +5,16 @@ common_args = {
     # the base model (automatically downloaded if required)   
     # google/vit-base-patch16-224  and google/efficientnet-b5 (or b0...b7) are good ones to try
     # for aesthetic, models/sac+logos+ava1-l14-linearMSE.safetensors
-    "base_model"                : "models/sac+logos+ava1-l14-linearMSE.safetensors",
+    "base_model"                : "",
 
     # if restarting a previous run, this is the folder to load from. If None or '', the base_model is used. 
-    "load_model"                : "training/aesthetic2",     
+    "load_model"                : "",     
 
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : "training/aesthetic3",
+    "save_model"                : "training/blah",
 
     # path to the top level image directory
+    #"top_level_image_directory" : "C:/Users/chris\Documents/GitHub/Custom-classifier-training/training", 
     "top_level_image_directory" : "a:/aesthetic/training", 
 
     # what fraction of images to reserve as test images (when training), and a random seed for picking them
@@ -37,12 +38,16 @@ aesthetic_training_args = {
     "ignore_score_zero"         : True,
 
     # aesthetic model dropouts - default dropouts are [0.2,0.2,0.1]. 
-    "aesthetic_model_dropouts"  : [0.2,0.2,0.1],
+    "aesthetic_model_dropouts"  : [0.0],#[0.2,0.2,0.1],
 }
 
 aesthetic_model_args = {
     # The aesthetic model has no activators - this seems wrong to me. This inserts them.
     "aesthetic_model_relu"      : True,
+
+    # hidden layers - the layers in the model (a list - the inbuilt model is [1024,128,64,16])
+    # the top layer is determined by the CLIP (768), the bottom layer is 1.
+    "custom_hidden_layers"      : [128,16],
 }
 
 aesthetic_ab_args = {
@@ -50,7 +55,7 @@ aesthetic_ab_args = {
     "ab_image_count"            : 2,
 
     # How strongly to prefer images with fewer comparisons (0 = no weighting). Probability weighted by (1-lcw)^(comparisons)
-    "low_count_weight"          : 0.3,
+    "low_count_weight"          : 0.4,
 
     # The size (height) of the window used by the aesthetic_ab_scorer script
     "ab_scorer_size"            : 600,
@@ -66,7 +71,7 @@ aesthetic_ab_args = {
 }
 
 aesthetic_analysis_args = {
-    "ab_analysis_regexes"       : ['^3','^4','^5','^6','^7','^batch1','^one_stdev','^one_point_two'],
+    "ab_analysis_regexes"       : [],
     "use_model_scores_for_stats": True,
 }
 
@@ -79,10 +84,10 @@ aesthetic_analysis_args = {
 training_args = {
     "num_train_epochs"              : 30,
     "learning_rate"                 : 1e-4,
-    "per_device_train_batch_size"   : 4,   
+    "per_device_train_batch_size"   : 8,   
+    "warmup_ratio"                  : 0.1,
 
     "lr_scheduler_type"             : "cosine",
-    "warmup_ratio"                  : 0.1,
     "gradient_accumulation_steps"   : 1,  
     "per_device_eval_batch_size"    : 128,
 

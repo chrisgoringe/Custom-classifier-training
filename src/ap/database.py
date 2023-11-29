@@ -2,11 +2,38 @@ import random, json, os, math, shutil, regex, statistics
 from PIL import Image
 import time
 
+class ImageChooser:
+    def __init__(self, database):
+        self.database = database
+
+    def first_image_weights(self):
+        return [1]*len(self.database.keys)
+    
+    def other_image_weight(self, first_image):
+        return self.first_image_weights()
+    
+    def pick_images(self, number):
+        im1 = random.choices(self.database.keys, weights=self.first_image_weights(), k=1)[0]
+        imx = list(random.choices(self.database.keys, weights=self.other_image_weight(im1), k=1)[0] for _ in range(number-1))
+        ims = [im1,*imx]
+        for im in ims:
+            if im in ims[1+1:]:
+                return self.pick_images(number)
+        return ims
+            
+class WeightedImageChooser(ImageChooser):
+    def __init__(self, database, low_count_weight):
+        super().__init__(database)
+        self.low_count_weight = low_count_weight
+
+    def first_image_weights(self):
+        return list(math.pow(1-self.low_count_weight,self.database.image_compare_count[k]) for k in self.database.keys)
+
 class Database:
     def __init__(self, img_dir, args, k=0.7, low_count_weight=0):
         self.image_directory = img_dir
         self.args = args
-        self.weight_fn = lambda a:math.pow(1-low_count_weight,a)
+        self.image_chooser = WeightedImageChooser(self, low_count_weight)
         self.load()
         self.recursive_add()
         self.keys = list(self.image_scores.keys())
@@ -88,10 +115,7 @@ class Database:
         return [self.model_scores[f] for f in self.model_scores if r.match(f)]
 
     def pick_images(self, number):
-        weights = list(self.weight_fn(self.image_compare_count[k]) for k in self.keys)
-        self.ims = random.choices(self.keys,weights=weights,k=number)
-        for i in range(number-1): 
-            if self.ims[i] in self.ims[i+1:]: return self.pick_images(number)
+        self.ims = self.image_chooser.pick_images(number)
         return (Image.open(os.path.join(self.image_directory,im)) for im in self.ims)
 
     def recursive_add(self, dir=None):

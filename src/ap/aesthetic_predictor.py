@@ -5,37 +5,48 @@ from .clip import CLIP
 import os, json
 
 class AestheticPredictor(nn.Module):
-    def __init__(self, clipper:CLIP, input_size=768, pretrained="", device="cuda", dropouts=[0.2,0.2,0.1], relu=True):
+    def __init__(self, clipper:CLIP, input_size=768, pretrained="", device="cuda", dropouts=[0.2,0.2,0.1], relu=True, layers=None):
         super().__init__()
         self.metadata, sd = self.load_metadata_and_sd(pretrained)
+        layers = layers or [1024,128,64,16]
 
         assert self.metadata.get('input_size', str(input_size)) == str(input_size) , "Inconsistency in input_size"
         self.metadata['input_size'] = str(input_size)
         assert self.metadata.get('relu', str(relu)) == str(relu) , "Inconsistency in relu"
         self.metadata['relu'] = str(relu)
-
+        assert self.metadata.get('layers', str(layers)) == str(layers), "Inconsistency in layers"
+        self.metadata['layers'] = str(layers)
+        assert len(layers)==len(dropouts)+1, f"must have layers (have {len(layers)}) must equal dropouts (have {len(dropouts)})+1"
+        
         self.input_size = input_size
-        self.layers = nn.Sequential(
-            nn.Linear(self.input_size, 1024), 
-            nn.Dropout(dropouts[0]),          
-            nn.Linear(1024, 128),
-            nn.Dropout(dropouts[1]),
-            nn.Linear(128, 64),
-            nn.Dropout(dropouts[2]),
-            nn.Linear(64, 16),
-            nn.Linear(16, 1)
-        )
-        if sd: 
-            load_has_relu = not 'layers.2.bias' in sd
-            if load_has_relu:
-                assert relu, "Reloaded file had ReLU - args['aesthetic_model_relu'] = False"
-                self.add_relu()
-                self.load_state_dict(load_file(pretrained))
-            else:
-                self.load_state_dict(load_file(pretrained))
-                if relu: self.add_relu()
+        
+        if len(layers)==4:
+            self.layers = nn.Sequential(
+                nn.Linear(self.input_size, layers[0]), 
+                nn.Dropout(dropouts[0]),          
+                nn.Linear(layers[0], layers[1]),
+                nn.Dropout(dropouts[1]),
+                nn.Linear(layers[1], layers[2]),
+                nn.Dropout(dropouts[2]),
+                nn.Linear(layers[2], layers[3]),
+                nn.Linear(layers[3], 1)
+            )
+
+            pretrained_has_relu = sd and not 'layers.2.bias' in sd
+            if pretrained_has_relu: self.add_relu()
+            if sd: self.load_state_dict(load_file(pretrained))
+            if relu and not pretrained_has_relu: self.add_relu()
         else:
-            if relu: self.add_relu()
+            self.layers = nn.Sequential( 
+                nn.Linear(self.input_size, layers[0]),
+                nn.ReLU() 
+            )
+            for i in range(1,len(layers)):
+                self.layers.append(nn.Dropout(dropouts[i-1]))
+                self.layers.append(nn.Linear(layers[i-1], layers[i]))
+                self.layers.append(nn.ReLU())
+            self.layers.append(nn.Linear(layers[-1], 1))
+        
         self.layers.to(device)
         self.device = device
         self.clipper = clipper

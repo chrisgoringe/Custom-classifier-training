@@ -10,6 +10,7 @@ class CLIP:
         self.device = device
         self.cached = {}
         self.cachefile = os.path.join(image_directory,f"clipcache.{pretrained.replace('/','_')}.safetensors")
+        self.image_directory = image_directory
         try:
             self.cached = load_file(self.cachefile, device=self.device)
             print(f"Reloaded CLIPs from {self.cachefile} - delete this file if you don't want to do that")
@@ -24,9 +25,10 @@ class CLIP:
             return image_features.to(torch.float)
    
     def prepare_from_file(self, filename, device="cuda"):
-        if filename not in self.cached:
-            self.cached[filename] = self.get_image_features_tensor(Image.open(filename))
-        return self.cached[filename].to(device)
+        rel = os.path.relpath(filename, self.image_directory)
+        if rel not in self.cached:
+            self.cached[rel] = self.get_image_features_tensor(Image.open(filename))
+        return self.cached[rel].to(device)
     
     def save_cache(self):
         save_file(self.cached, self.cachefile)
