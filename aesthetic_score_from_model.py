@@ -16,7 +16,7 @@ def main():
         db = Database(args['top_level_image_directory'], args)
 
         clipper = CLIP(image_directory=args['top_level_image_directory'])
-        predictor = AestheticPredictor(pretrained=os.path.join(args['load_model'],"model.safetensors"), 
+        predictor = AestheticPredictor(pretrained=args['load_model_path'], 
                                     relu=args.get('aesthetic_model_relu',True), clipper=clipper)
         
     with Timer("Predict scores for all images"):
