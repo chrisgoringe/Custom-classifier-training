@@ -28,7 +28,7 @@ def analyse():
     if args['use_model_scores_for_stats']:
         assert args['load_model'], "Need to load a model if use_model_scores_for_stats is true"
         ap = AestheticPredictor(clipper=CLIP(image_directory=db.image_directory), 
-                                pretrained=os.path.join(args['load_model'],'model.safetensors'), 
+                                pretrained=args['load_model_path'], 
                                 dropouts=args['aesthetic_model_dropouts'], 
                                 relu=args['aesthetic_model_relu'])
         db.set_model_score(ap.evaluate_file)

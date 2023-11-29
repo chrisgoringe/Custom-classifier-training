@@ -64,7 +64,7 @@ def combine_metadata(*args):
     return metadata
 
 def train_predictor():
-    pretrained = os.path.join(args['load_model'],"model.safetensors") if ('load_model' in args and args['load_model']) else args['base_model']
+    pretrained = args['load_model_path'] or args['base_model']
     top_level_images = args['top_level_image_directory']
 
     with Timer('load models'):

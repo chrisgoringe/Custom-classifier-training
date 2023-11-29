@@ -1,3 +1,5 @@
+import os 
+
 common_args = {
     # "", "train", "evaluate", "spotlight", "metasearch"
     "mode"                      : "metasearch",
@@ -8,7 +10,7 @@ common_args = {
     "base_model"                : "",
 
     # if restarting a previous run, this is the folder to load from. If None or '', the base_model is used. 
-    "load_model"                : "",     
+    "load_model"                : "C:/Users/chris/Documents/GitHub/ComfyUI_windows_portable/ComfyUI/models/customaesthetic/model28.safetensors",     
 
     # folder to save the resulting model in. Required for training. 
     "save_model"                : "training/blah",
@@ -140,5 +142,12 @@ def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=Fal
         print("training_args")
         for a in training_args:
             print("{:>30} : {:<40}".format(a, str(training_args[a])))
+
+    for argument in ['load_model',]:
+        if argument in args and args[argument]:
+            args[f"{argument}_path"]=os.path.join(args[argument],'model.safetensors') if os.path.isdir(args[argument]) else args[argument]
+        else:
+            args[f"{argument}_path"]=None
+
 
 args = Args.args
