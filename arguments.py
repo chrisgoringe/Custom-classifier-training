@@ -6,17 +6,17 @@ common_args = {
 
     # the base model (automatically downloaded if required)   
     # google/vit-base-patch16-224  and google/efficientnet-b5 (or b0...b7) are good ones to try
-    # for aesthetic, models/sac+logos+ava1-l14-linearMSE.safetensors
+    # for aesthetic, no base model
     "base_model"                : "",
 
     # if restarting a previous run, this is the folder to load from. If None or '', the base_model is used. 
-    "load_model"                : "C:/Users/chris/Documents/GitHub/ComfyUI_windows_portable/ComfyUI/models/customaesthetic/model28.safetensors",     
+    "load_model"                : "training/blah/model30.safetensors",     
 
     # folder to save the resulting model in. Required for training. 
     "save_model"                : "training/blah",
 
     # path to the top level image directory
-    #"top_level_image_directory" : "C:/Users/chris\Documents/GitHub/Custom-classifier-training/training", 
+    #"top_level_image_directory" : "training", 
     "top_level_image_directory" : "a:/aesthetic/training", 
 
     # what fraction of images to reserve as test images (when training), and a random seed for picking them
@@ -40,7 +40,7 @@ aesthetic_training_args = {
     "ignore_score_zero"         : True,
 
     # aesthetic model dropouts - default dropouts are [0.2,0.2,0.1]. 
-    "aesthetic_model_dropouts"  : [0.0],#[0.2,0.2,0.1],
+    "aesthetic_model_dropouts"  : [0.2],#[0.2,0.2,0.1],
 }
 
 aesthetic_model_args = {
@@ -86,7 +86,7 @@ aesthetic_analysis_args = {
 training_args = {
     "num_train_epochs"              : 30,
     "learning_rate"                 : 1e-4,
-    "per_device_train_batch_size"   : 8,   
+    "per_device_train_batch_size"   : 6,   
     "warmup_ratio"                  : 0.1,
 
     "lr_scheduler_type"             : "cosine",
@@ -118,7 +118,7 @@ class Args:
         # clip model used by aesthetic scorer (default 'ViT-L/14' is the one used for the pretrained model included)
         "clip_model"                : "ViT-L/14",
 
-        "aesthetic_model_dropouts"  : [0.2,0.2,0.1],
+        "aesthetic_model_dropouts"  : None,
 
         # if there is a score.json file use this instead of the folder names for the score?
         "use_score_file"            : True,
@@ -143,7 +143,7 @@ def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=Fal
         for a in training_args:
             print("{:>30} : {:<40}".format(a, str(training_args[a])))
 
-    for argument in ['load_model',]:
+    for argument in ['load_model','save_model']:
         if argument in args and args[argument]:
             args[f"{argument}_path"]=os.path.join(args[argument],'model.safetensors') if os.path.isdir(args[argument]) else args[argument]
         else:

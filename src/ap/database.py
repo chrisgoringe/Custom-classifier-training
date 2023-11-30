@@ -16,8 +16,8 @@ class ImageChooser:
         im1 = random.choices(self.database.keys, weights=self.first_image_weights(), k=1)[0]
         imx = list(random.choices(self.database.keys, weights=self.other_image_weight(im1), k=1)[0] for _ in range(number-1))
         ims = [im1,*imx]
-        for im in ims:
-            if im in ims[1+1:]:
+        for i,im in enumerate(ims):
+            if im in ims[i+1:]:
                 return self.pick_images(number)
         return ims
             

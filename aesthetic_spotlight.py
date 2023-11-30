@@ -10,12 +10,11 @@ from renumics import spotlight
 
 def main():
     get_args(aesthetic_model=True)
-    pretrained = os.path.join(args['load_model'],"model.safetensors")
     top_level_images = args['top_level_image_directory']
 
     with Timer('load models'):
         clipper = CLIP(pretrained=args['clip_model'], image_directory=top_level_images)
-        predictor = AestheticPredictor(pretrained=pretrained, relu=args['aesthetic_model_relu'], clipper=clipper)
+        predictor = AestheticPredictor(pretrained=args['load_model_path'], clipper=clipper)
 
     with Timer('Prepare images'):
         data = DataHolder(top_level=top_level_images, save_model_folder=args['save_model'], use_score_file=args['use_score_file'])

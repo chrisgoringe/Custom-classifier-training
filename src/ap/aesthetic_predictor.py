@@ -5,47 +5,29 @@ from .clip import CLIP
 import os, json
 
 class AestheticPredictor(nn.Module):
-    def __init__(self, clipper:CLIP, input_size=768, pretrained="", device="cuda", dropouts=[0.2,0.2,0.1], relu=True, layers=None):
+    def __init__(self, clipper:CLIP, input_size=768, pretrained="", device="cuda", dropouts:list=None, hidden_layer_sizes=None):  
         super().__init__()
         self.metadata, sd = self.load_metadata_and_sd(pretrained)
-        layers = layers or [1024,128,64,16]
 
-        assert self.metadata.get('input_size', str(input_size)) == str(input_size) , "Inconsistency in input_size"
+        hidden_layer_sizes = hidden_layer_sizes or [int(x) for x in self.metadata.get('layers','[0]')[1:-1].split(',')]
+        dropouts = dropouts or [0]*len(hidden_layer_sizes)
+        while len(dropouts) < len(hidden_layer_sizes): dropouts.append(0)
+
         self.metadata['input_size'] = str(input_size)
-        assert self.metadata.get('relu', str(relu)) == str(relu) , "Inconsistency in relu"
-        self.metadata['relu'] = str(relu)
-        assert self.metadata.get('layers', str(layers)) == str(layers), "Inconsistency in layers"
-        self.metadata['layers'] = str(layers)
-        assert len(layers)==len(dropouts)+1, f"must have layers (have {len(layers)}) must equal dropouts (have {len(dropouts)})+1"
-        
-        self.input_size = input_size
-        
-        if len(layers)==4:
-            self.layers = nn.Sequential(
-                nn.Linear(self.input_size, layers[0]), 
-                nn.Dropout(dropouts[0]),          
-                nn.Linear(layers[0], layers[1]),
-                nn.Dropout(dropouts[1]),
-                nn.Linear(layers[1], layers[2]),
-                nn.Dropout(dropouts[2]),
-                nn.Linear(layers[2], layers[3]),
-                nn.Linear(layers[3], 1)
-            )
+        self.metadata['layers'] = str(hidden_layer_sizes)
 
-            pretrained_has_relu = sd and not 'layers.2.bias' in sd
-            if pretrained_has_relu: self.add_relu()
-            if sd: self.load_state_dict(load_file(pretrained))
-            if relu and not pretrained_has_relu: self.add_relu()
-        else:
-            self.layers = nn.Sequential( 
-                nn.Linear(self.input_size, layers[0]),
-                nn.ReLU() 
-            )
-            for i in range(1,len(layers)):
-                self.layers.append(nn.Dropout(dropouts[i-1]))
-                self.layers.append(nn.Linear(layers[i-1], layers[i]))
-                self.layers.append(nn.ReLU())
-            self.layers.append(nn.Linear(layers[-1], 1))
+        if dropouts[-1]!=0: print("Last dropout non-zero - that's probably not a great idea...")
+        
+        self.layers = nn.Sequential( )
+        current_size = input_size
+        for i, hidden_layer_size in enumerate(hidden_layer_sizes):
+            self.layers.append(nn.Linear(current_size, hidden_layer_size))
+            current_size = hidden_layer_size
+            self.layers.append(nn.Dropout(dropouts[i]))
+            self.layers.append(nn.ReLU())
+        self.layers.append(nn.Linear(current_size, 1))
+
+        if sd: self.load_state_dict(sd)
         
         self.layers.to(device)
         self.device = device
@@ -73,15 +55,6 @@ class AestheticPredictor(nn.Module):
     def get_metadata(self):
         return self.metadata
 
-    def add_relu(self):
-        self.layers = nn.Sequential(
-            self.layers[0], nn.ReLU(),
-            self.layers[1], self.layers[2], nn.ReLU(),
-            self.layers[3], self.layers[4], nn.ReLU(),
-            self.layers[5], self.layers[6], nn.ReLU(),
-            self.layers[7]
-        )
-
     def forward(self, x, **kwargs):
         return self.layers(x)
     
@@ -98,7 +71,6 @@ class AestheticPredictor(nn.Module):
             self.eval()
             with torch.no_grad():
                 scores = score_files(files).cpu().flatten()
-                #scores = [(score_file(f), f) for f in files] if as_sorted_tuple else [score_file(f) for f in files]
             if was_training: self.train()
         else:
             scores = [score_file(f) for f in files]

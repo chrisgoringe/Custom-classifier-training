@@ -70,9 +70,8 @@ def train_predictor():
     with Timer('load models'):
         clipper = CLIP(pretrained=args['clip_model'], image_directory=top_level_images)
         predictor = AestheticPredictor(pretrained=pretrained, clipper=clipper, 
-                                       relu=args['aesthetic_model_relu'], 
                                        dropouts=args['aesthetic_model_dropouts'], 
-                                       layers=args['custom_hidden_layers'])
+                                       hidden_layer_sizes=args['custom_hidden_layers'])
 
     with Timer('Prepare images') as logger:
         data = DataHolder(top_level=top_level_images, save_model_folder=args['save_model'], use_score_file=args['use_score_file'])
@@ -103,7 +102,7 @@ def train_predictor():
 
         metadata = combine_metadata( ds.get_metadata(), clipper.get_metadata(), predictor.get_metadata() )
 
-        save_file(predictor.state_dict(),os.path.join(args['save_model'],"model.safetensors"),metadata=metadata)
+        save_file(predictor.state_dict(),args['save_model_path'],metadata=metadata)
    
     if args['mode']=='metasearch':
         return get_ab_score(eds), get_ab_score(ds)
