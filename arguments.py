@@ -124,7 +124,7 @@ class Args:
         "use_score_file"            : True,
     }
 
-def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=False, aesthetic_analysis=False, aesthetic_model=False, show_training_args=True):
+def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=False, aesthetic_analysis=False, aesthetic_model=False, show_training_args=True, show_args=True):
     for b, d in [(True, common_args),
                  (category_training,category_training_args),
                  (aesthetic_training, aesthetic_training_args),
@@ -135,11 +135,10 @@ def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=Fal
             for k in d:
                 Args.args[k] = d[k]    
 
-    print("args:")
-    for a in Args.args:
-        print("{:>30} : {:<40}".format(a, str(args[a])))
+    if show_args:
+        for a in Args.args:
+            print("{:>30} : {:<40}".format(a, str(args[a])))
     if show_training_args:
-        print("training_args")
         for a in training_args:
             print("{:>30} : {:<40}".format(a, str(training_args[a])))
 
