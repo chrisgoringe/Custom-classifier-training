@@ -39,15 +39,16 @@ class ImageScores:
             return list(os.path.join(self.image_directory,k) for k in self.image_scores)
         return list(k for k in self.image_scores) 
 
-    def _create_condition(self, match:str, regex:bool) -> callable:
+    def _create_condition(self, match:str, regex:bool, topfraction:float) -> callable:
+        highest_rank = topfraction*len(self.image_scores)
         if match:
             if regex:
                 r = re.compile(match)
-                return lambda a : r.match(a)
+                return lambda a : r.match(a) and self.ranked[a] <= highest_rank
             else:
-                return lambda a : match in a
+                return lambda a : match in a and self.ranked[a] <= highest_rank
         else:
-            return lambda a : True
+            return lambda a : self.ranked[a] <= highest_rank
 
     def set_rankings(self):
         ordered = [(f,self.image_scores[f]) for f in self.image_scores]
@@ -59,11 +60,11 @@ class ImageScores:
     def ranks(self):
         return [self.ranked[f] for f in self.ranked]
 
-    def scores(self, match:str=None, regex=True, normalised=True, rankings=False) -> list[float]:
-        condition = self._create_condition(match, regex)
+    def scores(self, match:str=None, regex=True, normalised=True, rankings=False, compressed=True, topfraction=1.0) -> list[float]:
+        condition = self._create_condition(match, regex, topfraction)
         if rankings:
             ranks = [self.ranked[f] for f in self.image_scores if condition(f)]
-            return compress_rank(ranks)
+            return compress_rank(ranks) if compressed else ranks
         else:
             normaliser = self.normaliser if normalised else lambda a : a
             return [normaliser(self.image_scores[f]) for f in self.image_scores if condition(f)]
