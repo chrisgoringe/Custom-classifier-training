@@ -36,10 +36,10 @@ def analyse():
             print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}, model score {:>6.3f} +/- {:>4.2f}, spearman {:>6.4f} (p={:>8.2})".format(r,*results))
         else:
             print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(r,*results))         
-        print("{:>3} in top 10% according to model, {:>3} according to database".format(
-            len(model_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=True,topfraction=0.1)),
-            len(database_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=True,topfraction=0.1))
-        ))
+        #print("{:>3} in top 10% according to model, {:>3} according to database".format(
+        #    len(model_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=True,topfraction=0.1)),
+        #    len(database_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=True,topfraction=0.1))
+        #))
             
 if __name__=='__main__':
     analyse()

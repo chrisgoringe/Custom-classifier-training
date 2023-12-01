@@ -59,6 +59,10 @@ aesthetic_ab_args = {
     # How strongly to prefer images with fewer comparisons (0 = no weighting). Probability weighted by (1-lcw)^(comparisons)
     "low_count_weight"          : 0.4,
 
+    # How strongly to prefer images with more different database and model scores. Note, if not zero, this will
+    # skew the AB stats produced.
+    "controversy_weight"        : 1.0,
+
     # The size (height) of the window used by the aesthetic_ab_scorer script
     "ab_scorer_size"            : 600,
 

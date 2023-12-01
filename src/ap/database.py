@@ -6,15 +6,21 @@ class ImageChooser:
     def __init__(self, database):
         self.database = database
 
-    def first_image_weights(self):
-        return [1]*len(self.database.keys)
+    def first_image_weight(self, k):
+        return 1.0
     
-    def other_image_weight(self, first_image):
-        return self.first_image_weights()
+    def other_image_weight(self, k, first_image):
+        return self.first_image_weight(k)
+
+    def first_image_weights(self):
+        return list(self.first_image_weight(k) for k in self.database.keys)
+    
+    def other_image_weights(self, first_image):
+        return list(self.other_image_weight(k, first_image) for k in self.database.keys)
     
     def pick_images(self, number):
         im1 = random.choices(self.database.keys, weights=self.first_image_weights(), k=1)[0]
-        imx = list(random.choices(self.database.keys, weights=self.other_image_weight(im1), k=1)[0] for _ in range(number-1))
+        imx = list(random.choices(self.database.keys, weights=self.other_image_weights(im1), k=1)[0] for _ in range(number-1))
         ims = [im1,*imx]
         for i,im in enumerate(ims):
             if im in ims[i+1:]:
@@ -22,18 +28,24 @@ class ImageChooser:
         return ims
             
 class WeightedImageChooser(ImageChooser):
-    def __init__(self, database, low_count_weight):
+    def __init__(self, database, low_count_weight, controversy_weight):
         super().__init__(database)
         self.low_count_weight = low_count_weight
+        self.controvery_weight = controversy_weight
 
-    def first_image_weights(self):
-        return list(math.pow(1-self.low_count_weight,self.database.image_compare_count[k]) for k in self.database.keys)
+    def first_image_weight(self, k):
+        w = 1
+        if self.low_count_weight:
+            w *= math.pow(1-self.low_count_weight,self.database.image_compare_count[k])
+        if self.controvery_weight:
+            w *= math.pow(1+self.controvery_weight,abs(self.database.model_scores[k]-self.database.image_scores[k]))
+        return w
 
 class Database:
-    def __init__(self, img_dir, args, k=0.7, low_count_weight=0):
+    def __init__(self, img_dir, args, k=0.7, low_count_weight=0, controversy_weight=0):
         self.image_directory = img_dir
         self.args = args
-        self.image_chooser = WeightedImageChooser(self, low_count_weight)
+        self.image_chooser = WeightedImageChooser(self, low_count_weight, controversy_weight)
         self.load()
         self.recursive_add()
         self.keys = list(self.image_scores.keys())

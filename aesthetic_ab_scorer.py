@@ -46,7 +46,8 @@ class TheApp:
 def main():
     get_args(aesthetic_ab=True, aesthetic_model=True, show_training_args=False)
     assert os.path.exists(args['top_level_image_directory']), f"{args['top_level_image_directory']} not found"
-    db = Database(args['top_level_image_directory'], args, low_count_weight=args['low_count_weight'])
+    if args['controversy_weight']: assert args['use_model_scores_for_stats'], "controversy_weight requires use_model_scores_for_stats"
+    db = Database(args['top_level_image_directory'], args, low_count_weight=args['low_count_weight'], controversy_weight=args['controversy_weight'])
     if args['use_model_scores_for_stats']:
         assert args['load_model'], "Need to load a model to use model score for stats"
         with Timer("Evaluate with model"):
