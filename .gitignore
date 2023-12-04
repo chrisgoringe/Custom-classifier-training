@@ -158,3 +158,5 @@ notes/
 clipcache.safetensors
 *.csv
 *.txt
+log/*
+

@@ -69,7 +69,7 @@ def train_predictor():
 
     with Timer('load models'):
         clipper = CLIP(pretrained=args['clip_model'], image_directory=top_level_images)
-        predictor = AestheticPredictor(pretrained=pretrained, clipper=clipper, 
+        predictor = AestheticPredictor(pretrained=pretrained, clipper=clipper, input_size=args['input_size'],
                                        dropouts=args['aesthetic_model_dropouts'], 
                                        hidden_layer_sizes=args['custom_hidden_layers'])
 
@@ -91,7 +91,7 @@ def train_predictor():
         logger("==== Start (all images): rmse {:>6.3f} ab {:>5.2f}%".format(get_rmse(ds),100*get_ab_score(ds)))
 
     with Timer('train model'):
-        train_args = TrainingArguments( remove_unused_columns=False, push_to_hub=False, output_dir=args['save_model'], **training_args )
+        train_args = TrainingArguments( remove_unused_columns=False, **training_args )
         callback = EvaluationCallback(every=args['eval_every_n_epochs'], datasets=[ds,eds], labels=["all images"," test set "], shuffles=[True,True])
 
         CustomTrainer.trainer(  loss = args['loss_model'], model = predictor, 
@@ -109,6 +109,7 @@ def train_predictor():
 
 if __name__=='__main__':
     get_args(aesthetic_training=True, aesthetic_model=True)
+    best_temp = os.path.splitext(args['save_model_path'])[0]+"-best.safetensors"
 
     if args['mode']=='metasearch':
         initial = ParameterSet.from_args( training_args )
@@ -119,7 +120,7 @@ if __name__=='__main__':
             txt = params.description + " : {:>5.2f}%  (all {:>5.2f}%)  ({:>1}) {:>6.1f}s - {:<30}".format(100*score, 100*all_score, bad, tme, note)
             print(txt, file=open("metasearch.txt",'+a'))
         def best_so_far():
-            shutil.copytree(args['save_model'], args['save_model']+"-best", dirs_exist_ok=True)
+            shutil.copyfile(args['save_model_path'], best_temp)
         
         with Timer("Metaparameter search"):
             params, score = MetaparameterSearcher(initial_parameters=initial, 
@@ -129,7 +130,7 @@ if __name__=='__main__':
                                                 best_so_far_callback=best_so_far,
                                                 minimise=False).search()
             print(f"Best parameters {params} -> {score}")
-            if os.path.exists(args['save_model']+"-best"):
-                shutil.copytree(args['save_model']+"-best", args['save_model'], dirs_exist_ok=True)
+            if os.path.exists(best_temp):
+                shutil.copyfile(best_temp, args['save_model_path'])
     else:
         train_predictor()

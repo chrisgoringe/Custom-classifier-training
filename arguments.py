@@ -10,14 +10,14 @@ common_args = {
     "base_model"                : "",
 
     # if restarting a previous run, this is the folder to load from. If None or '', the base_model is used. 
-    "load_model"                : "training/blah/model30.safetensors",     
+    "load_model"                : "",     
 
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : "training/blah",
+    "save_model"                : "training/aesthetic04.safetensors",
 
     # path to the top level image directory
-    #"top_level_image_directory" : "training", 
     "top_level_image_directory" : "a:/aesthetic/training", 
+    #"top_level_image_directory" : "training/PeterMcKinnon", 
 
     # what fraction of images to reserve as test images (when training), and a random seed for picking them
     "fraction_for_test"         : 0.25,
@@ -49,7 +49,9 @@ aesthetic_model_args = {
 
     # hidden layers - the layers in the model (a list - the inbuilt model is [1024,128,64,16])
     # the top layer is determined by the CLIP (768), the bottom layer is 1.
-    "custom_hidden_layers"      : [128,16],
+    "custom_hidden_layers"      : [1024,128],
+
+    "input_size"                : 512, #768,
 }
 
 aesthetic_ab_args = {
@@ -88,9 +90,9 @@ aesthetic_analysis_args = {
 # If you use metasearch as the mode, the first three (epochs, lr, batch) will be varied across multiple runs,
 # but these are the start points
 training_args = {
-    "num_train_epochs"              : 30,
+    "num_train_epochs"              : 50,
     "learning_rate"                 : 1e-4,
-    "per_device_train_batch_size"   : 6,   
+    "per_device_train_batch_size"   : 10,   
     "warmup_ratio"                  : 0.1,
 
     "lr_scheduler_type"             : "cosine",
@@ -108,6 +110,8 @@ training_args = {
 
     # show logging messages during training? "steps" is default
     "logging_strategy"              : "no",
+    "logging_dir"                   : "log",
+    "output_dir"                    : "out",
 
     # Choose the best model, not the last model, to keep at the end. Requires save_strategy and evaluation_strategy to be the same (and not "no"). 
     "load_best_model_at_end"        : False,    
@@ -120,7 +124,7 @@ class Args:
         # most likely to be useful when 
         "ignore_score_zero"         : False,
         # clip model used by aesthetic scorer (default 'ViT-L/14' is the one used for the pretrained model included)
-        "clip_model"                : "ViT-L/14",
+        "clip_model"                : "ViT-B/16",#"ViT-L/14@336px",
 
         "aesthetic_model_dropouts"  : None,
 
@@ -148,7 +152,11 @@ def get_args(category_training=False, aesthetic_training=False, aesthetic_ab=Fal
 
     for argument in ['load_model','save_model']:
         if argument in args and args[argument]:
-            args[f"{argument}_path"]=os.path.join(args[argument],'model.safetensors') if os.path.isdir(args[argument]) else args[argument]
+            if os.path.isdir(args[argument]):
+                if not os.path.exists(args[argument]): os.makedirs(args[argument])
+                args[f"{argument}_path"]=os.path.join(args[argument],'model.safetensors')
+            else:
+                args[f"{argument}_path"]=args[argument]
         else:
             args[f"{argument}_path"]=None
 

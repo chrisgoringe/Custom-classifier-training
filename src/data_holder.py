@@ -24,6 +24,8 @@ class DataHolder:
 
         if os.path.exists(os.path.join(top_level,'score.json')) and use_score_file:
             self.dataframe_from_scorefile(top_level)
+        elif os.path.exists(os.path.join(top_level,'score.csv')) and use_score_file:
+            self.dataframe_from_csv(top_level)
         else:
             self.dataframe_from_directory_structure(top_level)
             if save_model_folder:    
@@ -50,6 +52,22 @@ class DataHolder:
             image_scores.pop('#meta#',None)
             for f in image_scores:
                 self.df.loc[len(self.df)] = [os.path.join(image_folder,f), str(image_scores[f][0] if isinstance(image_scores[f],list) else image_scores[f]), self.split()]
+
+    def dataframe_from_csv(self, image_folder):
+        with open(os.path.join(image_folder,"score.csv"),'r') as f:
+            for line in f.readlines():
+                score, file = line.split(",")
+                score = score.strip()
+                try:
+                    float(score)
+                except:
+                    continue
+                file = file.strip()
+                fullfile = os.path.join(image_folder,file)
+                if os.path.exists(fullfile):
+                    self.df.loc[len(self.df)] = [fullfile, score, self.split()]
+                else:
+                    print(f"{file} not found")
 
     def dataframe_from_directory_structure(self, image_folder):
         random.seed(self.test_pick_seed)

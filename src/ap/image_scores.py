@@ -1,31 +1,52 @@
-import os, json, statistics, re
+import os, json, statistics, re, random
+import torch
 
 def compress_rank(ranks:list):
     ordered = sorted(ranks)
     return [ordered.index(r) for r in ranks]
 
+def valid_image(filepath:str):
+    if os.path.basename(filepath).startswith("."): return False
+    _,ext = os.path.splitext(filepath)
+    return (ext in ['.png','.jpg','.jpeg'])
+
+def valid_directory(dir_path:str):
+    if not os.path.isdir(dir_path): return False
+    if os.path.basename(dir_path).startswith("."): return False
+    return True
+
 class ImageScores:
-    def __init__(self, image_scores:dict[str, float], image_directory:str):
+    def __init__(self, image_scores:dict[str, float], top_level_directory:str):
         self.image_scores:dict[str, float] = image_scores
         self.normaliser = self.create_normaliser()
         self.set_rankings()
-        self.image_directory = image_directory
+        self.top_level_directory = top_level_directory
 
     @classmethod
-    def from_scorefile(cls, image_directory:str):
-        with open(os.path.join(image_directory,"score.json"),'r') as f:
+    def from_scorefile(cls, top_level_directory:str):
+        with open(os.path.join(top_level_directory,"score.json"),'r') as f:
             image_scores = json.load(f)
             image_scores.pop("#meta#",{})
             for k in image_scores: image_scores[k] = float(image_scores[k][0])
-        return ImageScores(image_scores, image_directory)
+        return ImageScores(image_scores, top_level_directory)
     
     @classmethod
-    def from_evaluator(cls, evaluator:callable, images:list[str], image_directory):
-        image_scores = {k:float(evaluator(os.path.join(image_directory,k))) for k in images}
-        return ImageScores(image_scores, image_directory)
+    def from_evaluator(cls, evaluator:callable, images:list[str], top_level_directory):
+        image_scores = {k:float(evaluator(os.path.join(top_level_directory,k))) for k in images}
+        return ImageScores(image_scores, top_level_directory)
+    
+    @classmethod
+    def from_directory(cls, top_level_directory, evaluator:callable=lambda a:0):
+        images = []
+        for thing in os.listdir(top_level_directory):
+            if valid_image(os.path.join(top_level_directory,thing)): images.append(thing)
+            if valid_directory(os.path.join(top_level_directory,thing)):
+                for subthing in os.listdir(os.path.join(top_level_directory,thing)):
+                    if valid_image(os.path.join(top_level_directory,thing,subthing)): images.append(os.path.join(thing,subthing))
+        return cls.from_evaluator(evaluator, images, top_level_directory)
     
     def set_scores(self, evaluator:callable):
-        for k in self.image_scores: self.image_scores[k] = float(evaluator(os.path.join(self.image_directory,k)))
+        for k in self.image_scores: self.image_scores[k] = float(evaluator(os.path.join(self.top_level_directory,k)))
         self.normaliser = self.create_normaliser()
         self.set_rankings()
 
@@ -36,7 +57,7 @@ class ImageScores:
     
     def image_files(self, fullpath=False) -> list[str]:
         if fullpath:
-            return list(os.path.join(self.image_directory,k) for k in self.image_scores)
+            return list(os.path.join(self.top_level_directory,k) for k in self.image_scores)
         return list(k for k in self.image_scores) 
 
     def _create_condition(self, match:str, regex:bool, topfraction:float) -> callable:
