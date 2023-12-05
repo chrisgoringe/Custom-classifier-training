@@ -27,7 +27,10 @@ class EvaluationCallback(TrainerCallback):
         def do_eval(self, state, predictor:AestheticPredictor):
             for dataset, label, _ in self.datasets:
                 with torch.no_grad():
+                    was_train = predictor.training
+                    predictor.eval()
                     dataset.update_prediction(predictor)
+                    if was_train: predictor.train()
                 Timer.message("==== Epoch {:>3} ({:8}): rmse {:>6.3f} ab {:>5.2f}%".format(state.epoch,label,get_rmse(dataset),100*get_ab_score(dataset)))
 
         def on_epoch_end(self, arguments, state: TrainerState, control, **kwargs):
@@ -68,7 +71,7 @@ def train_predictor():
     top_level_images = args['top_level_image_directory']
 
     with Timer('load models'):
-        clipper = CLIP(pretrained=args['clip_model'], image_directory=top_level_images)
+        clipper = CLIP.get_clip(pretrained=args['clip_model'], image_directory=top_level_images)
         predictor = AestheticPredictor(pretrained=pretrained, clipper=clipper, input_size=args['input_size'],
                                        dropouts=args['aesthetic_model_dropouts'], 
                                        hidden_layer_sizes=args['custom_hidden_layers'])
@@ -105,7 +108,10 @@ def train_predictor():
         save_file(predictor.state_dict(),args['save_model_path'],metadata=metadata)
    
     if args['mode']=='metasearch':
-        return get_ab_score(eds), get_ab_score(ds)
+        if args['loss_model']=='ranking':
+            return get_ab_score(eds), get_ab_score(ds)
+        else:
+            return get_rmse(eds), get_rmse(ds)
 
 if __name__=='__main__':
     get_args(aesthetic_training=True, aesthetic_model=True)
@@ -117,7 +123,10 @@ if __name__=='__main__':
             params.to_args(training_args)
             return train_predictor()
         def callbk(params:ParameterSet, score, all_score, bad, tme, note):
-            txt = params.description + " : {:>5.2f}%  (all {:>5.2f}%)  ({:>1}) {:>6.1f}s - {:<30}".format(100*score, 100*all_score, bad, tme, note)
+            if args['loss_model']=='ranking':
+                txt = params.description + " : {:>5.2f}%  (all {:>5.2f}%)  ({:>1}) {:>6.1f}s - {:<30}".format(100*score, 100*all_score, bad, tme, note)
+            else:
+                txt = params.description + " : {:>5.3f}  (all {:>5.3f})  ({:>1}) {:>6.1f}s - {:<30}".format(score, all_score, bad, tme, note)
             print(txt, file=open("metasearch.txt",'+a'))
         def best_so_far():
             shutil.copyfile(args['save_model_path'], best_temp)
@@ -128,7 +137,7 @@ if __name__=='__main__':
                                                 new_parameter_function=AMP(even_batch=True).update_mps, 
                                                 callback=callbk, 
                                                 best_so_far_callback=best_so_far,
-                                                minimise=False).search()
+                                                minimise=args['loss_model']=='mse').search()
             print(f"Best parameters {params} -> {score}")
             if os.path.exists(best_temp):
                 shutil.copyfile(best_temp, args['save_model_path'])

@@ -13,7 +13,7 @@ common_args = {
     "load_model"                : "",     
 
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : "training/aesthetic04.safetensors",
+    "save_model"                : "training/aesthetic04-mse.safetensors",
 
     # path to the top level image directory
     "top_level_image_directory" : "a:/aesthetic/training", 
@@ -40,7 +40,7 @@ aesthetic_training_args = {
     "ignore_score_zero"         : True,
 
     # aesthetic model dropouts - default dropouts are [0.2,0.2,0.1]. 
-    "aesthetic_model_dropouts"  : [0.2],#[0.2,0.2,0.1],
+    "aesthetic_model_dropouts"  : [0],#[0.2,0.2,0.1],
 }
 
 aesthetic_model_args = {
@@ -49,9 +49,9 @@ aesthetic_model_args = {
 
     # hidden layers - the layers in the model (a list - the inbuilt model is [1024,128,64,16])
     # the top layer is determined by the CLIP (768), the bottom layer is 1.
-    "custom_hidden_layers"      : [1024,128],
+    "custom_hidden_layers"      : [16],
 
-    "input_size"                : 512, #768,
+    "input_size"                : 768,
 }
 
 aesthetic_ab_args = {
@@ -123,8 +123,9 @@ class Args:
         # If set to true, images from the score file with a score of zero are ignored
         # most likely to be useful when 
         "ignore_score_zero"         : False,
-        # clip model used by aesthetic scorer (default 'ViT-L/14' is the one used for the pretrained model included)
-        "clip_model"                : "ViT-B/16",#"ViT-L/14@336px",
+        # clip model used by aesthetic scorer 
+        #"clip_model"                : "openai/clip-vit-base-patch32",
+        "clip_model"                : "ViT-L/14",
 
         "aesthetic_model_dropouts"  : None,
 
