@@ -42,8 +42,8 @@ aesthetic_training_args = {
     # aesthetic model dropouts - default dropouts are [0.2,0.2,0.1]. 
     "aesthetic_model_dropouts"  : [0],#[0.2,0.2,0.1],
 
-    # if doing metaparameter (moed=metasearch), how many trials?
-    "meta_trials"                   : 10,
+    # if doing metaparameter (mode=metasearch), how many trials?
+    "meta_trials"               : 50,
 }
 
 aesthetic_model_args = {

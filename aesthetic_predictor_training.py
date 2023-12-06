@@ -110,6 +110,7 @@ def train_predictor():
         else:
             return get_rmse(eds), get_rmse(ds)
 
+best_score = None
 if __name__=='__main__':
     get_args(aesthetic_training=True, aesthetic_model=True)
     best_temp = os.path.splitext(args['save_model_path'])[0]+"-best.safetensors"
@@ -118,13 +119,13 @@ if __name__=='__main__':
   
         with Timer("Metaparameter search"):
             import optuna
-            best_score=None
             def objective(trial):
                 training_args['num_train_epochs'] = trial.suggest_int('num_train_epochs',2,100)
                 training_args['learning_rate'] = math.pow(10,trial.suggest_float('log_learning_rate', -7, -2))
                 training_args['per_device_train_batch_size'] = 2*trial.suggest_int('half_batch_size',1,64)
                 training_args['warmup_ratio'] = trial.suggest_float('warmup_ratio',0,0.5)
                 score = train_predictor()[0]
+                global best_score
                 if best_score is None or (score<best_score and args['loss_model']=='mse') or (score>best_score and args['loss_model']!='mse'):
                     shutil.copyfile(args['save_model_path'], best_temp)
                     best_score = score
