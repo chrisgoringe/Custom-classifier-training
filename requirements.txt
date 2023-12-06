@@ -4,3 +4,5 @@ transformers
 transformers[torch]
 customtkinter
 spotlight
+optuna
+optuna-dashboard
