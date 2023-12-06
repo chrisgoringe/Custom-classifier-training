@@ -51,7 +51,7 @@ def main():
     if args['use_model_scores_for_stats']:
         assert args['load_model'], "Need to load a model to use model score for stats"
         with Timer("Evaluate with model"):
-            ap = AestheticPredictor(clipper=CLIP(image_directory=db.image_directory), 
+            ap = AestheticPredictor(clipper=CLIP.get_clip(image_directory=db.image_directory), 
                                     pretrained=args['load_model_path'],
                                     hidden_layer_sizes=args['custom_hidden_layers'])
             db.set_model_score(ap.evaluate_file)

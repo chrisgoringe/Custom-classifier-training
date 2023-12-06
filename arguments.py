@@ -13,10 +13,11 @@ common_args = {
     "load_model"                : "",     
 
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : "training/aesthetic04-mse.safetensors",
+    "save_model"                : "training/aesthetic.safetensors",
 
     # path to the top level image directory
-    "top_level_image_directory" : "a:/aesthetic/training", 
+    #"top_level_image_directory" : "a:/aesthetic/training", 
+    "top_level_image_directory" : "C:\\Users\\chris\\Documents\\GitHub\\ComfyUI_windows_portable\\ComfyUI\\output\\scored",
     #"top_level_image_directory" : "training/PeterMcKinnon", 
 
     # what fraction of images to reserve as test images (when training), and a random seed for picking them
