@@ -3,7 +3,7 @@ from src.time_context import Timer
 with Timer("Python imports"):
     import torch
     from safetensors.torch import save_file
-    import os, shutil
+    import os, math, shutil
 
     from src.data_holder import DataHolder
     from transformers import TrainerControl, TrainerState, TrainingArguments, TrainerCallback
@@ -14,9 +14,6 @@ with Timer("Python imports"):
     from src.ap.clip import CLIP
     from src.ap.aesthetic_predictor import AestheticPredictor
     from src.ap.ap_trainers import CustomTrainer
-    from src.ap.aesthetic_metaparameter import AMP
-
-    from src.metaparameter_searcher import MetaparameterSearcher, ParameterSet
     
 class EvaluationCallback(TrainerCallback):
         def __init__(self, every, datasets, labels, shuffles):
@@ -118,28 +115,24 @@ if __name__=='__main__':
     best_temp = os.path.splitext(args['save_model_path'])[0]+"-best.safetensors"
 
     if args['mode']=='metasearch':
-        initial = ParameterSet.from_args( training_args )
-        def evalfn(params:ParameterSet):
-            params.to_args(training_args)
-            return train_predictor()
-        def callbk(params:ParameterSet, score, all_score, bad, tme, note):
-            if args['loss_model']=='ranking':
-                txt = params.description + " : {:>5.2f}%  (all {:>5.2f}%)  ({:>1}) {:>6.1f}s - {:<30}".format(100*score, 100*all_score, bad, tme, note)
-            else:
-                txt = params.description + " : {:>5.3f}  (all {:>5.3f})  ({:>1}) {:>6.1f}s - {:<30}".format(score, all_score, bad, tme, note)
-            print(txt, file=open("metasearch.txt",'+a'))
-        def best_so_far():
-            shutil.copyfile(args['save_model_path'], best_temp)
-        
+  
         with Timer("Metaparameter search"):
-            params, score = MetaparameterSearcher(initial_parameters=initial, 
-                                                evaluation_function=evalfn, 
-                                                new_parameter_function=AMP(even_batch=True).update_mps, 
-                                                callback=callbk, 
-                                                best_so_far_callback=best_so_far,
-                                                minimise=args['loss_model']=='mse').search()
-            print(f"Best parameters {params} -> {score}")
-            if os.path.exists(best_temp):
-                shutil.copyfile(best_temp, args['save_model_path'])
+            import optuna
+            best_score=None
+            def objective(trial):
+                training_args['num_train_epochs'] = trial.suggest_int('num_train_epochs',2,100)
+                training_args['learning_rate'] = math.pow(10,trial.suggest_float('log_learning_rate', -7, -2))
+                training_args['per_device_train_batch_size'] = 2*trial.suggest_int('half_batch_size',1,64)
+                training_args['warmup_ratio'] = trial.suggest_float('warmup_ratio',0,0.5)
+                score = train_predictor()[0]
+                if best_score is None or (score<best_score and args['loss_model']=='mse') or (score>best_score and args['loss_model']!='mse'):
+                    shutil.copyfile(args['save_model_path'], best_temp)
+                    best_score = score
+                return score
+            study = optuna.create_study(direction='minimize' if args['loss_model']=='mse' else 'maximize', storage="sqlite:///db.sqlite3")
+            study.optimize(objective, n_trials=args['meta_trials'])
+            print(f"Best model copied into {args['save_model_path']}")
+            shutil.copyfile(best_temp,args['save_model_path'])
+
     else:
         train_predictor()

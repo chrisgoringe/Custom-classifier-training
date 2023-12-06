@@ -41,6 +41,9 @@ aesthetic_training_args = {
 
     # aesthetic model dropouts - default dropouts are [0.2,0.2,0.1]. 
     "aesthetic_model_dropouts"  : [0],#[0.2,0.2,0.1],
+
+    # if doing metaparameter (moed=metasearch), how many trials?
+    "meta_trials"                   : 10,
 }
 
 aesthetic_model_args = {
@@ -87,9 +90,8 @@ aesthetic_analysis_args = {
 # Below are the most common of the 101 arguments available
 # see https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer#transformers.TrainingArguments
 #
-# If you use metasearch as the mode, the first three (epochs, lr, batch) will be varied across multiple runs,
-# but these are the start points
 training_args = {
+    # these are ignore if mode=metasearch
     "num_train_epochs"              : 50,
     "learning_rate"                 : 1e-4,
     "per_device_train_batch_size"   : 10,   
