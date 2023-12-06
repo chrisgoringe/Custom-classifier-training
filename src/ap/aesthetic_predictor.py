@@ -5,8 +5,9 @@ from .clip import CLIP
 import os, json
 
 class AestheticPredictor(nn.Module):
-    def __init__(self, clipper:CLIP, input_size=768, pretrained="", device="cuda", dropouts:list=None, hidden_layer_sizes=None):  
+    def __init__(self, clipper:CLIP, input_size=768, pretrained="", device="cuda", dropouts:list=None, hidden_layer_sizes=None, seed=42):  
         super().__init__()
+        torch.manual_seed(seed)
         self.metadata, sd = self.load_metadata_and_sd(pretrained)
 
         hidden_layer_sizes = hidden_layer_sizes or [int(x) for x in self.metadata.get('layers','[0]')[1:-1].split(',')]
