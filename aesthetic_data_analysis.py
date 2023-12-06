@@ -14,10 +14,10 @@ def analyse():
 
     if args['use_model_scores_for_stats']:
         assert args['load_model'], "Need to load a model if use_model_scores_for_stats is true"
-        ap = AestheticPredictor(clipper=CLIP(image_directory=args['top_level_image_directory']), 
+        ap = AestheticPredictor(clipper=CLIP.get_clip(image_directory=dir), 
                                 pretrained=args['load_model_path'], 
                                 dropouts=args['aesthetic_model_dropouts'])
-        model_scores:ImageScores = ImageScores.from_evaluator(ap.evaluate_file, database_scores.image_files(), database_scores.image_directory)
+        model_scores:ImageScores = ImageScores.from_evaluator(ap.evaluate_file, database_scores.image_files(), dir)
     else:
         model_scores = None
 
@@ -36,10 +36,6 @@ def analyse():
             print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}, model score {:>6.3f} +/- {:>4.2f}, spearman {:>6.4f} (p={:>8.2})".format(r,*results))
         else:
             print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(r,*results))         
-        #print("{:>3} in top 10% according to model, {:>3} according to database".format(
-        #    len(model_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=True,topfraction=0.1)),
-        #    len(database_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=True,topfraction=0.1))
-        #))
             
 if __name__=='__main__':
     analyse()
