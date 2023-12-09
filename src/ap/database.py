@@ -1,4 +1,4 @@
-import random, json, os, math, shutil, regex, statistics, times
+import random, json, os, math, shutil, re, statistics, time
 from PIL import Image
 
 class ImageChooser:
@@ -118,11 +118,11 @@ class Database:
             self.scale = lambda a : a
     
     def scores_for_matching(self, reg):
-        r = regex.compile(reg)
+        r = re.compile(reg)
         return [self.image_scores[f] for f in self.image_scores if r.match(f)]
     
     def model_scores_for_matching(self,reg):
-        r = regex.compile(reg)
+        r = re.compile(reg)
         return [self.model_scores[f] for f in self.model_scores if r.match(f)]
 
     def pick_images(self, number):
