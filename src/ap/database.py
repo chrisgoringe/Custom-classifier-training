@@ -1,6 +1,5 @@
-import random, json, os, math, shutil, regex, statistics
+import random, json, os, math, shutil, regex, statistics, times
 from PIL import Image
-import time
 
 class ImageChooser:
     def __init__(self, database):
