@@ -20,7 +20,7 @@ args = {
     'ab_image_count' : 2,
 
     # How many comparisons to do
-    'max_comparisons' : 5,
+    'max_comparisons' : 100,
 
     # Leave this as False
     'ignore_score_zero' : False,
