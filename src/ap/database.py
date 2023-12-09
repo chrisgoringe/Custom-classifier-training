@@ -134,11 +134,14 @@ class Database:
         for f in os.listdir(dir):
             full = os.path.join(dir,f) 
             if os.path.isdir(full): self.recursive_add(full)
-            if os.path.splitext(f)[1] == ".png": 
+            try:
+                i = Image.open(full)
                 rel = os.path.relpath(full, self.image_directory)
                 if not rel in self.image_scores: 
                     self.image_scores[rel] = 0
                     self.image_compare_count[rel] = 0
+            except:
+                print(f"{full} didn't load as an image")
 
     def choices_made(self):
         return sum(self.stats)
@@ -179,20 +182,17 @@ class Database:
         z = sum(self.image_compare_count[x]==0 for x in self.image_scores)
         print("{:>4} comparisons in {:>6.1f} s".format(sum(self.stats), time.monotonic()-self.started))
         print(f"{z}/{len(self.image_scores)} of the images have no comparisons yet")
-
-        db_choice_match_percentage = 100*self.stats[0]/(self.stats[0]+self.stats[1])
-        total_ever = sum(self.image_compare_count[x] for x in self.image_compare_count)
-
-        if (self.stats[0]+self.stats[1]):
-            print("{:>3} choices matched db, {:>3} contradicted db [{:>3} not predicted] = ({:>5.2f}%) ".format(
-            *self.stats, db_choice_match_percentage))
         print("A total of {:>6} comparisons have been made for {:>5} images ({:>5.2f} per image)".format(
             self.meta['evaluations'], len(self.image_scores), 2*self.meta['evaluations']/len(self.image_scores)))
-        if self.model_score_stats is not None and sum(self.model_score_stats): 
-            strng = "all agree {:>3} ; model-choice agree {:>3} ; db-choice agree {:>3} ; db-model agree {:>3} "
-            strng=strng.format(self.model_score_stats[0], self.model_score_stats[0]+self.model_score_stats[1], self.model_score_stats[0]+self.model_score_stats[2], self.model_score_stats[0]+self.model_score_stats[3] ) 
+        
+        if (self.stats[0]+self.stats[1])>self.stats[2]:
+            db_choice_match_percentage = 100*self.stats[0]/(self.stats[0]+self.stats[1])
+            total_ever = sum(self.image_compare_count[x] for x in self.image_compare_count)
+            print("{:>3} choices matched db, {:>3} contradicted db [{:>3} not predicted] = ({:>5.2f}%) ".format(
+            *self.stats, db_choice_match_percentage))
+            strng = "{:>6} tests: {:>5.2f}%".format(total_ever, db_choice_match_percentage) 
+            print(strng)
+            print(strng, file=open("ab_stats.txt",'+a'))
         else:
-            strng = "{:>6} tests: {:>5.2f}%"
-            strng=strng.format(total_ever, db_choice_match_percentage) 
-        print(strng)
-        print(strng, file=open("ab_stats.txt",'+a'))
+            print("Not enough data yet to compare choices with database")
+ 
