@@ -1,7 +1,7 @@
 import torch, clip
 from PIL import Image
 from safetensors.torch import save_file, load_file
-import os
+import os, sys
 from transformers import CLIPVisionModel, AutoProcessor
 
 class CLIP:
@@ -10,11 +10,14 @@ class CLIP:
         try:
             return OpenAICLIP(pretrained, device, image_directory)
         except:
-            pass
+            print(f"Trying to load {pretrained} as OpenAICLIP model got error {sys.exc_info()[1]}")
+            print("Will try TransformersCLIP model...")
         try:
             return TransformersCLIP(pretrained, device, image_directory)
         except:
-            pass
+            print(f"Trying to load {pretrained} as TransformersCLIP model got error {sys.exc_info()[1]}")
+            print("Giving up")
+            raise Exception(f"Failed to load {pretrained}")
 
     def setup(self, pretrained, image_directory):
         self.cached = {}

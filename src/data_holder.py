@@ -20,7 +20,7 @@ class DataHolder:
         self.df = pd.DataFrame(columns=["image","label_str","split"])
         self.labels = []
         self.fraction_for_test = fraction_for_test
-        self.test_pick_seed = test_pick_seed
+        random.seed(test_pick_seed)
 
         if os.path.exists(os.path.join(top_level,'score.json')) and use_score_file:
             self.dataframe_from_scorefile(top_level)
@@ -70,7 +70,6 @@ class DataHolder:
                     print(f"{file} not found")
 
     def dataframe_from_directory_structure(self, image_folder):
-        random.seed(self.test_pick_seed)
         self.labels = sorted([d for d in os.listdir(image_folder) if valid_directory(os.path.join(image_folder,d))])
         for label in self.labels:
             dir = os.path.join(image_folder,label)

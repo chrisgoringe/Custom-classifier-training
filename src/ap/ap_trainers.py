@@ -39,6 +39,7 @@ class UnequalSampler:
         self.batch_size = batch_size
         self.dataset = dataset
         self.len = len(self.dataset)//self.batch_size
+        if self.len==0: self.len=1
         self.left = self.len
 
     def __len__(self):
