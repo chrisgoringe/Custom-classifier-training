@@ -52,8 +52,9 @@ class TheApp:
         if (k=='q'): 
             self.db.report()
             self.app.quit()
-        elif k in "1234567"[:self.image_count]: 
-            self.db.choice_made(int(k)-1)
+        elif k in "123456789"[:self.image_count+1]: 
+            if int(k)<=self.image_count: 
+                self.db.choice_made(int(k)-1)
             self.pick_images()
         elif k=='r':
             self.db.report()
@@ -68,6 +69,9 @@ def main():
     db = Database(args['top_level_image_directory'], args, low_count_weight=args['low_count_weight'], controversy_weight=0)
 
     TheApp(args['ab_scorer_size'], args['ab_max_width_ratio'], args['ab_image_count'], db).app.mainloop()
+    results = db.sorted_list()
+    for result in results:
+        print("{:>30} : {:>6.3f} ({:>3} tests)".format(*result))
 
 if __name__=='__main__':
     main()

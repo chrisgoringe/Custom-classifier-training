@@ -124,6 +124,11 @@ class Database:
     def model_scores_for_matching(self,reg):
         r = re.compile(reg)
         return [self.model_scores[f] for f in self.model_scores if r.match(f)]
+    
+    def sorted_list(self):
+        image_list = list((f, self.image_scores[f], self.image_compare_count[f]) for f in self.image_scores)
+        image_list.sort(key=lambda a:a[1])
+        return image_list
 
     def pick_images(self, number):
         self.ims = self.image_chooser.pick_images(number)
