@@ -157,6 +157,7 @@ tmp_trainer/
 notes/
 clipcache.safetensors
 *.csv
-*.txt
 log/*
 
+models/clip/ViT-L-14.pt
+ab_stats*.txt
