@@ -8,13 +8,15 @@ args = {
     # export directory
     'export_directory':r"OUTPUT/DIRECTORY",
     
-    # minimum score to export (use None for exporting all)
-    'minimum_score' : 1,
+    # minimum score to export (use None for exporting all, or (eg) 1.0 for only images scoring > 1.0
+    'minimum_score' : None,
 
     # filename format - available fields are ( filename, extension, rank, score, randomname )
     # randomname is an 8 character string of [a-z]
-    # this is in the python string.format() form
+    # this is in the python string.format() form\
+    # below are some examples, uncomment one of them or write your own
     'filename_format' : "{rank:0>5}_{score:0>6.3f}_{randomname}{extension}",
+    #'filename_format' : "{rank:0>5}_{score:0>6.3f}_{filename}{extension}",
 
 }
 
