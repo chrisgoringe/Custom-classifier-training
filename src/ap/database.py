@@ -41,7 +41,7 @@ class WeightedImageChooser(ImageChooser):
         return w
 
 class Database:
-    def __init__(self, img_dir, args, k=0.7, low_count_weight=0, controversy_weight=0):
+    def __init__(self, img_dir, args={}, k=0.7, low_count_weight=0, controversy_weight=0):
         self.image_directory = img_dir
         self.args = args
         self.image_chooser = WeightedImageChooser(self, low_count_weight, controversy_weight)
@@ -92,7 +92,7 @@ class Database:
         if self.missing_files:
             print(f"{len(self.missing_files)} image file{'s are' if len(self.missing_files)>1 else ' is'} in score.json but not found.")
             print("They will be kept in score.json but not made available to training.")
-        if self.args['ignore_score_zero']:
+        if self.args.get('ignore_score_zero',False):
             self.zeroes = {f:self.image_scores[f] for f in self.image_scores if self.image_scores[f]==0}
             if self.zeroes:
                 print(f"{len(self.zeroes)} image file{'s are' if len(self.zeroes)>1 else ' is'} in score.json but have score 0.")
@@ -126,9 +126,9 @@ class Database:
         r = re.compile(reg)
         return [self.model_scores[f] for f in self.model_scores if r.match(f)]
     
-    def sorted_list(self):
+    def sorted_list(self, best_first=False):
         image_list = list((f, self.image_scores[f], self.image_compare_count[f]) for f in self.image_scores)
-        image_list.sort(key=lambda a:a[1])
+        image_list.sort(key=lambda a:a[1], reverse=best_first)
         return image_list
 
     def pick_images(self, number):
