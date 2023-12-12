@@ -48,7 +48,7 @@ class CLIP:
 class OpenAICLIP(CLIP):  
     def __init__(self, pretrained="ViT-L/14", device="cuda", image_directory="."):
         self.metadata = {"clip_model":pretrained}
-        self.model, self.preprocess = clip.load(pretrained, device=device)
+        self.model, self.preprocess = clip.load(pretrained, device=device, download_root="models/clip")
         self.device = device
         self.setup(pretrained, image_directory)
 
@@ -62,9 +62,9 @@ class OpenAICLIP(CLIP):
 class TransformersCLIP(CLIP):
     def __init__(self, pretrained="", device="cuda", image_directory="."):
         self.metadata = {"clip_model":pretrained}
-        self.model = CLIPVisionModel.from_pretrained(pretrained)
+        self.model = CLIPVisionModel.from_pretrained(pretrained, cache_dir="models/clip")
         self.model.to(device)
-        self.processor = AutoProcessor.from_pretrained(pretrained)
+        self.processor = AutoProcessor.from_pretrained(pretrained, cache_dir="models/clip")
 
         self.setup(pretrained, image_directory)
 
@@ -75,3 +75,6 @@ class TransformersCLIP(CLIP):
                 if isinstance(inputs[k],torch.Tensor): inputs[k] = inputs[k].to(self.device)
             outputs = self.model(**inputs)
             return outputs.pooler_output.flatten()
+
+if __name__=='__main__':
+    c = CLIP.get_clip()
