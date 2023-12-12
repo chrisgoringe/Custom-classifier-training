@@ -47,11 +47,12 @@ class Database:
         self.image_chooser = WeightedImageChooser(self, low_count_weight, controversy_weight)
         self.load()
         self.recursive_add()
-        self.keys = list(self.image_scores.keys())
+        
         self.k = k
         self.stats = [0,0,0]     # agreed with db, disagreed with db, no prediction
         self.started = time.monotonic()
         self.validate()
+        self.keys = list(self.image_scores.keys())
         self.model_score_stats = [0,0,0,0,0]  
         self.model_scores = None
         self.set_scaling_function()
