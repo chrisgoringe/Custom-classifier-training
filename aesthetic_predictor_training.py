@@ -124,7 +124,7 @@ if __name__=='__main__':
             import optuna
             def objective(trial):
                 training_args['num_train_epochs'] = trial.suggest_int('num_train_epochs',2,100)
-                training_args['learning_rate'] = math.pow(10,trial.suggest_float('log_learning_rate', -7, -2))
+                training_args['learning_rate'] = math.pow(10,trial.suggest_float('log_learning_rate', -4, -1))
                 training_args['per_device_train_batch_size'] = 2*trial.suggest_int('half_batch_size',1,64)
                 training_args['warmup_ratio'] = trial.suggest_float('warmup_ratio',0,0.5)
                 score = train_predictor()[0]
