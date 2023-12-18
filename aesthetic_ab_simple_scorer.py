@@ -1,10 +1,15 @@
 import customtkinter
 from src.ap.database import Database
-import os
+from src.ap.image_scores import ImageScores
+import os, statistics
+
+do_score = True
+do_analyse = True
+do_list = False
 
 args = {
     # Where are the images?
-    'top_level_image_directory':'PATH/GOES/HERE',
+    'top_level_image_directory':r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output",
 
     # How strongly to prefer images that have been shown less. Values 0-0.9999 
     # 0 = totally random, 0.999 = very very strong preference
@@ -15,6 +20,8 @@ args = {
 
     # maximum aspect ratio of the images (width/height)
     'ab_max_width_ratio' : 1.0,
+
+    'show_scores_at_end' : False,
 
     # How many images to offer
     'ab_image_count' : 2,
@@ -67,11 +74,35 @@ class TheApp:
 def main():
     assert os.path.exists(args['top_level_image_directory']), f"{args['top_level_image_directory']} not found"
     db = Database(args['top_level_image_directory'], args, low_count_weight=args['low_count_weight'], controversy_weight=0)
+    print(f"{len(db)} images")
 
     TheApp(args['ab_scorer_size'], args['ab_max_width_ratio'], args['ab_image_count'], db).app.mainloop()
     results = db.sorted_list()
-    for result in results:
-        print("{:>30} : {:>6.3f} ({:>3} tests)".format(*result))
+    if args['show_scores_at_end']:
+        for result in results:
+            print("{:>30} : {:>6.3f} ({:>3} tests)".format(*result))
 
+def analyse():
+    database_scores:ImageScores = ImageScores.from_scorefile(args['top_level_image_directory'])
+    named_results = []
+    for thing in os.listdir(args['top_level_image_directory']):
+        if os.path.isdir(os.path.join(args['top_level_image_directory'],thing)):
+            scores = database_scores.scores(normalised=True, directory=thing)
+            results = (len(scores),statistics.mean(scores),statistics.stdev(scores))
+            named_results.append( (thing, *results) )
+    named_results.sort(key=lambda a:a[2])
+    for named_result in named_results:
+        print("{:>60} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(*named_result)) 
+
+def list_scores():
+    database_scores:ImageScores = ImageScores.from_scorefile(args['top_level_image_directory'])
+    scores = database_scores.scores_dictionary()
+    scores = list( (scores[f], f) for f in scores )
+    scores.sort()
+    for score, file in scores:
+        print("{:>60} : {:>6.3f}".format(file,score))
+    
 if __name__=='__main__':
-    main()
+    if do_score: main()
+    if do_analyse: analyse()
+    if do_list: list_scores()

@@ -75,6 +75,9 @@ class Database:
             self.image_scores = {}
             self.meta = {}
             self.image_compare_count = {}
+
+    def __len__(self):
+        return len(self.image_scores)
         
     def save(self):
         with open(os.path.join(self.image_directory,"score.json"),'w') as f:
@@ -139,15 +142,17 @@ class Database:
         dir = dir or self.image_directory
         for f in os.listdir(dir):
             full = os.path.join(dir,f) 
-            if os.path.isdir(full): self.recursive_add(full)
-            try:
-                i = Image.open(full)
-                rel = os.path.relpath(full, self.image_directory)
-                if not rel in self.image_scores: 
-                    self.image_scores[rel] = 0
-                    self.image_compare_count[rel] = 0
-            except:
-                print(f"{full} didn't load as an image")
+            if os.path.isdir(full): 
+                self.recursive_add(full)
+            else:
+                try:
+                    i = Image.open(full)
+                    rel = os.path.relpath(full, self.image_directory)
+                    if not rel in self.image_scores: 
+                        self.image_scores[rel] = 0
+                        self.image_compare_count[rel] = 0
+                except:
+                    print(f"{full} didn't load as an image")
 
     def choices_made(self):
         return sum(self.stats)

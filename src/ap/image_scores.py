@@ -60,16 +60,29 @@ class ImageScores:
             return list(os.path.join(self.top_level_directory,k) for k in self.image_scores)
         return list(k for k in self.image_scores) 
 
-    def _create_condition(self, match:str, regex:bool, topfraction:float) -> callable:
+    def _create_condition_stack(self, *args) -> callable:
+        def condition(a):
+            for cond in args: 
+                if isinstance(cond,list):
+                    for c in cond:
+                        if not c(a): return False
+                else:
+                    if not cond(a): return False
+            return True
+        return condition
+    
+    def _create_condition(self, match:str, regex:bool, topfraction:float, directory:str) -> callable:
         highest_rank = topfraction*len(self.image_scores)
+        conds = []
         if match:
             if regex:
                 r = re.compile(match)
-                return lambda a : r.match(a) and self.ranked[a] <= highest_rank
+                conds.append(lambda a : r.match(a))
             else:
-                return lambda a : match in a and self.ranked[a] <= highest_rank
-        else:
-            return lambda a : self.ranked[a] <= highest_rank
+                conds.append(lambda a : match in a)
+        if directory:
+            conds.append(lambda a:os.path.split(a)[0]==directory)
+        return self._create_condition_stack(conds)
 
     def set_rankings(self):
         ordered = [(f,self.image_scores[f]) for f in self.image_scores]
@@ -81,8 +94,8 @@ class ImageScores:
     def ranks(self):
         return [self.ranked[f] for f in self.ranked]
 
-    def scores(self, match:str=None, regex=True, normalised=True, rankings=False, compressed=True, topfraction=1.0) -> list[float]:
-        condition = self._create_condition(match, regex, topfraction)
+    def scores(self, match:str=None, regex=True, normalised=True, rankings=False, compressed=True, topfraction=1.0, directory=None) -> list[float]:
+        condition = self._create_condition(match, regex, topfraction, directory)
         if rankings:
             ranks = [self.ranked[f] for f in self.image_scores if condition(f)]
             return compress_rank(ranks) if compressed else ranks
@@ -90,7 +103,7 @@ class ImageScores:
             normaliser = self.normaliser if normalised else lambda a : a
             return [normaliser(self.image_scores[f]) for f in self.image_scores if condition(f)]
 
-    def scores_dictionary(self, match:str=None, regex=True, normalised=True) -> dict[str,float]:
-        condition = self._create_condition(match, regex)
+    def scores_dictionary(self, match:str=None, regex=True, normalised=True, topfraction=1.0, directory=None) -> dict[str,float]:
+        condition = self._create_condition(match, regex, topfraction, directory)
         normaliser = self.normaliser if normalised else lambda a : a
         return {f:normaliser(self.image_scores[f]) for f in self.image_scores if condition(f)}
