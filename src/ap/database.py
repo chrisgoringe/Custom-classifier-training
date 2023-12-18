@@ -41,9 +41,10 @@ class WeightedImageChooser(ImageChooser):
         return w
 
 class Database:
-    def __init__(self, img_dir, args={}, k=0.7, low_count_weight=0, controversy_weight=0):
+    def __init__(self, img_dir, args={}, k=0.7, low_count_weight=0, controversy_weight=0, threshold=None):
         self.image_directory = img_dir
         self.args = args
+        self.threshold = threshold
         self.image_chooser = WeightedImageChooser(self, low_count_weight, controversy_weight)
         self.load()
         self.recursive_add()
@@ -193,6 +194,9 @@ class Database:
         z = sum(self.image_compare_count[x]==0 for x in self.image_scores)
         print("{:>4} comparisons in {:>6.1f} s".format(sum(self.stats), time.monotonic()-self.started))
         print(f"{z}/{len(self.image_scores)} of the images have no comparisons yet")
+        if self.threshold:
+            z = sum(self.image_compare_count[x]<self.threshold for x in self.image_scores)
+            print(f"{z}/{len(self.image_scores)} of the images have fewer than {self.threshold} comparisons")
         print("A total of {:>6} comparisons have been made for {:>5} images ({:>5.2f} per image)".format(
             self.meta['evaluations'], len(self.image_scores), 2*self.meta['evaluations']/len(self.image_scores)))
         

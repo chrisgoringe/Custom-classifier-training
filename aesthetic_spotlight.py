@@ -13,7 +13,8 @@ def main():
     
     with Timer('load models'):
         clipper = CLIP.get_clip(pretrained=args['clip_model'], image_directory=top_level_images)
-        predictor = AestheticPredictor(pretrained=args['load_model_path'], clipper=clipper)
+        predictor = AestheticPredictor(pretrained=args['load_model_path'], clipper=clipper, input_size=args['input_size'],
+                                       hidden_layer_sizes=args['custom_hidden_layers'])
 
     with Timer("prepare data"):
         df = DataFrame()#columns=['image','db_score','model_score','db_rank','model_rank'])
