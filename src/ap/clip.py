@@ -2,22 +2,28 @@ import torch, clip
 from PIL import Image
 from safetensors.torch import save_file, load_file
 import os, sys
-from transformers import CLIPVisionModel, AutoProcessor
+from transformers import CLIPVisionModel, AutoProcessor, CLIPModel
 
 class CLIP:
+    last_clip = None
+    last_file = None
+
     @classmethod
     def get_clip(cls, pretrained="ViT-L/14", device="cuda", image_directory="."):
+        if cls.last_file and cls.last_file==pretrained: return cls.last_clip
         try:
-            return OpenAICLIP(pretrained, device, image_directory)
+            cls.last_clip = OpenAICLIP(pretrained, device, image_directory)
         except:
             print(f"Trying to load {pretrained} as OpenAICLIP model got error {sys.exc_info()[1]}")
             print("Will try TransformersCLIP model...")
         try:
-            return TransformersCLIP(pretrained, device, image_directory)
+            cls.last_clip = TransformersCLIP(pretrained, device, image_directory)
         except:
             print(f"Trying to load {pretrained} as TransformersCLIP model got error {sys.exc_info()[1]}")
             print("Giving up")
             raise Exception(f"Failed to load {pretrained}")
+        cls.last_file = pretrained
+        return cls.last_clip
 
     def setup(self, pretrained, image_directory):
         self.cached = {}
@@ -62,9 +68,11 @@ class OpenAICLIP(CLIP):
 class TransformersCLIP(CLIP):
     def __init__(self, pretrained="", device="cuda", image_directory="."):
         self.metadata = {"clip_model":pretrained}
-        self.model = CLIPVisionModel.from_pretrained(pretrained, cache_dir="models/clip")
+        #self.model = CLIPVisionModel.from_pretrained(pretrained, cache_dir="models/clip",)
+        self.model = CLIPModel.from_pretrained(pretrained, cache_dir="models/clip",)
         self.model.to(device)
         self.processor = AutoProcessor.from_pretrained(pretrained, cache_dir="models/clip")
+        self.device = device
 
         self.setup(pretrained, image_directory)
 
@@ -73,8 +81,8 @@ class TransformersCLIP(CLIP):
             inputs = self.processor(images=image, return_tensors="pt")
             for k in inputs:
                 if isinstance(inputs[k],torch.Tensor): inputs[k] = inputs[k].to(self.device)
-            outputs = self.model(**inputs)
-            return outputs.pooler_output.flatten()
+            outputs = self.model.get_image_features(output_hidden_states=True, **inputs)
+            return outputs.flatten()
 
 if __name__=='__main__':
     c = CLIP.get_clip()

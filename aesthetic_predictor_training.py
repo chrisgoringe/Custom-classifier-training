@@ -110,6 +110,9 @@ def train_predictor():
         else:
             return get_rmse(eds), get_rmse(ds)
 
+def create_name():
+    return f"{args['custom_hidden_layers']}_{args['aesthetic_model_dropouts']}"
+
 best_score = None
 if __name__=='__main__':
     get_args(aesthetic_training=True, aesthetic_model=True)
@@ -130,7 +133,7 @@ if __name__=='__main__':
                     shutil.copyfile(args['save_model_path'], best_temp)
                     best_score = score
                 return score
-            study = optuna.create_study(direction='minimize' if args['loss_model']=='mse' else 'maximize', storage="sqlite:///db.sqlite3")
+            study = optuna.create_study(study_name=create_name(), direction='minimize' if args['loss_model']=='mse' else 'maximize', storage="sqlite:///db.sqlite3")
             study.optimize(objective, n_trials=args['meta_trials'])
             print(f"Best model copied into {args['save_model_path']}")
             shutil.copyfile(best_temp,args['save_model_path'])
