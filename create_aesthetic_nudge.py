@@ -17,6 +17,14 @@ args = {
     'load_model_path'           : None,
     "input_size"                : 768,
 }
+def make_weighter(scores_dict):
+    p = [ scores_dict[s] for s in scores_dict if scores_dict[s]>0 ]
+    n = [ scores_dict[s] for s in scores_dict if scores_dict[s]<=0 ]
+    alpha = (len(scores_dict) - sum(n))/sum(p)
+    w = lambda a : (a/len(scores_dict))*(alpha if a>0 else 1)
+    #print(f"TEST: {sum(w(scores_dict[s]) for s in scores_dict)}")
+    return w
+    
 
 def make_nudge():
     dir = args['top_level_image_directory']
@@ -26,10 +34,12 @@ def make_nudge():
         ap = AestheticPredictor(clipper=clipper, pretrained=args['load_model_path'])
         scores = ImageScores.from_evaluator(ap.evaluate_file, scores.image_files(), dir)
     scores_dict = scores.scores_dictionary(normalised=True)
+    weighter = make_weighter(scores_dict)
     nudge = torch.zeros((args['input_size'])).to('cuda')
     for f in scores_dict:
         features:torch.Tensor = clipper.prepare_from_file(os.path.join(args['top_level_image_directory'],f))
-        nudge = nudge + features * scores_dict[f] / len(scores_dict)
+        #print(torch.dot(features,features))
+        nudge = nudge + features * weighter(scores_dict[f])
     save_file({'nudge':nudge}, os.path.join(args['top_level_image_directory'], 'nudge.safetensors'))
 
 if __name__=='__main__':
