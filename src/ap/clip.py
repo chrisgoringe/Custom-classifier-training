@@ -35,10 +35,10 @@ class CLIP:
         except:
             print(f"Didn't reload CLIPs from {self.cachefile}")
 
-    def prepare_from_file(self, filename, device="cuda"):
-        rel = os.path.relpath(filename, self.image_directory)
+    def prepare_from_file(self, filepath, device="cuda"):
+        rel = os.path.relpath(filepath, self.image_directory)
         if rel not in self.cached:
-            self.cached[rel] = self.get_image_features_tensor(Image.open(filename))
+            self.cached[rel] = self.get_image_features_tensor(Image.open(filepath))
         return self.cached[rel].to(device)
     
     def save_cache(self):
