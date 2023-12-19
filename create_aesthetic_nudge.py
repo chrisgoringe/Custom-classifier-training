@@ -13,7 +13,7 @@ I think you probably have to use openai/clip-vit-large-patch14 because that's th
 
 args = {
     'top_level_image_directory' : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output",
-    'clip_model'                : "openai/clip-vit-large-patch14", 
+    'clip_model'                : "openai/clip-vit-large-patch14",   # DONT CHANGE
     'load_model_path'           : None,
     "input_size"                : 768,
 }
