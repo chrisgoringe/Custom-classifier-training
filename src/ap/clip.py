@@ -46,8 +46,9 @@ class CLIP:
         return self.cached[rel].to(device)
     
     def precache(self, filepaths):
-        for filepath in filepaths:
+        for filepath in tqdm(filepaths, desc=f"Caching {self.metadata['clip_model']}"):
             self.prepare_from_file(filepath)
+        self.save_cache()
 
     def save_cache(self):
         save_file(self.cached, self.cachefile)
@@ -121,11 +122,12 @@ class MultiCLIP(CLIP):
         if not newfiles: return
         for m in self.models:
             m.precache(newfiles)
-            for f in tqdm(newfiles):
+            for f in newfiles:
                 rel = os.path.relpath(f, self.image_directory)
                 features = m.prepare_from_file(f)
-                self.cached[rel] = features if rel not in self.cached is None else torch.cat([self.cached[rel],features])
+                self.cached[rel] = features if rel not in self.cached else torch.cat([self.cached[rel],features])
             m.model.to('cpu')
+        self.save_cache()
 
 if __name__=='__main__':
     c = CLIP.get_clip()
