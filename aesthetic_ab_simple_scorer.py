@@ -8,7 +8,7 @@ do_analyse = True
 
 args = {
     # Where are the images?
-    'top_level_image_directory':r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output",
+    'top_level_image_directory':r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\compare-nudge",
 
     # How strongly to prefer images that have been shown less. Values 0-0.9999 
     # 0 = totally random, 0.999 = very very strong preference
@@ -21,8 +21,9 @@ args = {
     'ab_max_width_ratio' : 1.0,
 
     'show_scores_at_end' : False,
+    'save_csv'  : True,
 
-    #
+    # tell me how many images have fewer than this number of comparisons at the end
     'threshold' : 5,
 
     # How many images to offer
@@ -83,6 +84,10 @@ def main():
     if args['show_scores_at_end']: 
         for result in results:
             print("{:>30} : {:>6.3f} ({:>3} tests)".format(*result))
+    if args['save_csv']:
+        with open(os.path.join(args['top_level_image_directory'],'scores.csv'),'w') as f:
+            for result in results:
+                print("{:>30},{:>6.3f}".format(*result), file=f)
 
 def analyse():
     database_scores:ImageScores = ImageScores.from_scorefile(args['top_level_image_directory'])
