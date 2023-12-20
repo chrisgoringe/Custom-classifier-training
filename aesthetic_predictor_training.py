@@ -127,16 +127,18 @@ if __name__=='__main__':
                 training_args['num_train_epochs'] = trial.suggest_int('num_train_epochs',2,100)
                 training_args['learning_rate'] = math.pow(10,trial.suggest_float('log_learning_rate', -4, -1))
                 training_args['per_device_train_batch_size'] = 2*trial.suggest_int('half_batch_size',1,64)
-                training_args['warmup_ratio'] = trial.suggest_float('warmup_ratio',0,0.5)
+                training_args['warmup_ratio'] = trial.suggest_float('warmup_ratio',0.1,0.5)
                 result = train_predictor()
                 score = result[0]
+                trial.set_user_attr('full-dataset', float(result[1]))
                 trial.set_user_attr('other-attr', float(result[2]))
                 global best_score
                 if best_score is None or (score<best_score and args['loss_model']=='mse') or (score>best_score and args['loss_model']!='mse'):
                     shutil.copyfile(args['save_model_path'], best_temp)
                     best_score = score
                 return score
-            study:optuna.study.Study = optuna.create_study(study_name=create_name(), direction='minimize' if args['loss_model']=='mse' else 'maximize', storage="sqlite:///db.sqlite3")
+            direction='minimize' if args['loss_model']=='mse' else 'maximize'
+            study:optuna.study.Study = optuna.create_study(study_name=create_name(), direction=direction, storage="sqlite:///db.sqlite3")
             print("optuna-dashboard sqlite:///db.sqlite3")
             for k in args: study.set_user_attr(k, args[k])
             study.optimize(objective, n_trials=args['meta_trials'])
