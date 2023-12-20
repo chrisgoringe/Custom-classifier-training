@@ -37,6 +37,8 @@ def make_nudge():
     weighter = make_weighter(scores_dict)
 
     clipper = CLIP.get_clip(image_directory=dir, pretrained=args[f"clip_model"])
+    clipper.precache(list(os.path.join(args['top_level_image_directory'],f) for f in scores_dict))
+    
     nudge = torch.zeros(args[f"input_size"]).cuda()
     for f in tqdm(scores_dict):
         features = clipper.prepare_from_file(os.path.join(args['top_level_image_directory'],f))
