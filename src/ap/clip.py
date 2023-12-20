@@ -11,7 +11,6 @@ OpenAIModels = ["RN50","RN101","RN50x4","RN50x16","RN50x64","ViT-B/32","ViT-B/16
 class CLIP:
     last_clip = None
     last_file = None
-    model:torch.nn.Module = None
 
     @classmethod
     def get_clip(cls, pretrained="ViT-L/14", device="cuda", image_directory="."):
@@ -31,6 +30,7 @@ class CLIP:
         self.device = device
         self.image_directory = image_directory
         self.pretrained = pretrained
+        self.model = None
 
         self.cached = {}
         self.cachefile = os.path.join(image_directory,f"clipcache.{pretrained.replace('/','_')}.safetensors")
@@ -66,7 +66,11 @@ class CLIP:
     def get_image_features_tensor(self, image:Image) -> torch.Tensor:
         raise NotImplementedError()
     
+    def load(self):
+        raise NotImplementedError()
+    
     def to(self, device:str):
+        if self.model==None: self.load()
         self.model.to(device)
         self.device = device
 
@@ -76,9 +80,12 @@ class CLIP:
 class OpenAICLIP(CLIP):  
     def __init__(self, pretrained="ViT-L/14", device="cuda", image_directory="."):
         super().__init__(pretrained, device, image_directory)
-        self.model, self.preprocess = clip.load(pretrained, device=device, download_root="models/clip")
+
+    def load(self):
+        self.model, self.preprocess = clip.load(self.pretrained, device=self.device, download_root="models/clip")
 
     def get_image_features_tensor(self, image:Image) -> torch.Tensor:
+        if self.model==None: self.load()
         with torch.no_grad():
             image = self.preprocess(image).unsqueeze(0).to(self.device)
             image_features = self.model.encode_image(image)
@@ -88,12 +95,15 @@ class OpenAICLIP(CLIP):
 class TransformersCLIP(CLIP):
     def __init__(self, pretrained="", device="cuda", image_directory="."):
         super().__init__(pretrained, device, image_directory)
-        self.model = CLIPModel.from_pretrained(pretrained, cache_dir="models/clip")
+
+    def load(self):
+        self.model = CLIPModel.from_pretrained(self.pretrained, cache_dir="models/clip")
         self.simplify()
-        self.model.to(device)
-        self.processor = AutoProcessor.from_pretrained(pretrained, cache_dir="models/clip")
+        self.model.to(self.device)
+        self.processor = AutoProcessor.from_pretrained(self.pretrained, cache_dir="models/clip")
 
     def get_image_features_tensor(self, image:Image) -> torch.Tensor:
+        if self.model==None: self.load()
         with torch.no_grad():
             inputs = self.processor(images=image, return_tensors="pt")
             for k in inputs:
