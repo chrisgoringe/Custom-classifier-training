@@ -30,6 +30,7 @@ class CLIP:
         self.metadata = {"clip_model":pretrained}
         self.device = device
         self.image_directory = image_directory
+        self.pretrained = pretrained
 
         self.cached = {}
         self.cachefile = os.path.join(image_directory,f"clipcache.{pretrained.replace('/','_')}.safetensors")
@@ -38,17 +39,23 @@ class CLIP:
             print(f"Reloaded CLIPs from {self.cachefile} - delete this file if you don't want to do that")
         except:
             print(f"Didn't reload CLIPs from {self.cachefile}")
-
+    
     def prepare_from_file(self, filepath, device="cuda"):
         rel = os.path.relpath(filepath, self.image_directory)
         if rel not in self.cached:
             self.cached[rel] = self.get_image_features_tensor(Image.open(filepath))
         return self.cached[rel].to(device)
     
+    def cache_from_files(self, filepaths, device="cuda"):
+        for filepath in tqdm(filepaths, desc=f"Caching {self.pretrained}"):
+            rel = os.path.relpath(filepath, self.image_directory)
+            self.cached[rel] = self.prepare_from_file(filepath, device)
+    
     def precache(self, filepaths):
-        for filepath in tqdm(filepaths, desc=f"Caching {self.metadata['clip_model']}"):
-            self.prepare_from_file(filepath)
-        self.save_cache()
+        newfiles = { f for f in filepaths if os.path.relpath(f, self.image_directory) not in self.cached }
+        if newfiles:
+            self.cache_from_files(newfiles)
+            self.save_cache()
 
     def save_cache(self):
         save_file(self.cached, self.cachefile)
@@ -111,16 +118,11 @@ class MultiCLIP(CLIP):
             #m.model.to('cpu')
         return ift
     
-    def prepare_from_file(self, filepath, device="cuda"):
-        rel = os.path.relpath(filepath, self.image_directory)
-        if rel not in self.cached:
-            self.cached[rel] = self.get_image_features_tensor(Image.open(filepath))
-        return self.cached[rel].to(device)
-    
     def precache(self, filepaths):
         newfiles = { f for f in filepaths if os.path.relpath(f, self.image_directory) not in self.cached }
         if not newfiles: return
         for m in self.models:
+            m.to('cuda')
             m.precache(newfiles)
             for f in newfiles:
                 rel = os.path.relpath(f, self.image_directory)
