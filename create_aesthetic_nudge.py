@@ -27,7 +27,7 @@ def make_weighter(scores_dict):
     return w
     
 
-def make_nudge():
+def make_nudge_from_scores():
     dir = args['top_level_image_directory']
     scores:ImageScores = ImageScores.from_scorefile(dir)
     if args['load_model_path']:
@@ -47,5 +47,13 @@ def make_nudge():
     clipper.save_cache()
     save_file({'nudge':nudge}, os.path.join(args['top_level_image_directory'], 'nudge.safetensors'))
 
+def make_nudge_from_image(f:str):
+    dir = args['top_level_image_directory']
+    clipper = CLIP.get_clip(image_directory=dir, pretrained=args[f"clip_model"])
+    nudge = clipper.prepare_from_file(os.path.join(args['top_level_image_directory'],f))
+    save_file({'nudge':nudge}, os.path.join(args['top_level_image_directory'], os.path.splitext(f)[0]+".safetensors"))
+
 if __name__=='__main__':
-    make_nudge()
+    #make_nudge_from_scores()
+    f = r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\j6p_ads-corporate\ads-corporate_00003_.png"
+    make_nudge_from_image(f)
