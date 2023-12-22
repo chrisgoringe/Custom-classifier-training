@@ -31,7 +31,7 @@ def make_nudge_from_scores():
     dir = args['top_level_image_directory']
     scores:ImageScores = ImageScores.from_scorefile(dir)
     if args['load_model_path']:
-        ap = AestheticPredictor(clipper=clipper, pretrained=args['load_model_path'])
+        ap = AestheticPredictor(clipper=clipper, pretrained=args['load_model_path'], input_size=args['input_size'])
         scores = ImageScores.from_evaluator(ap.evaluate_file, scores.image_files(), dir)
     scores_dict = scores.scores_dictionary(normalised=True)
     weighter = make_weighter(scores_dict)
