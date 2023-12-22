@@ -28,11 +28,12 @@ def analyse():
             continue
         results = (len(scores),statistics.mean(scores),statistics.stdev(scores))
         if model_scores:    
-            scores = model_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=True)
+            mscores = model_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=True)
             mdranks = model_scores.scores(r, regex=(r in args['ab_analysis_regexes']), rankings=True)
             spearman = scipy.stats.spearmanr(dbranks,mdranks)
-            results += (statistics.mean(scores),statistics.stdev(scores),spearman.statistic, spearman.pvalue)
-            print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}, model score {:>6.3f} +/- {:>4.2f}, spearman {:>6.4f} (p={:>8.2})".format(r,*results))
+            pearson = scipy.stats.pearsonr(scores,mscores)
+            results += (statistics.mean(mscores),statistics.stdev(mscores),spearman.statistic, spearman.pvalue, pearson.statistic, pearson.pvalue)
+            print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}, model score {:>6.3f} +/- {:>4.2f}, spearman {:>6.4f} (p={:>8.2}), pearson {:>6.4f} (p={:>8.2})".format(r,*results))
         else:
             print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(r,*results))         
             
