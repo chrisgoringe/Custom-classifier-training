@@ -27,15 +27,15 @@ def main():
     
     with Timer("Analyse statistics") as logger:
         new_predictions = { a[1]: a[0] for a in all_predicted_scores if db.image_scores[a[1]]==0 }
+
         old_predictions = { a[1]: a[0] for a in all_predicted_scores if db.image_scores[a[1]]!=0 }
-        assert len(new_predictions)>1 and len(old_predictions)>1 , "Need at least two old images and two new images"
-        mean_old_predictions = statistics.mean(old_predictions[a] for a in old_predictions)
-        std_old_predictions = statistics.stdev(old_predictions[a] for a in old_predictions)
+        mean_old_predictions = statistics.mean(old_predictions[a] for a in old_predictions) if old_predictions else 0
+        std_old_predictions = statistics.stdev(old_predictions[a] for a in old_predictions) if len(old_predictions)>1 else 1
 
         old_db_scores = [db.image_scores[f] for f in db.image_scores if db.image_scores[f]!=0]
-        std_db = statistics.stdev(old_db_scores)
-        mean_db = statistics.mean(old_db_scores)
-
+        mean_db = statistics.mean(old_db_scores) if old_db_scores else 0
+        std_db = statistics.stdev(old_db_scores) if len(old_db_scores) else 1
+        
         prediction_to_db = lambda a : (std_db*(a - mean_old_predictions)/std_old_predictions) + mean_db
     
         logger("For existing images, model score mean {:>6.3f} stdev {:>6.3f}, database score mean {:>6.3f} stdev {:>6.3f}".format(

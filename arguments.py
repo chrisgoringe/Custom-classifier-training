@@ -10,15 +10,17 @@ common_args = {
     "base_model"                : "",
 
     # if restarting a previous run, this is the folder to load from. If None or '', the base_model is used. 
-    "load_model"                : "",     
+    "load_model"                : "training/aesthetic.safetensors",     
 
     # folder to save the resulting model in. Required for training. 
     "save_model"                : "training/aesthetic.safetensors",
 
     # path to the top level image directory
     #"top_level_image_directory" : "a:/aesthetic/training", 
-    "top_level_image_directory" : "C:\\Users\\chris\\Documents\\GitHub\\ComfyUI_windows_portable\\ComfyUI\\output\\scored",
+    'top_level_image_directory':r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\compare",
     #"top_level_image_directory" : "training/PeterMcKinnon", 
+
+
 
     # what fraction of images to reserve as test images (when training), and a random seed for picking them
     "fraction_for_test"         : 0.25,
@@ -41,7 +43,7 @@ aesthetic_training_args = {
     "ignore_score_zero"         : True,
 
     # aesthetic model dropouts - default dropouts are [0.2,0.2,0.1]. 
-    "aesthetic_model_dropouts"  : [0],#[0.2,0.2,0.1],
+    "aesthetic_model_dropouts"  : [0.8,0.4],#[0.2,0.2,0.1],
 
     # if doing metaparameter (mode=metasearch), how many trials?
     "meta_trials"               : 50,
@@ -51,11 +53,12 @@ aesthetic_model_args = {
     # The aesthetic model has no activators - this seems wrong to me. This inserts them.
     "aesthetic_model_relu"      : True,
 
-    # hidden layers - the layers in the model (a list - the inbuilt model is [1024,128,64,16])
-    # the top layer is determined by the CLIP (768), the bottom layer is 1.
-    "custom_hidden_layers"      : [16],
+    # hidden layers 
+    # the top layer is determined by the CLIP (input_size), the bottom layer is 1.
+    "custom_hidden_layers"      : [1024,1024,32],
+    "input_size"                : 2048,
 
-    "input_size"                : 768,
+    'clip_model'                : ["openai/clip-vit-large-patch14", "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"], 
 }
 
 aesthetic_ab_args = {
@@ -67,7 +70,7 @@ aesthetic_ab_args = {
 
     # How strongly to prefer images with more different database and model scores. Note, if not zero, this will
     # skew the AB stats produced.
-    "controversy_weight"        : 1.0,
+    "controversy_weight"        : 0.0,
 
     # The size (height) of the window used by the aesthetic_ab_scorer script
     "ab_scorer_size"            : 600,
@@ -83,8 +86,8 @@ aesthetic_ab_args = {
 }
 
 aesthetic_analysis_args = {
-    "ab_analysis_regexes"       : [],
-    "use_model_scores_for_stats": True,
+    "ab_analysis_regexes"       : ["vanilla","1_T"],
+    "use_model_scores_for_stats": False,
 }
 
 # training_args are passed directly into the TrainingArguments object.
@@ -128,7 +131,8 @@ class Args:
         "ignore_score_zero"         : False,
         # clip model used by aesthetic scorer 
         #"clip_model"                : "openai/clip-vit-base-patch32",
-        "clip_model"                : "ViT-L/14",
+        #"clip_model"                : "openai/clip-vit-large-patch14",
+        #"clip_model"                : "ViT-L/14",
 
         "aesthetic_model_dropouts"  : None,
 

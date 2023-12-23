@@ -8,7 +8,7 @@ do_analyse = True
 
 args = {
     # Where are the images?
-    'top_level_image_directory':r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\compare-nudge",
+    'top_level_image_directory':r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\compare-nudge76",
 
     # How strongly to prefer images that have been shown less. Values 0-0.9999 
     # 0 = totally random, 0.999 = very very strong preference
