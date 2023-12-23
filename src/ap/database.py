@@ -210,4 +210,7 @@ class Database:
             print(strng, file=open("ab_stats.txt",'+a'))
         else:
             print("Not enough data yet to compare choices with database")
+
+    def all_paths(self):
+        return list(os.path.join(self.image_directory,f) for f in self.image_scores)
  

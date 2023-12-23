@@ -10,7 +10,7 @@ def print_image_scores():
 
     assert args['load_model'], "Need to load a model if use_model_scores_for_stats is true"
     clipper = CLIP.get_clip(pretrained=args['clip_model'], device="cuda", image_directory=db.image_directory)
-    clipper.precache(list(os.path.join(args['top_level_image_directory'],f) for f in db.image_scores))
+    clipper.precache(db.all_paths())
     ap = AestheticPredictor(clipper=clipper, pretrained=args['load_model_path'], input_size=args['input_size'])
     db.set_model_score(ap.evaluate_file)
     clipper.save_cache()

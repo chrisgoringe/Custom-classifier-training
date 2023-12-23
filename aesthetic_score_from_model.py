@@ -15,9 +15,9 @@ def main():
     with Timer("Load database and models"):
         db = Database(args['top_level_image_directory'], args)
 
-        clipper = CLIP(image_directory=args['top_level_image_directory'])
-        predictor = AestheticPredictor(pretrained=args['load_model_path'], 
-                                    relu=args.get('aesthetic_model_relu',True), clipper=clipper)
+        clipper = CLIP.get_clip(image_directory=args['top_level_image_directory'], pretrained=args['clip_model'])
+        clipper.precache(db.all_paths())
+        predictor = AestheticPredictor(pretrained=args['load_model_path'], clipper=clipper, input_size=args['input_size'])
         
     with Timer("Predict scores for all images"):
         all_predicted_scores = predictor.evaluate_files([os.path.join(args['top_level_image_directory'],f) for f in db.image_scores], 
