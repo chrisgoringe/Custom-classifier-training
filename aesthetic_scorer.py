@@ -13,7 +13,6 @@ def print_image_scores():
     clipper.precache(db.all_paths())
     ap = AestheticPredictor(clipper=clipper, pretrained=args['load_model_path'], input_size=args['input_size'])
     db.set_model_score(ap.evaluate_file)
-    clipper.save_cache()
     model_scores = sorted((ap.scale(db.model_scores[f]), f) for f in db.model_scores)
 
     with open(os.path.join(args['top_level_image_directory'], "model_scores.csv"),'w') as f:
