@@ -43,7 +43,7 @@ aesthetic_training_args = {
     "ignore_score_zero"         : True,
 
     # aesthetic model dropouts - default dropouts are [0.2,0.2,0.1]. 
-    "aesthetic_model_dropouts"  : [0.8,0.4],#[0.2,0.2,0.1],
+    "aesthetic_model_dropouts"  : [0],#[0.2,0.2,0.1],
 
     # if doing metaparameter (mode=metasearch), how many trials?
     "meta_trials"               : 50,
@@ -55,7 +55,7 @@ aesthetic_model_args = {
 
     # hidden layers 
     # the top layer is determined by the CLIP (input_size), the bottom layer is 1.
-    "custom_hidden_layers"      : [1024,1024,32],
+    "custom_hidden_layers"      : [16],
     "input_size"                : 2048,
 
     'clip_model'                : ["openai/clip-vit-large-patch14", "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"], 
@@ -86,7 +86,7 @@ aesthetic_ab_args = {
 }
 
 aesthetic_analysis_args = {
-    "ab_analysis_regexes"       : ["vanilla","1_T"],
+    "ab_analysis_regexes"       : [],
     "use_model_scores_for_stats": False,
 }
 
