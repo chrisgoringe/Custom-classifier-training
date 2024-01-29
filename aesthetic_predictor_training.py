@@ -78,8 +78,8 @@ def train_predictor():
         df = data.get_dataframe()
         ds = QuickDataset(df)
         with Timer('CLIP'):
+            clipper.precache((f for f in df['image']))
             df['features'] = [clipper.prepare_from_file(f, device="cpu") for f in df['image']]
-            clipper.save_cache()
         df['score'] = [float(l) for l in df['label_str']]
         tds = QuickDataset(df, 'train')
         eds = QuickDataset(df, 'test')

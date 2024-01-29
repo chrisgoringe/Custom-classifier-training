@@ -145,6 +145,8 @@ class Database:
             full = os.path.join(dir,f) 
             if os.path.isdir(full): 
                 self.recursive_add(full)
+            elif os.path.splitext(full)[1]==".txt" or os.path.splitext(full)[1]==".json" or os.path.splitext(full)[1]==".safetensors":
+                pass
             else:
                 try:
                     i = Image.open(full)
