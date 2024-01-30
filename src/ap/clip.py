@@ -13,7 +13,14 @@ except:
     print("AIM not available - pip install git+https://git@github.com/apple/ml-aim.git if you want to use it")
 
 OpenAIModels = ["RN50","RN101","RN50x4","RN50x16","RN50x64","ViT-B/32","ViT-B/16","ViT-L/14","ViT-L/14@336px"]
-AppleAIMModels = ["apple/aim-600M","apple/aim-1B","apple/aim-3B","apple/aim-7B"]
+
+TOP_LEVEL_SIZES = {"openai/clip-vit-large-patch14"            : 768,
+                   "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k" : 1280,
+                   "apple/aim-600M"                           : 1536,
+                   "apple/aim-1B"                             : 1536,
+                   "apple/aim-3B"                             : 1536,
+                   "apple/aim-7B"                             : 1536,
+}
 
 class CLIP:
     last_clip = None
@@ -27,7 +34,7 @@ class CLIP:
                 cls.last_clip = MultiCLIP(pretrained, device, image_directory)
             elif pretrained in OpenAIModels:
                 cls.last_clip = OpenAICLIP(pretrained, device, image_directory)
-            elif pretrained in AppleAIMModels:
+            elif pretrained.startswith("apple"):
                 cls.last_clip = AppleNotCLIP(pretrained, device, image_directory)
             else:
                 cls.last_clip = TransformersCLIP(pretrained, device, image_directory)
@@ -42,7 +49,7 @@ class CLIP:
         self.model = None
 
         self.cached = {}
-        self.cachefile = os.path.join(image_directory,f"clipcache.{pretrained.replace('/','_')}.safetensors")
+        self.cachefile = os.path.join(image_directory,f"clipcache.{pretrained.replace('/','_').replace(':','_')}.safetensors")
         try:
             self.cached = load_file(self.cachefile, device=self.device)
             print(f"Reloaded CLIPs from {self.cachefile} - delete this file if you don't want to do that")
@@ -53,7 +60,7 @@ class CLIP:
         rel = os.path.relpath(filepath, self.image_directory)
         if rel not in self.cached:
             self.cached[rel] = self.get_image_features_tensor(Image.open(filepath))
-        return self.cached[rel].to(device)
+        return self.cached[rel].to(device).squeeze()
     
     def cache_from_files(self, filepaths, device="cuda"):
         for filepath in tqdm(filepaths, desc=f"Caching {self.pretrained}"):
@@ -85,6 +92,11 @@ class CLIP:
 
     def simplify(self):
         pass
+
+    @property
+    def top_level_size(self):
+        if self.pretrained in TOP_LEVEL_SIZES: return TOP_LEVEL_SIZES[self.pretrained]
+        raise NotImplementedError()
 
 class OpenAICLIP(CLIP):  
     def __init__(self, pretrained="ViT-L/14", device="cuda", image_directory="."):
@@ -126,6 +138,11 @@ class TransformersCLIP(CLIP):
 class AppleNotCLIP(CLIP):
     def __init__(self, pretrained="", device="cuda", image_directory="."):
         super().__init__(pretrained, device, image_directory)
+        if ":" in self.pretrained:
+            self.pretrained, self.block = self.pretrained.split(':')
+            self.block = int(self.block)
+        else:
+            self.block = None
         
     def load(self):
         self.model = AIMForImageClassification.from_pretrained(self.pretrained, cache_dir="models/apple").to(self.device)
@@ -135,8 +152,12 @@ class AppleNotCLIP(CLIP):
         if self.model==None: self.load()
         with torch.no_grad():
             inp = self.processor(image).unsqueeze(0).to(self.device)
-            image_features = self.model.extract_features(inp, max_block_id=-1)
-            return image_features.to(torch.float)
+            if self.block:
+                image_features = self.model.extract_features(inp, max_block_id=0)
+                image_features = image_features[0][:,:self.block,:]
+            else:
+                _, image_features = self.model(inp)
+            return image_features.to(torch.float).flatten()
         
 class MultiCLIP(CLIP):
     def __init__(self, pretrained:list, device, image_directory):
@@ -164,6 +185,10 @@ class MultiCLIP(CLIP):
                 self.cached[rel] = features if rel not in self.cached else torch.cat([self.cached[rel],features])
             m.model.to('cpu')
         self.save_cache()
+
+    @property
+    def top_level_size(self):
+        return sum(m.top_level_size for m in self.models)
 
 if __name__=='__main__':
     c = CLIP.get_clip()

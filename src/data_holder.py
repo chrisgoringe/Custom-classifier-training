@@ -22,8 +22,8 @@ class DataHolder:
         self.fraction_for_test = fraction_for_test
         random.seed(test_pick_seed)
 
-        if os.path.exists(os.path.join(top_level,'score.json')) and use_score_file:
-            self.dataframe_from_scorefile(top_level)
+        if use_score_file and os.path.exists(os.path.join(top_level,use_score_file)):
+            self.dataframe_from_scorefile(top_level, use_score_file)
         elif os.path.exists(os.path.join(top_level,'score.csv')) and use_score_file:
             self.dataframe_from_csv(top_level)
         else:
@@ -46,12 +46,16 @@ class DataHolder:
                 dfl = self.df[self.df['label_str']==label]
                 print("{:>10} contains {:>4} images, {:>4} train and {:>3} evaluation".format(label, len(dfl), len(dfl[dfl['split']=='train']), len(dfl[dfl['split']=='test']))) 
     
-    def dataframe_from_scorefile(self, image_folder):
-        with open(os.path.join(image_folder,"score.json"),'r') as f:
+    def dataframe_from_scorefile(self, image_folder, scorefile):
+        with open(os.path.join(image_folder,scorefile),'r') as f:
             image_scores = json.load(f)
-            image_scores.pop('#meta#',None)
-            for f in image_scores:
-                self.df.loc[len(self.df)] = [os.path.join(image_folder,f), str(image_scores[f][0] if isinstance(image_scores[f],list) else image_scores[f]), self.split()]
+            if "ImageRecords" in image_scores:
+                for f in image_scores["ImageRecords"]:
+                    self.df.loc[len(self.df)] = [os.path.join(image_folder,f), str(image_scores["ImageRecords"][f]['score']), self.split()]
+            else:
+                image_scores.pop('#meta#',None)
+                for f in image_scores:
+                    self.df.loc[len(self.df)] = [os.path.join(image_folder,f), str(image_scores[f][0] if isinstance(image_scores[f],list) else image_scores[f]), self.split()]
 
     def dataframe_from_csv(self, image_folder):
         with open(os.path.join(image_folder,"score.csv"),'r') as f:

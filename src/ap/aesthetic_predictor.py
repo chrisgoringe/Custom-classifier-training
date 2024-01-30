@@ -12,20 +12,19 @@ class AestheticPredictor(nn.Module):
 
         hidden_layer_sizes = hidden_layer_sizes or [int(x) for x in self.metadata.get('layers','[0]')[1:-1].split(',')]
         dropouts = dropouts or [0]*len(hidden_layer_sizes)
-        while len(dropouts) < len(hidden_layer_sizes): dropouts.append(0)
+        while len(dropouts) < len(hidden_layer_sizes)+1: dropouts.append(0)
 
         self.metadata['input_size'] = str(input_size)
         self.metadata['layers'] = str(hidden_layer_sizes)
 
-        if dropouts[-1]!=0: print("Last dropout non-zero - that's probably not a great idea...")
-        
         self.layers = nn.Sequential( )
         current_size = input_size
         for i, hidden_layer_size in enumerate(hidden_layer_sizes):
+            self.layers.append(nn.Dropout(dropouts[i]))
             self.layers.append(nn.Linear(current_size, hidden_layer_size))
             current_size = hidden_layer_size
-            self.layers.append(nn.Dropout(dropouts[i]))
             self.layers.append(nn.ReLU())
+        self.layers.append(nn.Dropout(dropouts[-1]))
         self.layers.append(nn.Linear(current_size, 1))
 
         if sd: self.load_state_dict(sd)

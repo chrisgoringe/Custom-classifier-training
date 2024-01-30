@@ -8,17 +8,17 @@ do_analyse = True
 
 args = {
     # Where are the images?
-    'top_level_image_directory':r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\compare-nudge76",
+    'top_level_image_directory':r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\compare2",
 
     # How strongly to prefer images that have been shown less. Values 0-0.9999 
     # 0 = totally random, 0.999 = very very strong preference
     'low_count_weight' : 0.4,   
 
     # Height of the window on your screen  
-    'ab_scorer_size' : 600,
+    'ab_scorer_size' : 800,
 
     # maximum aspect ratio of the images (width/height)
-    'ab_max_width_ratio' : 1.0,
+    'ab_max_width_ratio' : 0.8,
 
     'show_scores_at_end' : False,
     'save_csv'  : True,

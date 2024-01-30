@@ -1,15 +1,13 @@
 from src.ap.aesthetic_predictor import AestheticPredictor
 from src.ap.clip import CLIP
 from src.ap.image_scores import ImageScores
-import torch, os
+import torch, os, math
 from safetensors.torch import save_file
 from tqdm import tqdm
 
 '''
 For the given image directory (which is assumed to have been AB scored), create a nudge file.
 If load_model_path is specified, use the scores given by the model, otherwise use the AB scores
-
-I think you probably have to use openai/clip-vit-large-patch14 because that's the one SDXL uses
 '''
 
 args = {
@@ -17,14 +15,32 @@ args = {
     'clip_model'                : ["openai/clip-vit-large-patch14", "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"], 
     'load_model_path'           : None,
     "input_size"                : 2048,
+
+    'weighting'        : 'tanh',
+    'weighting_params' : None,
 }
-def make_weighter(scores_dict):
-    p = [ scores_dict[s] for s in scores_dict if scores_dict[s]>0 ]
-    n = [ scores_dict[s] for s in scores_dict if scores_dict[s]<=0 ]
-    alpha = (len(scores_dict) - sum(n))/sum(p)
-    w = lambda a : (a/len(scores_dict))*(alpha if a>0 else 1)
-    #print(f"TEST: {sum(w(scores_dict[s]) for s in scores_dict)}")
+def make_weighter(scores_list:list):
+    w = None
+    if args['weighting']=='alpha':
+        p = [ s for s in scores_list if s>0 ]
+        n = [ s for s in scores_list if s<=0 ]
+        alpha = (len(scores_list) - sum(n))/sum(p)
+        w = lambda a : (a/len(scores_list))*(alpha if a>0 else 1)
+        print(f"alpha = {alpha}")
+    elif args['weighting']=='top_n' and args['weighting_params']:
+        scores_list.sort(reverse=True)
+        n = args['weighting_params']
+        threshold = scores_list[n-1]
+        while scores_list[n]==scores_list[n-1]: n += 1
+        w = lambda a : (1/n) if a>=threshold else 0
+        print(f"Top {n} will be used")
+    elif args['weighting']=='tanh':
+        sumtanhed = sum( list( 1+math.tanh(s) for s in scores_list ) )
+        w = lambda a : (1+math.tanh(a))/sumtanhed
+
+    assert w is not None, "No valid weighting"
     return w
+
     
 
 def make_nudge_from_scores():
@@ -34,7 +50,7 @@ def make_nudge_from_scores():
         ap = AestheticPredictor(clipper=clipper, pretrained=args['load_model_path'], input_size=args['input_size'])
         scores = ImageScores.from_evaluator(ap.evaluate_file, scores.image_files(), dir)
     scores_dict = scores.scores_dictionary(normalised=True)
-    weighter = make_weighter(scores_dict)
+    weighter = make_weighter(list(scores_dict[f] for f in scores_dict))
 
     clipper = CLIP.get_clip(image_directory=dir, pretrained=args[f"clip_model"])
     clipper.precache(list(os.path.join(args['top_level_image_directory'],f) for f in scores_dict))

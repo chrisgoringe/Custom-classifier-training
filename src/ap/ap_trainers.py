@@ -49,7 +49,7 @@ class UnequalSampler:
         half_batch = self.batch_size//2
         result = [0]*self.batch_size    
         while self.left:
-            self.left -= 1
+            #self.left -= 1
             for i in range(half_batch):
                 x = random.randrange(len(self.dataset))
                 y = random.randrange(len(self.dataset))
@@ -61,6 +61,7 @@ class UnequalSampler:
                 result[i] = x
                 result[i+half_batch] = y
             yield result
+        pass
 
     def set_epoch(self,x):
         self.left = self.len
@@ -76,8 +77,8 @@ class RankingLossTrainer(CustomTrainer):
         return self.loss_fn(input1, input2, diff_target)
     
     def get_train_dataloader(self):
-        bs = UnequalSampler(self.training_args.per_device_train_batch_size, self.train_dataset)
-        dl = torch.utils.data.DataLoader(self.train_dataset, batch_sampler = bs)
-        dl.set_epoch = bs.set_epoch
+        self.sampler = UnequalSampler(self.training_args.per_device_train_batch_size, self.train_dataset)
+        dl = torch.utils.data.DataLoader(self.train_dataset, batch_sampler = self.sampler)
+        dl.set_epoch = self.sampler.set_epoch
         return dl
 

@@ -33,6 +33,7 @@ class EvaluationCallback(TrainerCallback):
         def on_epoch_end(self, arguments, state: TrainerState, control, **kwargs):
             for dataset, _, shuffle in self.datasets:
                 if shuffle: dataset.shuffle()
+                
             if state.epoch - self.last < self.every: return
             self.last = state.epoch
             self.do_eval(state, kwargs['model'])
@@ -64,14 +65,14 @@ def combine_metadata(*args):
     return metadata
 
 def train_predictor():
-    pretrained = args['load_model_path'] or args['base_model']
+    pretrained = args['load_model_path']
     top_level_images = args['top_level_image_directory']
 
     with Timer('load models'):
         clipper = CLIP.get_clip(pretrained=args['clip_model'], image_directory=top_level_images)
-        predictor = AestheticPredictor(pretrained=pretrained, clipper=clipper, input_size=args['input_size'],
-                                       dropouts=args['aesthetic_model_dropouts'], 
-                                       hidden_layer_sizes=args['custom_hidden_layers'])
+        predictor = AestheticPredictor(pretrained=pretrained, clipper=clipper, input_size=clipper.top_level_size,
+                                       dropouts=args['dropouts'], 
+                                       hidden_layer_sizes=args['hidden_layers'])
 
     with Timer('Prepare images') as logger:
         data = DataHolder(top_level=top_level_images, save_model_folder=args['save_model'], use_score_file=args['use_score_file'])
@@ -112,7 +113,7 @@ def train_predictor():
 
 def create_name():
     ran = "".join( random.choices("0123456789", k=6) )
-    return f"{args['custom_hidden_layers']}_{args['aesthetic_model_dropouts']}_{ran}"
+    return f"{args['hidden_layers']}_{args['dropouts']}_{ran}"
 
 best_score = None
 if __name__=='__main__':
