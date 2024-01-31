@@ -2,7 +2,7 @@ from arguments import args, get_args
 import statistics, os
 import scipy.stats
 from src.ap.aesthetic_predictor import AestheticPredictor
-from src.ap.clip import CLIP
+from src.ap.feature_extractor import FeatureExtractor
 from src.ap.image_scores import ImageScores
 
 def analyse():
@@ -14,7 +14,7 @@ def analyse():
 
     if args['use_model_scores_for_stats']:
         assert args['load_model'], "Need to load a model if use_model_scores_for_stats is true"
-        ap = AestheticPredictor(clipper=CLIP.get_clip(image_directory=dir, pretrained=args['clip_model']), 
+        ap = AestheticPredictor(clipper=FeatureExtractor.get_feature_extractor(image_directory=dir, pretrained=args['clip_model']), 
                                 pretrained=args['load_model_path'], input_size=args['input_size'])
         model_scores:ImageScores = ImageScores.from_evaluator(ap.evaluate_file, database_scores.image_files(), dir)
     else:

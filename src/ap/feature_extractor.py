@@ -14,47 +14,47 @@ except:
 
 OpenAIModels = ["RN50","RN101","RN50x4","RN50x16","RN50x64","ViT-B/32","ViT-B/16","ViT-L/14","ViT-L/14@336px"]
 
-TOP_LEVEL_SIZES = {"openai/clip-vit-large-patch14"            : 768,
-                   "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k" : 1280,
-                   "apple/aim-600M"                           : 1536,
-                   "apple/aim-1B"                             : 1536,
-                   "apple/aim-3B"                             : 1536,
-                   "apple/aim-7B"                             : 1536,
+NUMBER_OF_FEATURES = {  "openai/clip-vit-large-patch14"            : 768,
+                        "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k" : 1280,
+                        "apple/aim-600M"                           : 1536,
+                        "apple/aim-1B"                             : 2048,
+                        "apple/aim-3B"                             : 3072,
+                        "apple/aim-7B"                             : 0,
 }
 
-class CLIP:
-    last_clip = None
+class FeatureExtractor:
+    last_fe = None
     last_file = None
 
     @classmethod
-    def get_clip(cls, pretrained="ViT-L/14", device="cuda", image_directory="."):
+    def get_feature_extractor(cls, pretrained="ViT-L/14", device="cuda", image_directory="."):
         id = "_".join(pretrained) if isinstance(pretrained,list) else pretrained
         if not (cls.last_file and cls.last_file==id):
             if isinstance(pretrained,list):
-                cls.last_clip = MultiCLIP(pretrained, device, image_directory)
+                cls.last_fe = Multi_FeatureExtractor(pretrained, device, image_directory)
             elif pretrained in OpenAIModels:
-                cls.last_clip = OpenAICLIP(pretrained, device, image_directory)
+                cls.last_fe = OpenAI_FeatureExtractor(pretrained, device, image_directory)
             elif pretrained.startswith("apple"):
-                cls.last_clip = AppleNotCLIP(pretrained, device, image_directory)
+                cls.last_fe = Apple_FeatureExtractor(pretrained, device, image_directory)
             else:
-                cls.last_clip = TransformersCLIP(pretrained, device, image_directory)
+                cls.last_fe = Transformers_FeatureExtractor(pretrained, device, image_directory)
             cls.last_file = id
-        return cls.last_clip
+        return cls.last_fe
 
     def __init__(self, pretrained, device, image_directory):
-        self.metadata = {"clip_model":pretrained}
+        self.metadata = {"feature_extractor_model":pretrained}
         self.device = device
         self.image_directory = image_directory
         self.pretrained = pretrained
         self.model = None
 
         self.cached = {}
-        self.cachefile = os.path.join(image_directory,f"clipcache.{pretrained.replace('/','_').replace(':','_')}.safetensors")
+        self.cachefile = os.path.join(image_directory,f"featurecache.{pretrained.replace('/','_').replace(':','_')}.safetensors")
         try:
             self.cached = load_file(self.cachefile, device=self.device)
-            print(f"Reloaded CLIPs from {self.cachefile} - delete this file if you don't want to do that")
+            print(f"Reloaded features from {self.cachefile} - delete this file if you don't want to do that")
         except:
-            print(f"Didn't reload CLIPs from {self.cachefile}")
+            print(f"Didn't reload features from {self.cachefile}")
     
     def prepare_from_file(self, filepath, device="cuda"):
         rel = os.path.relpath(filepath, self.image_directory)
@@ -67,11 +67,12 @@ class CLIP:
             rel = os.path.relpath(filepath, self.image_directory)
             self.cached[rel] = self.prepare_from_file(filepath, device)
     
-    def precache(self, filepaths):
+    def precache(self, filepaths, delete_model=True):
         newfiles = { f for f in filepaths if os.path.relpath(f, self.image_directory) not in self.cached }
         if newfiles:
             self.cache_from_files(newfiles)
             self.save_cache()
+        if delete_model: self.delete_model()
 
     def save_cache(self):
         save_file(self.cached, self.cachefile)
@@ -85,6 +86,9 @@ class CLIP:
     def load(self):
         raise NotImplementedError()
     
+    def delete_model(self):
+        raise NotImplementedError()
+    
     def to(self, device:str):
         if self.model==None: self.load()
         self.model.to(device)
@@ -94,16 +98,19 @@ class CLIP:
         pass
 
     @property
-    def top_level_size(self):
-        if self.pretrained in TOP_LEVEL_SIZES: return TOP_LEVEL_SIZES[self.pretrained]
+    def number_of_features(self):
+        if self.pretrained in NUMBER_OF_FEATURES: return NUMBER_OF_FEATURES[self.pretrained]
         raise NotImplementedError()
 
-class OpenAICLIP(CLIP):  
+class OpenAI_FeatureExtractor(FeatureExtractor):  
     def __init__(self, pretrained="ViT-L/14", device="cuda", image_directory="."):
         super().__init__(pretrained, device, image_directory)
 
     def load(self):
         self.model, self.preprocess = clip.load(self.pretrained, device=self.device, download_root="models/clip")
+
+    def delete_model(self):
+        del self.model, self.preprocess
 
     def get_image_features_tensor(self, image:Image) -> torch.Tensor:
         if self.model==None: self.load()
@@ -113,7 +120,7 @@ class OpenAICLIP(CLIP):
             image_features /= image_features.norm(dim=-1, keepdim=True)
             return image_features.to(torch.float)
    
-class TransformersCLIP(CLIP):
+class Transformers_FeatureExtractor(FeatureExtractor):
     def __init__(self, pretrained="", device="cuda", image_directory="."):
         super().__init__(pretrained, device, image_directory)
 
@@ -122,6 +129,10 @@ class TransformersCLIP(CLIP):
         self.simplify()
         self.model.to(self.device)
         self.processor = AutoProcessor.from_pretrained(self.pretrained, cache_dir="models/clip")
+
+    def delete_model(self):
+        self.model.to('cpu')
+        del self.model, self.processor
 
     def get_image_features_tensor(self, image:Image) -> torch.Tensor:
         if self.model==None: self.load()
@@ -135,7 +146,7 @@ class TransformersCLIP(CLIP):
     def simplify(self):
         del self.model.text_model
 
-class AppleNotCLIP(CLIP):
+class Apple_FeatureExtractor(FeatureExtractor):
     def __init__(self, pretrained="", device="cuda", image_directory="."):
         super().__init__(pretrained, device, image_directory)
         if ":" in self.pretrained:
@@ -148,6 +159,11 @@ class AppleNotCLIP(CLIP):
         self.model = AIMForImageClassification.from_pretrained(self.pretrained, cache_dir="models/apple").to(self.device)
         self.processor = val_transforms()
 
+    def delete_model(self):
+        if self.model:
+            self.model.to('cpu')
+            del self.model, self.processor
+
     def get_image_features_tensor(self, image:Image) -> torch.Tensor:
         if self.model==None: self.load()
         with torch.no_grad():
@@ -159,36 +175,36 @@ class AppleNotCLIP(CLIP):
                 _, image_features = self.model(inp)
             return image_features.to(torch.float).flatten()
         
-class MultiCLIP(CLIP):
+class Multi_FeatureExtractor(FeatureExtractor):
     def __init__(self, pretrained:list, device, image_directory):
         super().__init__("_".join(pretrained), device, image_directory)
-        self.models = [ CLIP.get_clip(p, "cpu", image_directory) for p in pretrained ]
+        self.feature_extractors = [ FeatureExtractor.get_feature_extractor(p, "cpu", image_directory) for p in pretrained ]
+
+    def delete_model(self):
+        for fe in self.feature_extractors: fe.delete_model()
         
     def get_image_features_tensor(self, image: Image) -> Tensor:
         ift = None
-        for m in self.models:
-            m.to(self.device)
-            features = m.get_image_features_tensor(image)
+        for fe in self.feature_extractors:
+            fe.to(self.device)
+            features = fe.get_image_features_tensor(image)
             ift = features if ift is None else torch.cat([ift,features])
-            #m.model.to('cpu')
         return ift
     
-    def precache(self, filepaths):
+    def precache(self, filepaths, delete_model=True):
         newfiles = { f for f in filepaths if os.path.relpath(f, self.image_directory) not in self.cached }
         if not newfiles: return
-        for m in self.models:
-            m.to('cuda')
-            m.precache(newfiles)
+        for fe in self.feature_extractors:
+            fe.to('cuda')
+            fe.precache(newfiles, delete_model=False)
             for f in newfiles:
                 rel = os.path.relpath(f, self.image_directory)
-                features = m.prepare_from_file(f)
+                features = fe.prepare_from_file(f)
                 self.cached[rel] = features if rel not in self.cached else torch.cat([self.cached[rel],features])
-            m.model.to('cpu')
+            fe.model.to('cpu')
+        if delete_model: self.delete_model()
         self.save_cache()
 
     @property
-    def top_level_size(self):
-        return sum(m.top_level_size for m in self.models)
-
-if __name__=='__main__':
-    c = CLIP.get_clip()
+    def number_of_features(self):
+        return sum(fe.number_of_features for fe in self.feature_extractors)

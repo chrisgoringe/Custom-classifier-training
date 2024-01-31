@@ -15,21 +15,15 @@ common_args = {
 }
 
 aesthetic_model_args = {
-    "clip_model"                : "apple/aim-3B", # ["openai/clip-vit-large-patch14", "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"], 
-    "hidden_layers"             : [ 256, 64 ],
+    "clip_model"                : "apple/aim-1B", # ["openai/clip-vit-large-patch14", "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"], 
+    "hidden_layers"             : [ 64 ],         # can be overridden if doing metaparameter search
 }
 
 aesthetic_training_args = {
-    # aesthetic model dropouts - before each hidden layer (and after the last hidden layer). Padded at end wwith zeroes if needed
-    "dropouts"                  : [ 0.6, 0.3, 0.0 ],
-
     # loss model. 'mse' or 'ranking'. 
     "loss_model"                : 'ranking',
-
-    # if doing metaparameter (mode=metasearch), how many trials?
-    "meta_trials"               : 50,
-
-    # the scores to train to
+        
+    # the scores to train from
     "use_score_file"            : "image_scores.json",
 
     # what fraction of images to reserve as test images (when training), and a random seed for picking them
@@ -38,6 +32,23 @@ aesthetic_training_args = {
     
     # evaluate test set at end of each n epochs (0 for 'don't') - only has meaning during training
     "eval_every_n_epochs"       : 10,    
+
+    # aesthetic model dropouts - before each hidden layer (and after the last hidden layer). Padded at end wwith zeroes if needed
+    "dropouts"                  : [ 0.5, 0.0 ],    # can be overridden if doing metaparameter search
+}
+
+metaparameter_args = {
+    "meta_trials"               : 200,
+
+    # Each of these is a tuple (min, max) or a value.
+    "num_train_epochs"   : (15, 40),
+    "warmup_ratio"       : (0.0, 0.2),
+    "log_learning_rate"  : (-2.8, -2.5),          
+    "half_batch_size"    : (1, 20),            
+
+    # A list, each element is either a tuple (min, max) or a value
+    "dropouts"           : [ (0.2, 0.5), (0.3, 0.6), 0 ],
+    "hidden_layers"      : [ (300, 500), (1, 120) ],
 }
 
 aesthetic_analysis_args = {
@@ -50,12 +61,12 @@ aesthetic_analysis_args = {
 # see https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer#transformers.TrainingArguments
 #
 training_args = {
-    # these are ignore if mode=metasearch
-    "num_train_epochs"              : 50,
+    # should be a single value for simple training, a range for metaparameter search
+    "num_train_epochs"              : 12,
+    "warmup_ratio"                  : 0.2,
     "learning_rate"                 : 1e-4,
-    "per_device_train_batch_size"   : 10,   
-    "warmup_ratio"                  : 0.1,
-
+    "per_device_train_batch_size"   : 10,  
+    
     "lr_scheduler_type"             : "cosine",
     "gradient_accumulation_steps"   : 1,  
     "per_device_eval_batch_size"    : 128,

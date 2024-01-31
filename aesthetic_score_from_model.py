@@ -2,7 +2,7 @@ from arguments import args, get_args
 
 from src.ap.aesthetic_predictor import AestheticPredictor
 from src.ap.database import Database
-from src.ap.clip import CLIP
+from src.ap.feature_extractor import FeatureExtractor
 from src.time_context import Timer
 
 import os, statistics
@@ -15,7 +15,7 @@ def main():
     with Timer("Load database and models"):
         db = Database(args['top_level_image_directory'], args)
 
-        clipper = CLIP.get_clip(image_directory=args['top_level_image_directory'], pretrained=args['clip_model'])
+        clipper = FeatureExtractor.get_feature_extractor(image_directory=args['top_level_image_directory'], pretrained=args['clip_model'])
         clipper.precache(db.all_paths())
         predictor = AestheticPredictor(pretrained=args['load_model_path'], clipper=clipper, input_size=args['input_size'])
         

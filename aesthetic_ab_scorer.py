@@ -2,7 +2,7 @@ import customtkinter
 from arguments import args, get_args
 from src.ap.database import Database
 from src.ap.aesthetic_predictor import AestheticPredictor
-from src.ap.clip import CLIP
+from src.ap.feature_extractor import FeatureExtractor
 from src.time_context import Timer
 import os
 
@@ -51,7 +51,7 @@ def main():
     if args['use_model_scores_for_stats']:
         assert args['load_model'], "Need to load a model to use model score for stats"
         with Timer("Evaluate with model"):
-            ap = AestheticPredictor(clipper=CLIP.get_clip(image_directory=db.image_directory), 
+            ap = AestheticPredictor(clipper=FeatureExtractor.get_feature_extractor(image_directory=db.image_directory), 
                                     pretrained=args['load_model_path'],
                                     hidden_layer_sizes=args['custom_hidden_layers'])
             db.set_model_score(ap.evaluate_file)

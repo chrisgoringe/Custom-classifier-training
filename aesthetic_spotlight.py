@@ -1,7 +1,7 @@
 from src.time_context import Timer
 with Timer("python imports"):
     from arguments import args, get_args
-    from src.ap.clip import CLIP
+    from src.ap.feature_extractor import FeatureExtractor
     from src.ap.aesthetic_predictor import AestheticPredictor
     from renumics import spotlight
     from src.ap.image_scores import ImageScores
@@ -12,7 +12,7 @@ def main():
     top_level_images = args['top_level_image_directory']
     
     with Timer('load models'):
-        clipper = CLIP.get_clip(pretrained=args['clip_model'], image_directory=top_level_images)
+        clipper = FeatureExtractor.get_feature_extractor(pretrained=args['clip_model'], image_directory=top_level_images)
         predictor = AestheticPredictor(pretrained=args['load_model_path'], clipper=clipper, input_size=args['input_size'],
                                        hidden_layer_sizes=args['custom_hidden_layers'])
 

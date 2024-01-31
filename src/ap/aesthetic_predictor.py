@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
 from safetensors.torch import load_file
-from .clip import CLIP
+from .feature_extractor import FeatureExtractor
 import os, json
 
 class AestheticPredictor(nn.Module):
-    def __init__(self, clipper:CLIP, input_size=768, pretrained="", device="cuda", dropouts:list=None, hidden_layer_sizes=None, seed=42):  
+    def __init__(self, clipper:FeatureExtractor, input_size=768, pretrained="", device="cuda", dropouts:list=None, hidden_layer_sizes=None, seed=42):  
         super().__init__()
         torch.manual_seed(seed)
         self.metadata, sd = self.load_metadata_and_sd(pretrained)

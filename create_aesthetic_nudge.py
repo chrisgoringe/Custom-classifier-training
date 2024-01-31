@@ -1,5 +1,5 @@
 from src.ap.aesthetic_predictor import AestheticPredictor
-from src.ap.clip import CLIP
+from src.ap.feature_extractor import FeatureExtractor
 from src.ap.image_scores import ImageScores
 import torch, os, math
 from safetensors.torch import save_file
@@ -52,7 +52,7 @@ def make_nudge_from_scores():
     scores_dict = scores.scores_dictionary(normalised=True)
     weighter = make_weighter(list(scores_dict[f] for f in scores_dict))
 
-    clipper = CLIP.get_clip(image_directory=dir, pretrained=args[f"clip_model"])
+    clipper = FeatureExtractor.get_feature_extractor(image_directory=dir, pretrained=args[f"clip_model"])
     clipper.precache(list(os.path.join(args['top_level_image_directory'],f) for f in scores_dict))
     
     nudge = torch.zeros(args[f"input_size"]).cuda()
@@ -65,7 +65,7 @@ def make_nudge_from_scores():
 
 def make_nudge_from_image(f:str):
     dir = args['top_level_image_directory']
-    clipper = CLIP.get_clip(image_directory=dir, pretrained=args[f"clip_model"])
+    clipper = FeatureExtractor.get_feature_extractor(image_directory=dir, pretrained=args[f"clip_model"])
     nudge = clipper.prepare_from_file(os.path.join(args['top_level_image_directory'],f))
     save_file({'nudge':nudge}, os.path.join(args['top_level_image_directory'], os.path.splitext(f)[0]+".safetensors"))
 

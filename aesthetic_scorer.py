@@ -2,14 +2,14 @@ from arguments import args, get_args
 from src.ap.database import Database
 import os
 from src.ap.aesthetic_predictor import AestheticPredictor
-from src.ap.clip import CLIP
+from src.ap.feature_extractor import FeatureExtractor
 
 def print_image_scores():
     get_args(aesthetic_analysis=True, aesthetic_model=True)
     db = Database(args['top_level_image_directory'], args)
 
     assert args['load_model'], "Need to load a model if use_model_scores_for_stats is true"
-    clipper = CLIP.get_clip(pretrained=args['clip_model'], device="cuda", image_directory=db.image_directory)
+    clipper = FeatureExtractor.get_feature_extractor(pretrained=args['clip_model'], device="cuda", image_directory=db.image_directory)
     clipper.precache(db.all_paths())
     ap = AestheticPredictor(clipper=clipper, pretrained=args['load_model_path'], input_size=args['input_size'])
     db.set_model_score(ap.evaluate_file)
