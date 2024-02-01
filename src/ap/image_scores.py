@@ -1,5 +1,4 @@
-import os, json, statistics, re, random
-import torch
+import os, json, statistics, re
 
 def compress_rank(ranks:list):
     ordered = sorted(ranks)
@@ -16,19 +15,35 @@ def valid_directory(dir_path:str):
     return True
 
 class ImageScores:
-    def __init__(self, image_scores:dict[str, float], top_level_directory:str):
-        self.image_scores:dict[str, float] = image_scores
+    def __init__(self, image_scores:dict[str, float], top_level_directory:str, comparisons:dict[str,int]={}):
+        clean = lambda d : { os.path.relpath(f) : d[f] for f in d }
+        self.image_scores = clean(image_scores)
         self.normaliser = self.create_normaliser()
         self.set_rankings()
         self.top_level_directory = top_level_directory
+        self.comparisons = clean(comparisons)
+
+    def save_as_scorefile(self, scorefilepath):
+        saveable = { "ImageRecords" : { f : {
+            "relative_filepath": f,
+            "comparisons": self.comparisons.get(f,0),
+            "score": self.image_scores[f]            
+        }  } for f in self.image_scores}
+        with open(scorefilepath, 'w') as f:
+            print(json.dumps(saveable,indent=2), file=f)
 
     @classmethod
-    def from_scorefile(cls, top_level_directory:str):
-        with open(os.path.join(top_level_directory,"score.json"),'r') as f:
-            image_scores = json.load(f)
-            image_scores.pop("#meta#",{})
-            for k in image_scores: image_scores[k] = float(image_scores[k][0])
-        return ImageScores(image_scores, top_level_directory)
+    def from_scorefile(cls, top_level_directory:str, scorefilename):
+        with open(os.path.join(top_level_directory,scorefilename),'r') as f:
+            image_scores_dict = json.load(f)
+            if "ImageRecords" in image_scores_dict:
+                image_scores = {k : float(image_scores_dict["ImageRecords"][k]['score']) for k in image_scores_dict["ImageRecords"]}
+                comparisons = {k : float(image_scores_dict["ImageRecords"][k]['comparisons']) for k in image_scores_dict["ImageRecords"]}
+            else:
+                image_scores_dict.pop("#meta#",{})
+                image_scores = {k : float(image_scores[k][0]) for k in image_scores_dict}
+                comparisons = {k : int(image_scores[k][1]) for k in image_scores_dict}
+        return ImageScores(image_scores, top_level_directory, comparisons)
     
     @classmethod
     def from_evaluator(cls, evaluator:callable, images:list[str], top_level_directory):

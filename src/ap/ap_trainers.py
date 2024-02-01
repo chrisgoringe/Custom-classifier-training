@@ -1,6 +1,28 @@
 import torch
-from transformers import Trainer, TrainingArguments
+from transformers import Trainer, TrainingArguments, TrainerCallback, TrainerState, EvalPrediction
+from src.ap.aesthetic_predictor import AestheticPredictor
+from src.ap.dataset import QuickDataset
 import random
+from src.time_context import Timer
+
+class EvaluationCallback(TrainerCallback):
+    def __init__(self, datasets:list[QuickDataset]):
+        self.datasets = datasets
+
+    def do_eval(self, state, predictor:AestheticPredictor):
+        for dataset, label, _ in self.datasets:
+            with torch.no_grad():
+                was_train = predictor.training
+                predictor.eval()
+                dataset.update_prediction(predictor)
+                if was_train: predictor.train()
+            Timer.message("==== Epoch {:>3} ({:8}): rmse {:>6.3f} ab {:>5.2f}%".format(state.epoch,label,dataset.get_rmse(),100*dataset.get_ab_score()))
+
+    def on_epoch_end(self, arguments, state: TrainerState, control, **kwargs):
+        for dataset in self.datasets: dataset.shuffle()
+
+    def compute_metrics(self, predictions:EvalPrediction):
+        pass
 
 class CustomTrainer(Trainer):
     def __init__(self, model, train_dataset, eval_dataset, **kwargs):
@@ -65,6 +87,7 @@ class UnequalSampler:
 
 class RankingLossTrainer(CustomTrainer):
     loss_fn = torch.nn.MarginRankingLoss(1.0)
+
     def _compute_loss(self, targets, outputs):
         half_batch = len(targets)//2
         flat_outputs = torch.squeeze(outputs)
@@ -77,4 +100,8 @@ class RankingLossTrainer(CustomTrainer):
         self.sampler = UnequalSampler(self.training_args.per_device_train_batch_size, self.train_dataset)
         dl = torch.utils.data.DataLoader(self.train_dataset, batch_sampler = self.sampler)
         return dl
+    
+    def evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix=None):
+        ev = eval_dataset or self.eval_dataset
+        return { "eval_ranking" : ev.get_ab_score(), "eval_loss" : ev.get_rmse() }
 

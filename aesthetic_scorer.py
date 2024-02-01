@@ -1,23 +1,25 @@
 from arguments import args, get_args
-from src.ap.database import Database
+from src.ap.image_scores import ImageScores
 import os
 from src.ap.aesthetic_predictor import AestheticPredictor
 from src.ap.feature_extractor import FeatureExtractor
 
 def print_image_scores():
     get_args(aesthetic_analysis=True, aesthetic_model=True)
-    db = Database(args['top_level_image_directory'], args)
+    image_score_file = ImageScores.from_directory(args['top_level_image_directory'])
 
-    assert args['load_model'], "Need to load a model if use_model_scores_for_stats is true"
-    clipper = FeatureExtractor.get_feature_extractor(pretrained=args['clip_model'], device="cuda", image_directory=db.image_directory)
-    clipper.precache(db.all_paths())
-    ap = AestheticPredictor(clipper=clipper, pretrained=args['load_model_path'], input_size=args['input_size'])
-    db.set_model_score(ap.evaluate_file)
-    model_scores = sorted((ap.scale(db.model_scores[f]), f) for f in db.model_scores)
+    feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=args['clip_model'], device="cuda", image_directory=args['top_level_image_directory'])
+    feature_extractor.precache(image_score_file.image_files(fullpath=True))
+
+    ap = AestheticPredictor(feature_extractor=feature_extractor, pretrained=args['load_model_path'])
+
+    image_score_file.set_scores(ap.evaluate_file)
+    unsorted_scores = image_score_file.scores_dictionary()
+    model_scores = sorted((unsorted_scores[f], f) for f in unsorted_scores)
 
     with open(os.path.join(args['top_level_image_directory'], "model_scores.csv"),'w') as f:
         for score, filename in model_scores:
-            print(f"{filename},{score}",file=f)    
+            print(f"{filename},{score}",file=f)     
 
 if __name__=='__main__':
     print_image_scores()

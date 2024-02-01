@@ -57,16 +57,15 @@ def make_nudge_from_scores():
     
     nudge = torch.zeros(args[f"input_size"]).cuda()
     for f in tqdm(scores_dict):
-        features = clipper.prepare_from_file(os.path.join(args['top_level_image_directory'],f))
+        features = clipper.get_features_from_file(os.path.join(args['top_level_image_directory'],f))
         nudge = nudge + features * weighter(scores_dict[f])
 
-    clipper.save_cache()
     save_file({'nudge':nudge}, os.path.join(args['top_level_image_directory'], 'nudge.safetensors'))
 
 def make_nudge_from_image(f:str):
     dir = args['top_level_image_directory']
     clipper = FeatureExtractor.get_feature_extractor(image_directory=dir, pretrained=args[f"clip_model"])
-    nudge = clipper.prepare_from_file(os.path.join(args['top_level_image_directory'],f))
+    nudge = clipper.get_features_from_file(os.path.join(args['top_level_image_directory'],f))
     save_file({'nudge':nudge}, os.path.join(args['top_level_image_directory'], os.path.splitext(f)[0]+".safetensors"))
 
 if __name__=='__main__':

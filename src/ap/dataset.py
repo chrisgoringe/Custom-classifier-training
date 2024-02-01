@@ -42,3 +42,19 @@ class QuickDataset(torch.utils.data.Dataset):
         for x in self.map:
             cols.append(tuple(self._df[col].array[x] for col in args))
         return cols
+    
+    def get_ab_score(self):
+        right = 0
+        wrong = 0
+        true_predicted = self.columns('score','predicted_score')
+        for i, a in enumerate(true_predicted):
+            for b in true_predicted[i+1:]:
+                if a[0]==b[0] or a[1]==b[1]: continue
+                if (a[0]<b[0] and a[1]<b[1]) or (a[0]>b[0] and a[1]>b[1]): right += 1
+                else: wrong += 1
+        return right/(right+wrong) if (right+wrong) else 0
+        
+    def get_rmse(self):
+        loss_fn = torch.nn.MSELoss()
+        rmse = loss_fn(torch.tensor(self.column('score')), torch.tensor(self.column('predicted_score')))
+        return float(rmse)

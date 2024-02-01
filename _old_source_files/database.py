@@ -61,7 +61,7 @@ class Database:
     def load(self):
         try:
             self.image_compare_count = {}
-            with open(os.path.join(self.image_directory,"score.json"),'r') as f:
+            with open(os.path.join(self.image_directory,self.args['scorefile']),'r') as f:
                 self.image_scores = json.load(f)
                 self.meta = self.image_scores.pop("#meta#",{})
                 for im in self.image_scores:
@@ -72,7 +72,7 @@ class Database:
                         self.image_compare_count[im] = 0
             shutil.copyfile(os.path.join(self.image_directory,"score.json"), os.path.join(self.image_directory,"score-backup.json"))
         except:
-            print(f"Database didn't reload scores from {os.path.join(self.image_directory,'score.json')}")
+            print(f"Database didn't reload scores from {os.path.join(self.image_directory,self.args['scorefile'])}")
             self.image_scores = {}
             self.meta = {}
             self.image_compare_count = {}
@@ -81,7 +81,7 @@ class Database:
         return len(self.image_scores)
         
     def save(self):
-        with open(os.path.join(self.image_directory,"score.json"),'w') as f:
+        with open(os.path.join(self.image_directory,self.args['scorefile']),'w') as f:
             self.replace_missing()
             to_save = {f:(self.image_scores[f],self.image_compare_count[f]) for f in self.image_scores}
             to_save['#meta#'] = self.meta
@@ -96,21 +96,13 @@ class Database:
         if self.missing_files:
             print(f"{len(self.missing_files)} image file{'s are' if len(self.missing_files)>1 else ' is'} in score.json but not found.")
             print("They will be kept in score.json but not made available to training.")
-        if self.args.get('ignore_score_zero',False):
-            self.zeroes = {f:self.image_scores[f] for f in self.image_scores if self.image_scores[f]==0}
-            if self.zeroes:
-                print(f"{len(self.zeroes)} image file{'s are' if len(self.zeroes)>1 else ' is'} in score.json but have score 0.")
-                print("They will be kept in score.json but not made available to training.")
-        else:
-            self.zeroes = {}
+
         self.remove_missing()
 
     def remove_missing(self):
         for file in self.missing_files: self.image_scores.pop(file)
-        for file in self.zeroes: self.image_scores.pop(file,None)  # in case it's in both
 
     def replace_missing(self):
-        for file in self.zeroes: self.image_scores[file] = self.zeroes[file]
         for file in self.missing_files: self.image_scores[file] = self.missing_files[file]
 
     def set_scaling_function(self):

@@ -10,22 +10,22 @@ with Timer("python imports"):
 def main():
     get_args(aesthetic_model=True, show_training_args=False, show_args=False)
     top_level_images = args['top_level_image_directory']
+    assert args["load_model_path"], "Need to specify load_model (the directory where the model is located, or the safetensors file itself)"
     
     with Timer('load models'):
-        clipper = FeatureExtractor.get_feature_extractor(pretrained=args['clip_model'], image_directory=top_level_images)
-        predictor = AestheticPredictor(pretrained=args['load_model_path'], clipper=clipper, input_size=args['input_size'],
-                                       hidden_layer_sizes=args['custom_hidden_layers'])
+        feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=args['clip_model'], image_directory=top_level_images)
+        predictor = AestheticPredictor(pretrained=args['load_model_path'], feature_extractor=feature_extractor, input_size=feature_extractor.number_of_features)
 
     with Timer("prepare data"):
-        df = DataFrame()#columns=['image','db_score','model_score','db_rank','model_rank'])
-        database_scores = ImageScores.from_scorefile(top_level_images)
+        df = DataFrame()
+        database_scores = ImageScores.from_scorefile(top_level_images, args['scorefile'])
+        feature_extractor.precache(database_scores.image_files(fullpath=True))
         model_scores = ImageScores.from_evaluator(predictor.evaluate_file, database_scores.image_files(), top_level_images)
         df['image'] = database_scores.image_files(fullpath=True)
         df['db_score'] = database_scores.scores()
         df['model_score'] = model_scores.scores()
         df['db_rank'] = database_scores.ranks()
         df['model_rank'] = model_scores.ranks()
-        clipper.save_cache()
 
     spotlight.show(df)
 

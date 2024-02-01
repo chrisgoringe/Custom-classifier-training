@@ -8,14 +8,13 @@ from src.ap.image_scores import ImageScores
 def analyse():
     get_args(aesthetic_analysis=True, aesthetic_model=True, show_training_args=False, show_args=False)
     dir = args['top_level_image_directory']
-    database_scores:ImageScores = ImageScores.from_scorefile(dir)
+    database_scores:ImageScores = ImageScores.from_scorefile(dir, args['scorefile'])
 
     regexes = ['',] + [r for r in args['ab_analysis_regexes']] + [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir,d))]
 
-    if args['use_model_scores_for_stats']:
-        assert args['load_model'], "Need to load a model if use_model_scores_for_stats is true"
-        ap = AestheticPredictor(clipper=FeatureExtractor.get_feature_extractor(image_directory=dir, pretrained=args['clip_model']), 
-                                pretrained=args['load_model_path'], input_size=args['input_size'])
+    if args['load_model_path']:
+        ap = AestheticPredictor(feature_extractor=FeatureExtractor.get_feature_extractor(image_directory=dir, pretrained=args['clip_model']), 
+                                pretrained=args['load_model_path'])
         model_scores:ImageScores = ImageScores.from_evaluator(ap.evaluate_file, database_scores.image_files(), dir)
     else:
         model_scores = None

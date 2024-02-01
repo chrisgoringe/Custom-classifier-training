@@ -1,58 +1,55 @@
 import os 
 
 common_args = {
-    # "", "train", "evaluate", "spotlight", "metasearch"
-    "mode"                      : "metasearch",
-
     # if restarting a previous run, this is the folder to load from. 
-    "load_model"                : "",     
-
+    "load_model"                : "",#r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training\aim1B_vit14.safetensors",     
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training",
-
+    "save_model"                : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training\BigG.safetensors",
     # path to the top level image directory
     "top_level_image_directory" : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training", 
+    # the scores to train from
+    "scorefile"                 : "image_scores.json",
 }
 
 aesthetic_model_args = {
-    "clip_model"                : "apple/aim-1B", # ["openai/clip-vit-large-patch14", "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"], 
-    "hidden_layers"             : [ 64 ],         # can be overridden if doing metaparameter search
+    "clip_model" : [
+        #"apple/aim-600M", 
+        #"apple/aim-1B", 
+        #"apple/aim-3B", 
+        #"apple/aim-7B", 
+        #"openai/clip-vit-large-patch14", 
+        "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k",
+    ],
 }
 
 aesthetic_training_args = {
     # loss model. 'mse' or 'ranking'. 
     "loss_model"                : 'ranking',
-        
-    # the scores to train from
-    "use_score_file"            : "image_scores.json",
-
+    
     # what fraction of images to reserve as test images (when training), and a random seed for picking them
     "fraction_for_test"         : 0.25,
     "test_pick_seed"            : 42,        
-    
-    # evaluate test set at end of each n epochs (0 for 'don't') - only has meaning during training
-    "eval_every_n_epochs"       : 10,    
-
-    # aesthetic model dropouts - before each hidden layer (and after the last hidden layer). Padded at end wwith zeroes if needed
-    "dropouts"                  : [ 0.5, 0.0 ],    # can be overridden if doing metaparameter search
 }
 
 metaparameter_args = {
-    "meta_trials"               : 200,
+    "meta_trials"       : 200,
+    "sampler"           : "CmaEs",
+
+    # If none of the arguments after this are ranges, there will only by one run
 
     # Each of these is a tuple (min, max) or a value.
-    "num_train_epochs"   : (15, 40),
+    "num_train_epochs"   : (5, 50),
     "warmup_ratio"       : (0.0, 0.2),
-    "log_learning_rate"  : (-2.8, -2.5),          
-    "half_batch_size"    : (1, 20),            
+    "log_learning_rate"  : (-3.5, -1.5),          
+    "half_batch_size"    : (1, 50),            
 
     # A list, each element is either a tuple (min, max) or a value
-    "dropouts"           : [ (0.2, 0.5), (0.3, 0.6), 0 ],
-    "hidden_layers"      : [ (300, 500), (1, 120) ],
+    "dropouts"           : [ (0.0, 0.8), (0.0, 0.8), 0 ],
+    "hidden_layers"      : [ (100, 1000), (4, 1000) ],
 }
 
 aesthetic_analysis_args = {
-    "ab_analysis_regexes"       : [],
+    "ab_analysis_regexes"       : [ "jib", "envy", "dig", "albedo" ],
     "use_model_scores_for_stats": False,
 }
 
@@ -61,55 +58,31 @@ aesthetic_analysis_args = {
 # see https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer#transformers.TrainingArguments
 #
 training_args = {
-    # should be a single value for simple training, a range for metaparameter search
-    "num_train_epochs"              : 12,
-    "warmup_ratio"                  : 0.2,
-    "learning_rate"                 : 1e-4,
-    "per_device_train_batch_size"   : 10,  
-    
     "lr_scheduler_type"             : "cosine",
     "gradient_accumulation_steps"   : 1,  
     "per_device_eval_batch_size"    : 128,
 
-    # save during the run? 'epoch' (every epoch) or 'steps', and maximum number to keep
+    # save and evaluate during the run? 'epoch' (every epoch) or 'steps', and maximum number to keep
     "save_strategy"                 : "no",
     "save_steps"                    : 100,
     "save_total_limit"              : 4,
-
-    # evaluate during the run? set to "no" to speed up slightly, 'epoch' to get updates
     "evaluation_strategy"           : "no",
     "eval_steps"                    : 100,
-
-    # show logging messages during training? "steps" is default
-    "logging_strategy"              : "no",
-    "logging_dir"                   : "log",
     "output_dir"                    : "out",
 
-    # Choose the best model, not the last model, to keep at the end. Requires save_strategy and evaluation_strategy to be the same (and not "no"). 
-    "load_best_model_at_end"        : False,    
-}
-
-category_training_args = {
-    # weight the loss by the inverse of the number of images in each category? Not applied in aesthetic trainer, so ignore it!
-    "weight_category_loss"      : True,
-    # the base model (automatically downloaded if required)   
-    # google/vit-base-patch16-224  and google/efficientnet-b5 (or b0...b7) are good ones to try
-    "base_model"                : "",
+    # if save strategy and evaluation strategy are the same, can set this to True
+    "load_best_model_at_end"        : False,  
 }
 
 # Default values that get overwritten by any of the above - generally things that used to be options but really shouldn't be
 class Args:
-    args = {
-        # If set to true, images from the score file with a score of zero are ignored
-        "ignore_score_zero"         : False,
-    }
+    args = { }
 
-def get_args(category_training=False, aesthetic_training=False, aesthetic_analysis=False, aesthetic_model=False, show_training_args=True, show_args=True):
+def get_args(aesthetic_training=False, aesthetic_analysis=False, aesthetic_model=False, show_training_args=True, show_args=True):
     for b, d in [(True, common_args),
-                 (category_training,category_training_args),
                  (aesthetic_training, aesthetic_training_args),
                  (aesthetic_analysis, aesthetic_analysis_args),
-                 (aesthetic_model, aesthetic_model_args)]:
+                 (aesthetic_model,    aesthetic_model_args)]:
         if b:
             for k in d:
                 Args.args[k] = d[k]    
@@ -131,5 +104,21 @@ def get_args(category_training=False, aesthetic_training=False, aesthetic_analys
         else:
             args[f"{argument}_path"]=None
 
+class MetaRangeProcessor():
+    def __init__(self):
+        self.any_ranges = False
+
+    def meta(self, mthd, label:str, rng:tuple|list):
+        if isinstance(rng,(tuple,list)):
+            self.any_ranges = True
+            return mthd(label, *rng)
+        else:
+            return rng
+        
+    def meta_list(self, mthd, label:str, rnges:tuple|list):
+        result = []
+        for i, rng in enumerate(rnges):
+            result.append(self.meta(mthd, f"{label}_{i}", rng))
+        return result
 
 args = Args.args
