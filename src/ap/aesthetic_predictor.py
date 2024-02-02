@@ -6,10 +6,15 @@ import os, json
 
 class AestheticPredictor(nn.Module):
     @classmethod
-    def from_pretrained(cls, pretrained:str, use_cache=True):
+    def from_pretrained(cls, pretrained:str, use_cache=True, base_directory=None):
         metadata, _ = cls.load_metadata_and_sd(pretrained=pretrained, return_sd=False)
         fe_model = metadata["feature_extractor_model"]
-        return AestheticPredictor(feature_extractor=FeatureExtractor.get_feature_extractor(pretrained=fe_model, use_cache=use_cache), pretrained=pretrained)
+        return AestheticPredictor(feature_extractor=FeatureExtractor.get_feature_extractor(pretrained=fe_model, use_cache=use_cache, base_directory=base_directory), pretrained=pretrained)
+
+    def set_dtype(self, dtype):
+        super().to(dtype)
+        self.feature_extractor.set_dtype(dtype)
+        self.dtype = dtype
 
     def to(self, device):
         super().to(device)
@@ -19,6 +24,7 @@ class AestheticPredictor(nn.Module):
     def __init__(self, feature_extractor:FeatureExtractor, pretrained, device="cuda", dropouts:list=[], hidden_layer_sizes=None, seed=42, **kwargs):  
         super().__init__()
         torch.manual_seed(seed)
+        self.dtype = torch.float
         self.metadata, sd = self.load_metadata_and_sd(pretrained)
 
         hidden_layer_sizes = [int(x) for x in self.metadata.get('layers','[0]')[1:-1].split(',')] if 'layers' in self.metadata else hidden_layer_sizes
@@ -53,7 +59,8 @@ class AestheticPredictor(nn.Module):
         else:
             self.scale = lambda a : float(a)
 
-    def load_metadata_and_sd(self, pretrained, return_sd=True):
+    @classmethod
+    def load_metadata_and_sd(cls, pretrained, return_sd=True):
         if pretrained:
             with open(pretrained, "rb") as f:
                 data = f.read()

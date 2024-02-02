@@ -1,10 +1,10 @@
-import os 
+import os, torch
 
 common_args = {
     # if restarting a previous run, this is the folder to load from. 
     "load_model"                : "",#r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training\aim1B_vit14.safetensors",     
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training\aim1B-bigG-half.safetensors",
+    "save_model"                : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training\vitH14-half.safetensors",
     # path to the top level image directory
     "top_level_image_directory" : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training", 
     # the scores to train from
@@ -14,11 +14,13 @@ common_args = {
 aesthetic_model_args = {
     "clip_model" : [
         #"models/apple/aim-600M-half", 
-        "models/apple/aim-1B-half", 
+        #"models/apple/aim-1B-half", 
         #"models/apple/aim-3B-half", 
         #"models/apple/aim-7B-half", 
         #"models/openai/clip-vit-large-patch14-half", 
-        "models/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k-half",
+        #"models/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k-half",
+        "models/laion/CLIP-ViT-H-14-laion2B-s32B-b79K-half",
+        #"laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K"
     ],
 }
 
