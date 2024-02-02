@@ -12,7 +12,7 @@ try:
 except:
     print("AIM not available - pip install git+https://git@github.com/apple/ml-aim.git if you want to use it")
 
-OpenAIModels = ["RN50","RN101","RN50x4","RN50x16","RN50x64","ViT-B/32","ViT-B/16","ViT-L/14","ViT-L/14@336px"]
+#OpenAIModels = ["RN50","RN101","RN50x4","RN50x16","RN50x64","ViT-B/32","ViT-B/16","ViT-L/14","ViT-L/14@336px"]
 
 NUMBER_OF_FEATURES = {  "openai/clip-vit-large-patch14"            : 768,
                         "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k" : 1280,
@@ -24,37 +24,48 @@ NUMBER_OF_FEATURES = {  "openai/clip-vit-large-patch14"            : 768,
 
 class FeatureExtractor:
     @classmethod
-    def get_feature_extractor(cls, pretrained="ViT-L/14", device="cuda", image_directory="."):
+    def realname(cls, pretrained):
+        x = pretrained
+        if x.startswith(r"models/"): x = x[7:]
+        if x.endswith("-half"): x = x[:-5]
+        return x
+    
+    @classmethod
+    def get_feature_extractor(cls, pretrained="ViT-L/14", device="cuda", image_directory=".", use_cache=True):
         if isinstance(pretrained,list):
-            return Multi_FeatureExtractor(pretrained, device, image_directory)
+            return Multi_FeatureExtractor(pretrained=pretrained, device=device, image_directory=image_directory, use_cache=use_cache)
         elif "___" in pretrained:
-            return Multi_FeatureExtractor(pretrained.split("___"), device, image_directory)
-        elif pretrained in OpenAIModels:
-            return OpenAI_FeatureExtractor(pretrained, device, image_directory)
-        elif pretrained.startswith("apple"):
-            return Apple_FeatureExtractor(pretrained, device, image_directory)
+            return Multi_FeatureExtractor(pretrained=pretrained.split("___"), device=device, image_directory=image_directory, use_cache=use_cache)
+        #elif pretrained in OpenAIModels:
+        #    return OpenAI_FeatureExtractor(pretrained=pretrained, device=device, image_directory=image_directory, use_cache=use_cache)
+        elif "apple" in pretrained:
+            return Apple_FeatureExtractor(pretrained=pretrained, device=device, image_directory=image_directory, use_cache=use_cache)
         else:
-            return Transformers_FeatureExtractor(pretrained, device, image_directory)
+            return Transformers_FeatureExtractor(pretrained=pretrained, device=device, image_directory=image_directory, use_cache=use_cache)
 
-    def __init__(self, pretrained, device, image_directory):
+    def __init__(self, pretrained, device, image_directory, use_cache):
         self.metadata = {"feature_extractor_model":pretrained if isinstance(pretrained,str) else "___".join(pretrained)}
         self.device = device
         self.image_directory = image_directory
         self.pretrained = pretrained
         self.model = None
         self.have_warned = False
+        self.use_cache = use_cache
 
         self.cached = {}
         unique_name = pretrained if isinstance(pretrained, str) else "__".join(pretrained)
         self.cachefile = os.path.join(image_directory,f"featurecache.{unique_name.replace('/','_').replace(':','_')}.safetensors")
-        if os.path.exists(self.cachefile):
-            self.cached = load_file(self.cachefile, device=self.device)
-            print(f"Reloaded features from {self.cachefile} - delete this file if you don't want to do that")
-        else:
-            print(f"No feature cachefile found at {self.cachefile}")
+        if self.use_cache:
+            if os.path.exists(self.cachefile):
+                self.cached = load_file(self.cachefile, device=self.device)
+                print(f"Reloaded features from {self.cachefile} - delete this file if you don't want to do that")
+            else:
+                print(f"No feature cachefile found at {self.cachefile}")
     
     def get_features_from_file(self, filepath, device="cuda", caching=False):
         rel = os.path.relpath(filepath, self.image_directory)
+        if not self.use_cache:
+            return self._get_image_features_tensor(Image.open(filepath))
         if rel not in self.cached:
             if not self.have_warned and not caching:
                 print("Getting features from file not in feature cache - precaching is likely to be faster!")
@@ -63,11 +74,13 @@ class FeatureExtractor:
         return self.cached[rel].to(device).squeeze()
     
     def _cache_from_files(self, filepaths, device="cuda"):
+        if not self.use_cache: return
         for filepath in tqdm(filepaths, desc=f"Caching {self.pretrained}"):
             rel = os.path.relpath(filepath, self.image_directory)
             self.cached[rel] = self.get_features_from_file(filepath, device, caching=True)
     
     def precache(self, filepaths, delete_model=True):
+        if not self.use_cache: return
         newfiles = { f for f in filepaths if os.path.relpath(f, self.image_directory) not in self.cached }
         if newfiles:
             self._cache_from_files(newfiles)
@@ -75,6 +88,7 @@ class FeatureExtractor:
         if delete_model: self._delete_model()
 
     def _save_cache(self):
+        if not self.use_cache: return
         save_file(self.cached, self.cachefile)
 
     def get_metadata(self):
@@ -90,22 +104,22 @@ class FeatureExtractor:
         raise NotImplementedError()
     
     def _to(self, device:str, load_if_needed=True):
+        self.device = device
         if not self.model or load_if_needed: return
         if self.model==None: self._load()
-        self.model.to(device)
-        self.device = device
 
     def simplify(self):
         pass
 
     @property
     def number_of_features(self):
-        if self.pretrained in NUMBER_OF_FEATURES: return NUMBER_OF_FEATURES[self.pretrained]
+        x = self.realname(self.pretrained)
+        if x in NUMBER_OF_FEATURES: return NUMBER_OF_FEATURES[x]
         raise NotImplementedError()
-
+'''
 class OpenAI_FeatureExtractor(FeatureExtractor):  
-    def __init__(self, pretrained="ViT-L/14", device="cuda", image_directory="."):
-        super().__init__(pretrained, device, image_directory)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def _load(self):
         self.model, self.preprocess = clip.load(self.pretrained, device=self.device, download_root="models/clip")
@@ -120,16 +134,17 @@ class OpenAI_FeatureExtractor(FeatureExtractor):
             image_features = self.model.encode_image(image)
             image_features /= image_features.norm(dim=-1, keepdim=True)
             return image_features._to(torch.float)
+'''
    
 class Transformers_FeatureExtractor(FeatureExtractor):
-    def __init__(self, pretrained="", device="cuda", image_directory="."):
-        super().__init__(pretrained, device, image_directory)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def _load(self):
         self.model = CLIPModel.from_pretrained(self.pretrained, cache_dir="models/clip")
         self.simplify()
         self.model.to(self.device)
-        self.processor = AutoProcessor.from_pretrained(self.pretrained, cache_dir="models/clip")
+        self.processor = AutoProcessor.from_pretrained(self.realname(self.pretrained), cache_dir="models/clip")
 
     def _delete_model(self):
         if not self.model: return
@@ -149,8 +164,8 @@ class Transformers_FeatureExtractor(FeatureExtractor):
         del self.model.text_model
 
 class Apple_FeatureExtractor(FeatureExtractor):
-    def __init__(self, pretrained="", device="cuda", image_directory="."):
-        super().__init__(pretrained, device, image_directory)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         if ":" in self.pretrained:
             self.pretrained, self.block = self.pretrained.split(':')
             self.block = int(self.block)
@@ -168,6 +183,7 @@ class Apple_FeatureExtractor(FeatureExtractor):
 
     def _get_image_features_tensor(self, image:Image) -> torch.Tensor:
         if self.model==None: self._load()
+        self.model.to(self.device)
         with torch.no_grad():
             inp = self.processor(image).unsqueeze(0).to(self.device)
             if self.block:
@@ -178,9 +194,9 @@ class Apple_FeatureExtractor(FeatureExtractor):
             return image_features.to(torch.float).flatten()
         
 class Multi_FeatureExtractor(FeatureExtractor):
-    def __init__(self, pretrained:list, device, image_directory):
-        super().__init__(pretrained, device, image_directory)
-        self.feature_extractors = [ FeatureExtractor.get_feature_extractor(p, "cpu", image_directory) for p in pretrained ]
+    def __init__(self, pretrained:list, **kwargs):
+        super().__init__(pretrained, **kwargs)
+        self.feature_extractors = [ FeatureExtractor.get_feature_extractor(p, **kwargs) for p in pretrained ]
 
     def _delete_model(self):
         for fe in self.feature_extractors: fe._delete_model()
@@ -194,6 +210,7 @@ class Multi_FeatureExtractor(FeatureExtractor):
         return ift
     
     def precache(self, filepaths, delete_model=True):
+        if not self.use_cache: return
         newfiles = { f for f in filepaths if os.path.relpath(f, self.image_directory) not in self.cached }
         if not newfiles: return
         for fe in self.feature_extractors:

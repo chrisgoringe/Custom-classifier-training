@@ -72,7 +72,7 @@ if __name__=='__main__':
     get_args(aesthetic_training=True, aesthetic_model=True)
 
     with Timer('Extract features from images') as logger:
-        feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=args['clip_model'], image_directory=args['top_level_image_directory'])
+        feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=args['clip_model'], image_directory=args['top_level_image_directory'], device="cuda")
         data = DataHolder(top_level=args['top_level_image_directory'], save_model_folder=args['save_model'], use_score_file=args['scorefile'])
         df = data.get_dataframe()
         ds = QuickDataset(df)

@@ -11,6 +11,11 @@ class AestheticPredictor(nn.Module):
         fe_model = metadata["feature_extractor_model"]
         return AestheticPredictor(feature_extractor=FeatureExtractor.get_feature_extractor(pretrained=fe_model), pretrained=pretrained)
 
+    def to(self, device):
+        super().to(device)
+        self.feature_extractor._to(device, load_if_needed=False)
+        self.device = device
+
     def __init__(self, feature_extractor:FeatureExtractor, pretrained, device="cuda", dropouts:list=[], hidden_layer_sizes=None, seed=42, **kwargs):  
         super().__init__()
         torch.manual_seed(seed)
@@ -67,7 +72,7 @@ class AestheticPredictor(nn.Module):
         return self.layers(x)
         
     def evaluate_image(self, img):
-        return self(self.feature_extractor._get_image_features_tensor(img))
+        return self(self.feature_extractor._get_image_features_tensor(img).to(self.device))
     
     def evaluate_files(self, files, as_sorted_tuple=False, eval_mode=False):
         def score_files(fs):
