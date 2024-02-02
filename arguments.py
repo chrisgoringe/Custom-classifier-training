@@ -4,7 +4,7 @@ common_args = {
     # if restarting a previous run, this is the folder to load from. 
     "load_model"                : "",#r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training\aim1B_vit14.safetensors",     
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training\vit14-half.safetensors",
+    "save_model"                : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training\aim1B-bigG-half.safetensors",
     # path to the top level image directory
     "top_level_image_directory" : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training", 
     # the scores to train from
@@ -14,11 +14,11 @@ common_args = {
 aesthetic_model_args = {
     "clip_model" : [
         #"models/apple/aim-600M-half", 
-        #"models/apple/aim-1B-half", 
+        "models/apple/aim-1B-half", 
         #"models/apple/aim-3B-half", 
         #"models/apple/aim-7B-half", 
-        "models/openai/clip-vit-large-patch14-half", 
-        #"models/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k-half",
+        #"models/openai/clip-vit-large-patch14-half", 
+        "models/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k-half",
     ],
 }
 

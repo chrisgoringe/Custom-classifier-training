@@ -6,10 +6,10 @@ import os, json
 
 class AestheticPredictor(nn.Module):
     @classmethod
-    def from_pretrained(cls, pretrained:str):
+    def from_pretrained(cls, pretrained:str, use_cache=True):
         metadata, _ = cls.load_metadata_and_sd(pretrained=pretrained, return_sd=False)
         fe_model = metadata["feature_extractor_model"]
-        return AestheticPredictor(feature_extractor=FeatureExtractor.get_feature_extractor(pretrained=fe_model), pretrained=pretrained)
+        return AestheticPredictor(feature_extractor=FeatureExtractor.get_feature_extractor(pretrained=fe_model, use_cache=use_cache), pretrained=pretrained)
 
     def to(self, device):
         super().to(device)

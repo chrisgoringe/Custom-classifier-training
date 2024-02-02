@@ -19,5 +19,5 @@ def find_and_copy_config(from_directory, to_directory):
 #for sz in ["600M","1B","3B","7B"]:
 #    halve(AIMForImageClassification, f"apple/aim-{sz}", "models/apple", f"models/apple/aim-{sz}-half")
 
-for x in ["openai/clip-vit-large-patch14","laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"]:
-    halve(CLIPModel, x, "models/clip", f"models/clip/{x}-half")
+#for x in ["openai/clip-vit-large-patch14","laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"]:
+#    halve(CLIPModel, x, "models/clip", f"models/clip/{x}-half")
