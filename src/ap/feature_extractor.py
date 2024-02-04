@@ -20,11 +20,18 @@ NUMBER_OF_FEATURES = {  "openai/clip-vit-large-patch14"            : 768,
                         "apple/aim-1B"                             : 2048,
                         "apple/aim-3B"                             : 3072,
                         "apple/aim-7B"                             : 4096,
+                        "ChrisGoringe/vitH16"                      : 1024,
+}
+
+# REALNAMES is used for downloading the (small) preprocessor file
+REALNAMES = {
+    "ChrisGoringe/vitH16" : "laion/CLIP-ViT-H-14-laion2B-s32B-b79K",
 }
 
 class FeatureExtractor:
     @classmethod
     def realname(cls, pretrained):
+        if pretrained in REALNAMES: return REALNAMES[pretrained]
         x = pretrained
         if x.startswith(r"models/"): x = x[7:]
         if x.endswith("-half"): x = x[:-5]
