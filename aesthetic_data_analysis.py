@@ -13,8 +13,9 @@ def analyse():
     regexes = ['',] + [r for r in args['ab_analysis_regexes']] + [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir,d))]
 
     if args['load_model_path']:
-        ap = AestheticPredictor(feature_extractor=FeatureExtractor.get_feature_extractor(image_directory=dir, pretrained=args['clip_model']), 
-                                pretrained=args['load_model_path'])
+        feature_extractor=FeatureExtractor.get_feature_extractor(image_directory=dir, pretrained=args['clip_model'])
+        ap = AestheticPredictor(feature_extractor=feature_extractor, pretrained=args['load_model_path'])
+        feature_extractor.precache(database_scores.image_files(fullpath=True))
         model_scores:ImageScores = ImageScores.from_evaluator(ap.evaluate_file, database_scores.image_files(), dir)
     else:
         model_scores = None
