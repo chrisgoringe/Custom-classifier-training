@@ -22,6 +22,6 @@ def find_and_copy_config(from_directory, to_directory):
 #    halve(AIMForImageClassification, f"apple/aim-{sz}", "models/apple", f"models/apple/aim-{sz}-half")
 
 for x in ["laion/CLIP-ViT-H-14-laion2B-s32B-b79K",]:
-    halve(CLIPModel, x, "models/clip", f"models/clip/{x}-half")
+    halve(CLIPModel, x, "models/clip", f"models/clip/{x}-fe-half")
 
 print("Edit the config files to dtype float16 !")

@@ -31,7 +31,10 @@ class AestheticPredictor(nn.Module):
         while len(dropouts) < len(hidden_layer_sizes)+1: dropouts.append(0)
 
         if "feature_extractor_model" in self.metadata: 
-            assert self.metadata["feature_extractor_model"] == feature_extractor.metadata["feature_extractor_model"], "Mismatched feature extractors"
+            assert self.metadata["feature_extractor_model"] == feature_extractor.metadata["feature_extractor_model"], \
+                "Mismatched feature extractors : saved file has " + \
+                self.metadata["feature_extractor_model"] + " arguments specify " + \
+                feature_extractor.metadata["feature_extractor_model"]
 
         self.metadata['input_size'] = str(feature_extractor.number_of_features)
         self.metadata['layers'] = str(hidden_layer_sizes)

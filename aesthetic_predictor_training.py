@@ -120,7 +120,7 @@ if __name__=='__main__':
         if 'sampler' in metaparameter_args and metaparameter_args['sampler']=="CmaEs": sampler = optuna.samplers.CmaEsSampler()
 
         study:optuna.study.Study = optuna.create_study(direction=direction, sampler=sampler, storage=r"sqlite:///dfb.sqlite")
-        print(f"optuna-dashboard ")
+        print(f"optuna-dashboard sqlite:///")
         for k in metaparameter_args: study.set_user_attr(k, metaparameter_args[k])
         for k in args: study.set_user_attr(k, args[k])
         study.set_user_attr("image_count", len(df))
