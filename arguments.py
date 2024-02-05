@@ -2,12 +2,11 @@ import os, torch
 
 common_args = {
     # if restarting a previous run, this is the folder to load from. 
-    "load_model"                : r"A:\output\training\primary3.safetensors",
-    #"load_model"                : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\models\customaesthetic\vitH14-half.safetensors",
+    "load_model"                : r"",
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : r"A:\output\training\primary3.safetensors",
+    "save_model"                : r"A:\output\training\model.safetensors",
     # path to the top level image directory
-    "top_level_image_directory" : r"A:\output\training3", 
+    "top_level_image_directory" : r"A:\output\training", 
     # the scores to train from
     "scorefile"                 : "image_scores.json",
 }
