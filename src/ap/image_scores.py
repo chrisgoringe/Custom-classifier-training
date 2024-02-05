@@ -1,4 +1,4 @@
-import os, json, statistics, re
+import os, json, statistics, re, torch
 
 def compress_rank(ranks:list):
     ordered = sorted(ranks)
@@ -122,3 +122,4 @@ class ImageScores:
         condition = self._create_condition(match, regex, topfraction, directory)
         normaliser = self.normaliser if normalised else lambda a : a
         return {f:normaliser(self.image_scores[f]) for f in self.image_scores if condition(f)}
+    

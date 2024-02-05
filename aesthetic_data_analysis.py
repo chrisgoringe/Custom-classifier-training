@@ -4,6 +4,25 @@ import scipy.stats
 from src.ap.aesthetic_predictor import AestheticPredictor
 from src.ap.feature_extractor import FeatureExtractor
 from src.ap.image_scores import ImageScores
+import torch
+
+def get_ab_score(scores, true_scores):
+    right = 0
+    wrong = 0
+    for i in range(len(scores)):
+        a = (scores[i], true_scores[i])
+        for j in range(i+1,len(scores)):
+            b = (scores[j], true_scores[j])
+            if a[0]==b[0] or a[1]==b[1]: continue
+            if (a[0]<b[0] and a[1]<b[1]) or (a[0]>b[0] and a[1]>b[1]): right += 1
+            else: wrong += 1
+            
+    return right/(right+wrong) if (right+wrong) else 0
+        
+def get_rmse(scores, true_scores):
+    loss_fn = torch.nn.MSELoss()
+    rmse = loss_fn(torch.tensor(scores), torch.tensor(true_scores))
+    return float(rmse)
 
 def analyse():
     get_args(aesthetic_analysis=True, aesthetic_model=True, show_training_args=False, show_args=False)
@@ -33,9 +52,12 @@ def analyse():
             spearman = scipy.stats.spearmanr(dbranks,mdranks)
             pearson = scipy.stats.pearsonr(scores,mscores)
             results += (statistics.mean(mscores),statistics.stdev(mscores),spearman.statistic, spearman.pvalue, pearson.statistic, pearson.pvalue)
-            print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}, model score {:>6.3f} +/- {:>4.2f}, spearman {:>6.4f} (p={:>8.2}), pearson {:>6.4f} (p={:>8.2})".format(r,*results))
+            results += (100*get_ab_score(mscores, scores),)
+            print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}, model score {:>6.3f} +/- {:>4.2f}, spearman {:>6.4f} (p={:>8.2}), pearson {:>6.4f} (p={:>8.2}), AB {:>6.2f}%".format(r,*results))
         else:
-            print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(r,*results))         
+            print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(r,*results))
+
+        
             
 if __name__=='__main__':
     analyse()
