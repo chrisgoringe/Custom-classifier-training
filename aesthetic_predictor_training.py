@@ -10,7 +10,7 @@ with Timer("Python imports"):
 
     from src.ap.dataset import QuickDataset
 
-    from arguments import training_args, args, get_args, metaparameter_args, MetaRangeProcessor
+    from arguments import training_args, args, get_args, metaparameter_args, MetaRangeProcessor, aesthetic_model_extras
     from src.ap.feature_extractor import FeatureExtractor
     from src.ap.aesthetic_predictor import AestheticPredictor
     from src.ap.ap_trainers import CustomTrainer, EvaluationCallback
@@ -27,8 +27,8 @@ def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:Qui
 
     with Timer('load models'):
         predictor = AestheticPredictor(pretrained=pretrained, feature_extractor=feature_extractor, 
-                                       input_size=feature_extractor.number_of_features,
-                                       dropouts=args['dropouts'], hidden_layer_sizes=args['hidden_layers'])
+                                       dropouts=args['dropouts'], hidden_layer_sizes=args['hidden_layers'],
+                                       **aesthetic_model_extras)
 
     with Timer('Predict values') as logger:
         with torch.no_grad():
@@ -38,6 +38,7 @@ def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:Qui
     with Timer('train model'):
         training_args["metric_for_best_model"] = "ranking" if args['loss_model']=="ranking" else "loss"
         train_args = TrainingArguments( remove_unused_columns=False, **training_args )
+        ep = train_args.num_train_epochs
         CustomTrainer.trainer(  loss = args['loss_model'], model = predictor, 
                                 train_dataset = tds, eval_dataset = eds, 
                                 args = train_args, callbacks = [EvaluationCallback((tds,eds,ds)),],
@@ -48,9 +49,9 @@ def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:Qui
         save_file(predictor.state_dict(),args['save_model_path'],metadata=metadata)
    
     if args['loss_model']=='ranking':
-        return eds.get_ab_score(), tds.get_ab_score(), ds.get_rmse()
+        return eds.get_ab_score(), tds.get_ab_score(), ds.get_rmse(), f"{predictor.info()}"
     else:
-        return eds.get_rmse(), tds.get_rmse(tds), ds.get_ab_score()
+        return eds.get_rmse(), tds.get_rmse(), ds.get_ab_score(), f"{predictor.info()}"
 
 class BestKeeper:
     def __init__(self, save_model_path, minimise):
@@ -107,6 +108,7 @@ if __name__=='__main__':
             trial.set_user_attr('train-dataset', float(result[1]))
             trial.set_user_attr('eval_train_difference', float(result[1])-float(result[0]))
             trial.set_user_attr('rmse_loss' if args['loss_model']=='ranking' else 'ranking_score_loss', float(result[2]))
+            trial.set_user_attr('more_info', result[3])
             
             best_keeper.keep_if_best(score)
             if not mrp.any_ranges: 

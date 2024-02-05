@@ -2,11 +2,12 @@ import os, torch
 
 common_args = {
     # if restarting a previous run, this is the folder to load from. 
-    "load_model"                : "",#r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training\aim1B_vit14.safetensors",     
+    "load_model"                : r"A:\output\training\primary3.safetensors",
+    #"load_model"                : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\models\customaesthetic\vitH14-half.safetensors",
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training\vitH14-half.safetensors",
+    "save_model"                : r"A:\output\training\primary3.safetensors",
     # path to the top level image directory
-    "top_level_image_directory" : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\training", 
+    "top_level_image_directory" : r"A:\output\training3", 
     # the scores to train from
     "scorefile"                 : "image_scores.json",
 }
@@ -19,14 +20,21 @@ aesthetic_model_args = {
         #"models/apple/aim-7B-half", 
         #"models/openai/clip-vit-large-patch14-half", 
         #"models/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k-half",
-        "models/laion/CLIP-ViT-H-14-laion2B-s32B-b79K-half",
+        #"models/laion/CLIP-ViT-H-14-laion2B-s32B-b79K-half",
         #"laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K"
+        "ChrisGoringe/vitH16"
     ],
+
+}
+
+aesthetic_model_extras = {
+    "high_end_fix" : False,
+    "variable_hef" : False,    
 }
 
 aesthetic_training_args = {
     # loss model. 'mse' or 'ranking'. 
-    "loss_model"                : 'ranking',
+    "loss_model"                : 'mse',
     
     # what fraction of images to reserve as test images (when training), and a random seed for picking them
     "fraction_for_test"         : 0.25,
@@ -51,7 +59,7 @@ metaparameter_args = {
 }
 
 aesthetic_analysis_args = {
-    "ab_analysis_regexes"       : [ "jib", "envy", "dig", "albedo" ],
+    "ab_analysis_regexes"       : [  ],
     "use_model_scores_for_stats": False,
 }
 

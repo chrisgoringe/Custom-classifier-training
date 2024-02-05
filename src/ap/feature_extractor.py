@@ -33,8 +33,10 @@ class FeatureExtractor:
     def realname(cls, pretrained):
         if pretrained in REALNAMES: return REALNAMES[pretrained]
         x = pretrained
-        if x.startswith(r"models/"): x = x[7:]
         if x.endswith("-half"): x = x[:-5]
+        for a in NUMBER_OF_FEATURES:
+            if x.endswith(a):
+                return a
         return x
     
     @classmethod
@@ -130,7 +132,9 @@ class FeatureExtractor:
     @property
     def number_of_features(self):
         x = self.realname(self.pretrained)
-        if x in NUMBER_OF_FEATURES: return NUMBER_OF_FEATURES[x]
+        for a in NUMBER_OF_FEATURES: 
+            if x.endswith(a):
+                return NUMBER_OF_FEATURES[a]
         raise NotImplementedError()
    
 class Transformers_FeatureExtractor(FeatureExtractor):
@@ -138,7 +142,7 @@ class Transformers_FeatureExtractor(FeatureExtractor):
         super().__init__(**kwargs)
 
     def _load(self):
-        self.model = CLIPModel.from_pretrained(self.model_path, cache_dir="models/clip")
+        self.model = CLIPModel.from_pretrained(self.pretrained, cache_dir="models/clip")
         self.simplify()
         self.model.to(self.device)
         self.processor = AutoProcessor.from_pretrained(self.realname(self.pretrained), cache_dir="models/clip")
