@@ -27,10 +27,11 @@ class DataHolder:
         elif os.path.exists(os.path.join(top_level,'score.csv')) and use_score_file:
             self.dataframe_from_csv(top_level)
         else:
-            self.dataframe_from_directory_structure(top_level)
-            if save_model_folder:    
-                with open(os.path.join(save_model_folder,"categories.json"),'w') as f:
-                    json.dump({"categories":self.labels}, f)
+            raise Exception("No score file")
+            #self.dataframe_from_directory_structure(top_level)
+            #if save_model_folder:    
+            #    with open(os.path.join(save_model_folder,"categories.json"),'w') as f:
+            #        json.dump({"categories":self.labels}, f)
 
         self.describe()
         
