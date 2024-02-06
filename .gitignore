@@ -163,6 +163,7 @@ models/clip/ViT-L-14.pt
 ab_stats*.txt
 out/
 *.sqlite
+*.sqlite-journal
 models/*
 meta-results.*
 ~$meta-results.xlsx
