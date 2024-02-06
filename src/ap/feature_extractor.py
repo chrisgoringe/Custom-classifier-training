@@ -80,7 +80,7 @@ class FeatureExtractor:
         if not self.use_cache:
             return self._get_image_features_tensor(Image.open(filepath))
         if rel not in self.cached:
-            if not self.have_warned and not caching:
+            if caching and not self.have_warned:
                 print("Getting features from file not in feature cache - precaching is likely to be faster!")
                 self.have_warned = True
             self.cached[rel] = self._get_image_features_tensor(Image.open(filepath))
