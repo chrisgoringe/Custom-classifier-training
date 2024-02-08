@@ -6,12 +6,15 @@ import os, json
 
 class AestheticPredictor(nn.Module):
     @classmethod
-    def from_pretrained(cls, pretrained:str, use_cache=True, base_directory=None, image_directory=None):
+    def from_pretrained(cls, pretrained:str, use_cache=True, base_directory=None, image_directory=None, explicit_nof=None):
         metadata, _ = cls.load_metadata_and_sd(pretrained=pretrained, return_sd=False)
         fe_model = metadata["feature_extractor_model"]
         if base_directory and os.path.exists(os.path.join(base_directory, fe_model)): fe_model = os.path.join(base_directory, fe_model)
-        return AestheticPredictor(feature_extractor=FeatureExtractor.get_feature_extractor(
-            pretrained=fe_model, use_cache=use_cache, base_directory=base_directory, image_directory=image_directory), pretrained=pretrained)
+        feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=fe_model, 
+                                                                   use_cache=use_cache, 
+                                                                   base_directory=base_directory, 
+                                                                   image_directory=image_directory) if explicit_nof is None else explicit_nof
+        return AestheticPredictor(feature_extractor=feature_extractor, pretrained=pretrained)
 
     def set_dtype(self, dtype):
         super().to(dtype)
@@ -19,10 +22,10 @@ class AestheticPredictor(nn.Module):
 
     def to(self, device):
         super().to(device)
-        self.feature_extractor._to(device, load_if_needed=False)
+        if self.feature_extractor is not None: self.feature_extractor._to(device, load_if_needed=False)
         self.device = device
 
-    def __init__(self, feature_extractor:FeatureExtractor, pretrained, device="cuda", dropouts:list=[], hidden_layer_sizes=None, 
+    def __init__(self, feature_extractor:FeatureExtractor|int, pretrained, device="cuda", dropouts:list=[], hidden_layer_sizes=None, 
                  dropouts_0=[], hidden_layer_sizes_0=None, seed=None, **kwargs):  
         super().__init__()
         if seed: torch.manual_seed(seed)
@@ -41,7 +44,7 @@ class AestheticPredictor(nn.Module):
             while len(dropouts_0) < len(hidden_layer_sizes_0)+1: dropouts_0.append(0)
 
 
-        if "feature_extractor_model" in self.metadata: 
+        if "feature_extractor_model" in self.metadata and not isinstance(feature_extractor,int): 
             assert feature_extractor.metadata["feature_extractor_model"].endswith(self.metadata["feature_extractor_model"]), \
                 "Mismatched feature extractors : saved file has " + \
                 self.metadata["feature_extractor_model"] + " arguments specify " + \
@@ -57,11 +60,13 @@ class AestheticPredictor(nn.Module):
         #self.parallel_blocks = torch.nn.ModuleList(
         #    self.build_block(feature_extractor.number_of_features, hidden_layer_sizes, dropouts) for _ in range(self.output_channels)
         #)
+        nof = feature_extractor if isinstance(feature_extractor,int) else feature_extractor.number_of_features
+        if isinstance(self.feature_extractor,int): self.feature_extractor = None
         self.parallel_blocks = torch.nn.ModuleList(
-            (self.build_block(feature_extractor.number_of_features, hidden_layer_sizes, dropouts),
-            self.build_block(feature_extractor.number_of_features, hidden_layer_sizes_0, dropouts_0),)
+            (self.build_block(nof, hidden_layer_sizes, dropouts),
+            self.build_block(nof, hidden_layer_sizes_0, dropouts_0),)
         ) if self.output_channels==2 else torch.nn.ModuleList(
-            (self.build_block(feature_extractor.number_of_features, hidden_layer_sizes, dropouts),)
+            (self.build_block(nof, hidden_layer_sizes, dropouts),)
         )
 
         if self.high_end_fix:
@@ -78,6 +83,8 @@ class AestheticPredictor(nn.Module):
         if sd: self.load_state_dict(sd)
         self.to(device)
         print(f"{self.info()}")
+
+        
 
     def set_initial_hef(self, hef, v):
         hef.requires_grad_(False)

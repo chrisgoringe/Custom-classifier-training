@@ -3,7 +3,7 @@ from PIL import Image
 from safetensors.torch import save_file, load_file
 import os
 from torch._tensor import Tensor
-from transformers import AutoProcessor, CLIPModel
+from transformers import AutoProcessor, CLIPModel, AutoTokenizer
 from tqdm import tqdm
 
 try:
@@ -137,6 +137,36 @@ class FeatureExtractor:
             if x.endswith(a):
                 return NUMBER_OF_FEATURES[a]
         raise NotImplementedError()
+    
+class TextFeatureExtractor:
+    def __init__(self, pretrained, device="cuda"):
+        if isinstance(pretrained,list):
+            assert len(pretrained)==1
+            pretrained = pretrained[0]
+        self.model = CLIPModel.from_pretrained(pretrained, cache_dir="models/clip")
+        self.tokenizer = AutoTokenizer.from_pretrained(FeatureExtractor.realname(pretrained), cache_dir="models/clip")
+        self.model.to(device)
+        self.device = device
+        self.pretrained = pretrained
+
+    def get_text_features_tensor(self, text:str, clip_skip:int=None):
+        text_inputs = self.tokenizer( text, padding="max_length", max_length=self.tokenizer.model_max_length, truncation=True, return_tensors="pt" )
+        text_input_ids = text_inputs.input_ids.to(self.device)
+        attention_mask = text_inputs.attention_mask.to(self.device)
+        if clip_skip is None:
+            prompt_embeds = self.model.text_model(text_input_ids, attention_mask=attention_mask)
+            pooled_output = prompt_embeds[1]
+        else:
+            raise NotImplementedError()
+        return pooled_output
+    
+    @property
+    def number_of_features(self):
+        x = FeatureExtractor.realname(self.pretrained)
+        for a in NUMBER_OF_FEATURES: 
+            if x.endswith(a):
+                return NUMBER_OF_FEATURES[a]
+        raise NotImplementedError()
    
 class Transformers_FeatureExtractor(FeatureExtractor):
     def __init__(self, **kwargs):
@@ -225,3 +255,4 @@ class Multi_FeatureExtractor(FeatureExtractor):
     @property
     def number_of_features(self):
         return sum(fe.number_of_features for fe in self.feature_extractors)
+
