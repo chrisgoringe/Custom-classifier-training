@@ -59,6 +59,8 @@ def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:Qui
 
 if __name__=='__main__':
     get_args(aesthetic_training=True, aesthetic_model=True)
+    name = f"{metaparameter_args['name']}_{random.randint(10000,99999)}" if metaparameter_args.get('name',None) else None
+
     best_keeper = BestKeeper(save_model_path=args['save_model_path'], minimise=(not args['parameter_for_scoring'].endswith("_ab")))
 
     with Timer('Build datasets from images') as logger:
@@ -115,8 +117,6 @@ if __name__=='__main__':
             elif metaparameter_args['sampler']=="random": sampler = optuna.samplers.RandomSampler()
             elif metaparameter_args['sampler']=="QMC": sampler = optuna.samplers.QMCSampler()
             else: raise NotImplementedError()
-
-        name = f"{metaparameter_args['name']}_{random.randint(10000,99999)}" if metaparameter_args.get('name',None) else None
 
         study:optuna.study.Study = optuna.create_study(study_name=name, direction=args['direction'], sampler=sampler, storage=r"sqlite:///db.sqlite")
         print(f"optuna-dashboard sqlite:///db.sqlite")
