@@ -1,16 +1,25 @@
-import os, torch
+import os, re
 
 common_args = {
     # if restarting a previous run, this is the folder to load from. 
     "load_model"                : r"",
     # folder to save the resulting model in. Required for training. 
-    "save_model"                : r"A:\output\training\model.safetensors",
+    "save_model"                : r"training\mse.safetensors",
     # path to the top level image directory
-    "top_level_image_directory" : r"A:\output\training", 
+    "top_level_image_directory" : r"training", 
     # the scores to train from
     "scorefile"                 : "image_scores.json",
+
+    "model_scorefile"           : "model_scores.json",
+    "error_scorefile"           : "error_scores.json",
+    "splitfile"                 : "split.json",
 }
 
+# SDXL uses openai/clip-vit-large-patch14 and laion/CLIP-ViT-bigG-14-laion2B-39B-b160k 
+# see https://github.com/huggingface/diffusers/blob/v0.26.2/src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py#L149
+
+# SD1.5 uses openai/clip-vit-large-patch14
+# see https://github.com/huggingface/diffusers/blob/v0.26.2/src/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion.py#L312
 aesthetic_model_args = {
     "clip_model" : [
         #"models/apple/aim-600M-half", 
@@ -23,43 +32,55 @@ aesthetic_model_args = {
         #"laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K"
         "ChrisGoringe/vitH16"
     ],
-
 }
 
 aesthetic_model_extras = {
     "high_end_fix" : False,
-    "variable_hef" : False,    
+    "variable_hef" : False,
 }
 
 aesthetic_training_args = {
-    # loss model. 'mse' or 'ranking'. 
+    # loss model. 'nll', 'mse' or 'ranking'. nll is negative log likelihood, which returns prediction and a sigma
     "loss_model"                : 'mse',
+
+    "parameter_for_scoring"     : 'eval_mse',   # We keep the best model, according to... [full|train|eval]_[ab|rmse|nll]  
+
+    # set these next two to None by default
+    "prune_bad_by"              : None,   # prune tests which are worse than the best so far by this much 
+    "prune_bad_limit"           : None,   # prune tests worse than this as an absolute
     
     # what fraction of images to reserve as test images (when training), and a random seed for picking them
     "fraction_for_test"         : 0.25,
     "test_pick_seed"            : 42,        
 }
 
-metaparameter_args = {
-    "meta_trials"       : 200,
-    "sampler"           : "CmaEs",
+trainer_extras = {
+    "special_lr_parameters" : { re.compile("^parallel_blocks\.1\.*"): None },  # set by "delta_log_spec_lr"
+} if aesthetic_training_args['loss_model']=='nll' else {}
 
-    # If none of the arguments after this are ranges, there will only by one run
+metaparameter_args = {
+    "name"              : "CmaEa200",     
+    "meta_trials"       : 200,
+    "sampler"           : "CmaEs",      # CmaEs, random, QMC.  CmaEs seems to work best
 
     # Each of these is a tuple (min, max) or a value.
     "num_train_epochs"   : (5, 50),
     "warmup_ratio"       : (0.0, 0.2),
-    "log_learning_rate"  : (-3.5, -1.5),          
+    "log_learning_rate"  : (-3.5, -1.5),
     "half_batch_size"    : (1, 50),            
 
     # A list, each element is either a tuple (min, max) or a value
     "dropouts"           : [ (0.0, 0.8), (0.0, 0.8), 0 ],
     "hidden_layers"      : [ (100, 1000), (4, 1000) ],
+
+    # again, this time for the error estimation - the delta is how different the lr is for the second network
+    #"delta_log_spec_lr"  : (-3, 0),    
+    #"dropouts_0"           : [ (0.0, 0.2), 0, 0 ],
+    #"hidden_layers_0"      : [ (4,64), (4, 16) ],
 }
 
 aesthetic_analysis_args = {
     "ab_analysis_regexes"       : [  ],
-    "use_model_scores_for_stats": False,
 }
 
 # training_args are passed directly into the TrainingArguments object.
@@ -69,7 +90,7 @@ aesthetic_analysis_args = {
 training_args = {
     "lr_scheduler_type"             : "cosine",
     "gradient_accumulation_steps"   : 1,  
-    "per_device_eval_batch_size"    : 128,
+    "per_device_eval_batch_size"    : 2000,     
 
     # save and evaluate during the run? 'epoch' (every epoch) or 'steps', and maximum number to keep
     "save_strategy"                 : "no",
@@ -82,6 +103,9 @@ training_args = {
     # if save strategy and evaluation strategy are the same, can set this to True
     "load_best_model_at_end"        : False,  
 }
+
+# Calculated args
+aesthetic_training_args['direction']='maximize' if aesthetic_training_args['loss_model']=='ranking' else 'minimize'
 
 # Default values that get overwritten by any of the above - generally things that used to be options but really shouldn't be
 class Args:

@@ -34,20 +34,27 @@ def analyse():
     if args['load_model_path']:
         feature_extractor=FeatureExtractor.get_feature_extractor(image_directory=dir, pretrained=args['clip_model'])
         ap = AestheticPredictor(feature_extractor=feature_extractor, pretrained=args['load_model_path'])
-        feature_extractor.precache(database_scores.image_files(fullpath=True))
-        model_scores:ImageScores = ImageScores.from_evaluator(ap.evaluate_file, database_scores.image_files(), dir)
+        ap.eval()
+        with torch.no_grad():
+            feature_extractor.precache(database_scores.image_files(fullpath=True))
+            model_scores:ImageScores = ImageScores.from_evaluator(ap.evaluate_file, database_scores.image_files(), dir)
+            model_sigma:ImageScores = ImageScores.from_evaluator(ap.evaluate_file_sigma, database_scores.image_files(), dir)
+        with open("scores_and_sigmas.csv",'w') as fhdl:
+            print(f"file, true score, model score, model sigma", file=fhdl)
+            for f in database_scores.image_files():
+                print(f"{f},{database_scores.score(f)},{model_scores.score(f)},{model_sigma.score(f)}", file=fhdl)
     else:
         model_scores = None
 
     for r in regexes:
-        scores = database_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=True)
+        scores = database_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=False)
         dbranks = database_scores.scores(r, regex=(r in args['ab_analysis_regexes']), rankings=True)
         if len(scores)<2:
             print("{:>20} : too few matches")
             continue
         results = (len(scores),statistics.mean(scores),statistics.stdev(scores))
         if model_scores:    
-            mscores = model_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=True)
+            mscores = model_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=False)
             mdranks = model_scores.scores(r, regex=(r in args['ab_analysis_regexes']), rankings=True)
             spearman = scipy.stats.spearmanr(dbranks,mdranks)
             pearson = scipy.stats.pearsonr(scores,mscores)

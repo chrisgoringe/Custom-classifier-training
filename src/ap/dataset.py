@@ -21,21 +21,23 @@ class QuickDataset(torch.utils.data.Dataset):
         random.shuffle(self.map)
 
     def update_prediction(self, predictor:AestheticPredictor):
-        self._df['predicted_score'] = (predictor.evaluate_files(self._df['image'], eval_mode=True))
+        p = predictor.evaluate_files(self._df['image'], output_value=None)
+        self._df['predicted_score'] = list(pi[0] for pi in p)
+        self._df['sigma'] = list(abs(pi[1]) if len(pi)>1 else 1.0 for pi in p)
 
     def get_metadata(self):
-        scores = self.column('predicted_score')
+        scores = self.column('predicted_score', float)
         return {
             "n_images"              : str(len(self.map)),
             "mean_predicted_score"  : str(statistics.mean(scores)),
             "stdev_predicted_score" : str(statistics.stdev(scores)),
         }
 
-    def column(self, col:str) -> list:
-        return [self._df[col].array[x] for x in self.map]
+    def column(self, col:str, convert:callable=lambda a:a) -> list:
+        return [convert(self._df[col].array[x]) for x in self.map]
     
-    def column_where(self, col:str, match_col:str, match:str) -> list:
-        return [self._df[col].array[x] for x in self.map if self._df[match_col].array[x]==match] 
+    def column_where(self, col:str, match_col:str, match:str, convert:callable=lambda a:a) -> list:
+        return [convert(self._df[col].array[x]) for x in self.map if self._df[match_col].array[x]==match] 
     
     def columns(self, *args) -> list:
         cols = []
@@ -44,6 +46,10 @@ class QuickDataset(torch.utils.data.Dataset):
         return cols
     
     def get_ab_score(self):
+        print(f"get_ab_score deprecated - use get_ab")
+        return self.get_ab()
+    
+    def get_ab(self):
         right = 0
         wrong = 0
         true_predicted = self.columns('score','predicted_score')
@@ -54,7 +60,14 @@ class QuickDataset(torch.utils.data.Dataset):
                 else: wrong += 1
         return right/(right+wrong) if (right+wrong) else 0
         
-    def get_rmse(self):
+    #def get_rmse(self): return self.get_mse()
+
+    def get_mse(self):
         loss_fn = torch.nn.MSELoss()
         rmse = loss_fn(torch.tensor(self.column('score')), torch.tensor(self.column('predicted_score')))
         return float(rmse)
+    
+    def get_nll(self):
+        loss_fn = torch.nn.GaussianNLLLoss()
+        nll = loss_fn(torch.tensor(self.column('predicted_score')), torch.tensor(self.column('score')), torch.square(torch.tensor(self.column('sigma'))))
+        return float(nll)

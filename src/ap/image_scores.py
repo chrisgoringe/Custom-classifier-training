@@ -15,57 +15,59 @@ def valid_directory(dir_path:str):
     return True
 
 class ImageScores:
-    def __init__(self, image_scores:dict[str, float], top_level_directory:str, comparisons:dict[str,int]={}):
-        clean = lambda d : { os.path.relpath(f) : d[f] for f in d }
+    def __init__(self, image_scores:dict[str, float], top_level_directory:str, normalisation, comparisons:dict[str,int]={}):
+        clean = lambda d : { os.path.normpath(f) : d[f] for f in d }
         self.image_scores = clean(image_scores)
-        self.normaliser = self.create_normaliser()
+        self.normaliser = self.create_normaliser() if normalisation else lambda a:a
         self.set_rankings()
         self.top_level_directory = top_level_directory
         self.comparisons = clean(comparisons)
 
     def save_as_scorefile(self, scorefilepath):
         saveable = { "ImageRecords" : { f : {
-            "relative_filepath": f,
-            "comparisons": self.comparisons.get(f,0),
-            "score": self.image_scores[f]            
-        }  } for f in self.image_scores}
+                                                "relative_filepath": f,
+                                                "comparisons": self.comparisons.get(f,0),
+                                                "score": self.image_scores[f]            
+                                            } for f in self.image_scores } 
+        }
         with open(scorefilepath, 'w') as f:
             print(json.dumps(saveable,indent=2), file=f)
 
     @classmethod
-    def from_scorefile(cls, top_level_directory:str, scorefilename):
+    def from_scorefile(cls, top_level_directory:str, scorefilename, normalisation=False):
         with open(os.path.join(top_level_directory,scorefilename),'r') as f:
             image_scores_dict = json.load(f)
             if "ImageRecords" in image_scores_dict:
                 image_scores = {k : float(image_scores_dict["ImageRecords"][k]['score']) for k in image_scores_dict["ImageRecords"]}
-                comparisons = {k : float(image_scores_dict["ImageRecords"][k]['comparisons']) for k in image_scores_dict["ImageRecords"]}
+                comparisons = {k : float(image_scores_dict["ImageRecords"][k].get('comparisons',0)) for k in image_scores_dict["ImageRecords"]}
             else:
                 image_scores_dict.pop("#meta#",{})
                 image_scores = {k : float(image_scores[k][0]) for k in image_scores_dict}
                 comparisons = {k : int(image_scores[k][1]) for k in image_scores_dict}
-        return ImageScores(image_scores, top_level_directory, comparisons)
+        return ImageScores(image_scores, top_level_directory, normalisation=normalisation, comparisons=comparisons)
     
     @classmethod
-    def from_evaluator(cls, evaluator:callable, images:list[str], top_level_directory):
-        image_scores = {k:float(evaluator(os.path.join(top_level_directory,k))) for k in images}
-        return ImageScores(image_scores, top_level_directory)
+    def from_evaluator(cls, evaluator:callable, images:list[str], top_level_directory, normalisation=False, fullpath=True):
+        image_scores = {k:float(evaluator(os.path.join(top_level_directory,k) if fullpath else k)) for k in images}
+        return ImageScores(image_scores, top_level_directory, normalisation=normalisation)
     
     @classmethod
-    def from_directory(cls, top_level_directory, evaluator:callable=lambda a:0):
+    def from_directory(cls, top_level_directory, evaluator:callable=lambda a:0, normalisation=False):
         images = []
         for thing in os.listdir(top_level_directory):
             if valid_image(os.path.join(top_level_directory,thing)): images.append(thing)
             if valid_directory(os.path.join(top_level_directory,thing)):
                 for subthing in os.listdir(os.path.join(top_level_directory,thing)):
                     if valid_image(os.path.join(top_level_directory,thing,subthing)): images.append(os.path.join(thing,subthing))
-        return cls.from_evaluator(evaluator, images, top_level_directory)
+        return cls.from_evaluator(evaluator, images, top_level_directory, normalisation)
     
-    def set_scores(self, evaluator:callable):
+    def set_scores(self, evaluator:callable, normalisation=False):
         for k in self.image_scores: self.image_scores[k] = float(evaluator(os.path.join(self.top_level_directory,k)))
-        self.normaliser = self.create_normaliser()
+        self.normaliser = self.create_normaliser() if normalisation else lambda a:a
         self.set_rankings()
 
     def create_normaliser(self) -> callable:
+        raise Exception("really?")
         mean = statistics.mean(self.image_scores[k] for k in self.image_scores)
         stdev = statistics.stdev(self.image_scores[k] for k in self.image_scores)
         return lambda a : float( (a-mean)/stdev )
@@ -86,8 +88,7 @@ class ImageScores:
             return True
         return condition
     
-    def _create_condition(self, match:str, regex:bool, topfraction:float, directory:str) -> callable:
-        highest_rank = topfraction*len(self.image_scores)
+    def _create_condition(self, match:str, regex:bool, directory:str) -> callable:
         conds = []
         if match:
             if regex:
@@ -108,9 +109,13 @@ class ImageScores:
 
     def ranks(self):
         return [self.ranked[f] for f in self.ranked]
+    
+    def score(self, file:str, normalised=True) -> float:
+        normaliser = self.normaliser if normalised else lambda a : a
+        return normaliser(self.image_scores[file])
 
-    def scores(self, match:str=None, regex=True, normalised=True, rankings=False, compressed=True, topfraction=1.0, directory=None) -> list[float]:
-        condition = self._create_condition(match, regex, topfraction, directory)
+    def scores(self, match:str=None, regex=True, normalised=True, rankings=False, compressed=True, directory=None) -> list[float]:
+        condition = self._create_condition(match, regex, directory)
         if rankings:
             ranks = [self.ranked[f] for f in self.image_scores if condition(f)]
             return compress_rank(ranks) if compressed else ranks
@@ -118,8 +123,8 @@ class ImageScores:
             normaliser = self.normaliser if normalised else lambda a : a
             return [normaliser(self.image_scores[f]) for f in self.image_scores if condition(f)]
 
-    def scores_dictionary(self, match:str=None, regex=True, normalised=True, topfraction=1.0, directory=None) -> dict[str,float]:
-        condition = self._create_condition(match, regex, topfraction, directory)
+    def scores_dictionary(self, match:str=None, regex=True, normalised=True, directory=None) -> dict[str,float]:
+        condition = self._create_condition(match, regex, directory)
         normaliser = self.normaliser if normalised else lambda a : a
         return {f:normaliser(self.image_scores[f]) for f in self.image_scores if condition(f)}
     

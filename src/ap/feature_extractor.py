@@ -41,6 +41,7 @@ class FeatureExtractor:
     
     @classmethod
     def get_feature_extractor(cls, pretrained="ViT-L/14", device="cuda", image_directory=".", use_cache=True, base_directory=None):
+        pretrained = pretrained[0] if isinstance(pretrained,list) and len(pretrained)==1 else pretrained
         if isinstance(pretrained,list):
             return Multi_FeatureExtractor(pretrained=pretrained, device=device, image_directory=image_directory, use_cache=use_cache, base_directory=base_directory)
         elif "___" in pretrained:

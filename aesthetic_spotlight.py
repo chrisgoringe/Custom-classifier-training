@@ -6,6 +6,7 @@ with Timer("python imports"):
     from renumics import spotlight
     from src.ap.image_scores import ImageScores
     from pandas import DataFrame
+    import torch, json, os
 
 def main():
     get_args(aesthetic_model=True, show_training_args=False, show_args=False)
@@ -15,18 +16,30 @@ def main():
     with Timer('load models'):
         feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=args['clip_model'], image_directory=top_level_images)
         predictor = AestheticPredictor(pretrained=args['load_model_path'], feature_extractor=feature_extractor, input_size=feature_extractor.number_of_features)
+        predictor.eval()
 
     with Timer("prepare data"):
-        df = DataFrame()
-        database_scores = ImageScores.from_scorefile(top_level_images, args['scorefile'])
-        feature_extractor.precache(database_scores.image_files(fullpath=True))
-        model_scores = ImageScores.from_evaluator(predictor.evaluate_file, database_scores.image_files(), top_level_images)
-        df['image'] = database_scores.image_files(fullpath=True)
-        df['db_score'] = database_scores.scores()
-        df['model_score'] = model_scores.scores()
-        df['db_rank'] = database_scores.ranks()
-        df['model_rank'] = model_scores.ranks()
+        with torch.no_grad():
+            df = DataFrame()
+            database_scores = ImageScores.from_scorefile(top_level_images, args['scorefile'])
+            feature_extractor.precache(database_scores.image_files(fullpath=True))
+            model_scores = ImageScores.from_evaluator(predictor.evaluate_file, database_scores.image_files(), top_level_images)
+            model_sigma = ImageScores.from_evaluator(predictor.evaluate_file_sigma, database_scores.image_files(), top_level_images)
+            splits = {}
+            if 'splitfile' in args and args['splitfile']:
+                split_path = os.path.join(top_level_images, args['splitfile'])
+                if os.path.exists(split_path):
+                    splits = json.load(open(split_path))
 
+            df['image'] = database_scores.image_files(fullpath=True)
+            df['split'] = list(splits.get(os.path.relpath(f,top_level_images),"") for f in df['image'])
+            df['db_score'] = database_scores.scores()
+            df['model_score'] = model_scores.scores()
+            df['error'] = list(abs(x) for x in df['db_score']-df['model_score'])
+            df['sigma'] = model_sigma.scores()
+            df['db_rank'] = database_scores.ranks()
+            df['model_rank'] = model_scores.ranks()
+            
     spotlight.show(df)
 
 if __name__=='__main__':
