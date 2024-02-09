@@ -34,16 +34,22 @@ class ImageScores:
             print(json.dumps(saveable,indent=2), file=f)
 
     @classmethod
-    def from_scorefile(cls, top_level_directory:str, scorefilename, normalisation=False):
+    def from_scorefile(cls, top_level_directory:str, scorefilename, normalisation=False, splitfile=None, split=None):
+        if splitfile and split:
+            with open(os.path.join(top_level_directory,splitfile),'r') as f:
+                splits = json.load(f)
+                keep = lambda a : splits[a]==split
+        else:
+            keep = lambda a : True
         with open(os.path.join(top_level_directory,scorefilename),'r') as f:
             image_scores_dict = json.load(f)
             if "ImageRecords" in image_scores_dict:
-                image_scores = {k : float(image_scores_dict["ImageRecords"][k]['score']) for k in image_scores_dict["ImageRecords"]}
-                comparisons = {k : float(image_scores_dict["ImageRecords"][k].get('comparisons',0)) for k in image_scores_dict["ImageRecords"]}
+                image_scores = {k : float(image_scores_dict["ImageRecords"][k]['score']) for k in image_scores_dict["ImageRecords"] if keep(k)}
+                comparisons = {k : float(image_scores_dict["ImageRecords"][k].get('comparisons',0)) for k in image_scores_dict["ImageRecords"] if keep(k)}
             else:
                 image_scores_dict.pop("#meta#",{})
-                image_scores = {k : float(image_scores_dict[k][0]) if isinstance(image_scores_dict[k],list) else image_scores_dict[k] for k in image_scores_dict}
-                comparisons = {k : int(image_scores_dict[k][1]) if isinstance(image_scores_dict[k],list) else 0 for k in image_scores_dict}
+                image_scores = {k : float(image_scores_dict[k][0]) if isinstance(image_scores_dict[k],list) else image_scores_dict[k] for k in image_scores_dict if keep(k)}
+                comparisons = {k : int(image_scores_dict[k][1]) if isinstance(image_scores_dict[k],list) else 0 for k in image_scores_dict if keep(k)}
         return ImageScores(image_scores, top_level_directory, normalisation=normalisation, comparisons=comparisons)
     
     @classmethod
