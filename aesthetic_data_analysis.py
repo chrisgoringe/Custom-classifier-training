@@ -45,7 +45,7 @@ def analyse():
             for f in database_scores.image_files():
                 print(f"{f},{database_scores.score(f)},{model_scores.score(f)},{model_sigma.score(f)}", file=fhdl)
     else:
-        model_scores = None
+        model_scores = ImageScores.from_scorefile(dir, args['model_scorefile']) if args.get('model_scorefile', None) else None
         ap = None
 
     for r in regexes:
