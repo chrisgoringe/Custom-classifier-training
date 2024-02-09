@@ -5,6 +5,7 @@ from src.ap.aesthetic_predictor import AestheticPredictor
 from src.ap.feature_extractor import FeatureExtractor
 from src.ap.image_scores import ImageScores
 import torch
+from src.ap.create_scorefiles import create_scorefiles
 
 def get_ab_score(scores, true_scores):
     right = 0
@@ -45,6 +46,7 @@ def analyse():
                 print(f"{f},{database_scores.score(f)},{model_scores.score(f)},{model_sigma.score(f)}", file=fhdl)
     else:
         model_scores = None
+        ap = None
 
     for r in regexes:
         scores = database_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=False)
@@ -64,7 +66,8 @@ def analyse():
         else:
             print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(r,*results))
 
-        
+    if ap:
+        create_scorefiles(ap, database_scores, args['model_scorefile'], args['error_scorefile'])
             
 if __name__=='__main__':
     analyse()

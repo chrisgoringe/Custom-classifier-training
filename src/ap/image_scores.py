@@ -42,8 +42,8 @@ class ImageScores:
                 comparisons = {k : float(image_scores_dict["ImageRecords"][k].get('comparisons',0)) for k in image_scores_dict["ImageRecords"]}
             else:
                 image_scores_dict.pop("#meta#",{})
-                image_scores = {k : float(image_scores[k][0]) for k in image_scores_dict}
-                comparisons = {k : int(image_scores[k][1]) for k in image_scores_dict}
+                image_scores = {k : float(image_scores_dict[k][0]) if isinstance(image_scores_dict[k],list) else image_scores_dict[k] for k in image_scores_dict}
+                comparisons = {k : int(image_scores_dict[k][1]) if isinstance(image_scores_dict[k],list) else 0 for k in image_scores_dict}
         return ImageScores(image_scores, top_level_directory, normalisation=normalisation, comparisons=comparisons)
     
     @classmethod

@@ -33,8 +33,9 @@ class AestheticPredictor(nn.Module):
         self.feature_extractor = feature_extractor
         self.scale = lambda a:a # self._set_scale_from_metadata()
 
-        self.high_end_fix = self.metadata['high_end_fix']=="True" if 'high_end_fix' in self.metadata else kwargs['high_end_fix'] if 'high_end_fix' in kwargs else False
+        self.high_end_fix = self.metadata['high_end_fix']=="True" if 'high_end_fix' in self.metadata else kwargs.get('high_end_fix',False)
         self.output_channels = int(self.metadata['output_channels']) if 'output_channels' in self.metadata else kwargs.get('output_channels',1)
+        self.final_layer_bias = self.metadata['final_layer_bias']=="True" if 'final_layer_bias' in self.metadata else kwargs.get('final_layer_bias', True)
 
         hidden_layer_sizes = [int(x) for x in self.metadata.get('layers','[0]')[1:-1].split(',')] if 'layers' in self.metadata else hidden_layer_sizes
         while len(dropouts) < len(hidden_layer_sizes)+1: dropouts.append(0)
@@ -56,6 +57,7 @@ class AestheticPredictor(nn.Module):
         self.metadata['high_end_fix'] = str(self.high_end_fix)
         self.metadata['feature_extractor_model'] = self.metadata.get('feature_extractor_model',None) or feature_extractor.metadata["feature_extractor_model"]
         self.metadata['output_channels'] = str(self.output_channels)
+        self.metadata['final_layer_bias'] = str(self.final_layer_bias)
 
         #self.parallel_blocks = torch.nn.ModuleList(
         #    self.build_block(feature_extractor.number_of_features, hidden_layer_sizes, dropouts) for _ in range(self.output_channels)
@@ -101,12 +103,6 @@ class AestheticPredictor(nn.Module):
 
     def _set_scale_from_metadata(self):
         raise Exception("Really?")
-        if 'mean_predicted_score' in self.metadata:
-            mean = float(self.metadata['mean_predicted_score'])
-            std = float(self.metadata['stdev_predicted_score'])
-            return lambda a : float((a-mean)/std)
-        else:
-            return lambda a : float(a)
 
     def build_block(self, number_of_features, hidden_layer_sizes, dropouts):
         b = nn.Sequential()
@@ -117,7 +113,7 @@ class AestheticPredictor(nn.Module):
             current_size = hidden_layer_size
             b.append(nn.ReLU())
         b.append(nn.Dropout(dropouts[-1]))
-        b.append(nn.Linear(current_size, 1))
+        b.append(nn.Linear(current_size, 1, bias=self.final_layer_bias))
         return b
 
     @classmethod
