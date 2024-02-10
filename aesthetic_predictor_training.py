@@ -47,9 +47,11 @@ def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:Qui
     with Timer("Evaluate model"):
         predictor.eval()
         with torch.no_grad(): ds.update_prediction(predictor)
-        sets = ((ds, "full"),(tds, "train"),(eds, "eval"))
-        measures = ('ab','mse','nll')
-        metrics = {f"{the_set_name}_{measure}" : the_set.__getattribute__(f"get_{measure}")() for the_set, the_set_name in sets for measure in measures}
+        metrics = {}
+        for measure in ('ab','mse','nll') if args['loss_model']=="nll" else ('ab','mse'):
+            for the_set, the_set_name in ((ds, "full"),(tds, "train"),(eds, "eval")):
+                with Timer(f"{the_set_name}_{measure}"):
+                    metrics[f"{the_set_name}_{measure}"] = the_set.__getattribute__(f"get_{measure}")()
 
     with Timer("Save model"):
         metadata = combine_metadata( ds.get_metadata(), feature_extractor.get_metadata(), predictor.get_metadata() )

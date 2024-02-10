@@ -51,16 +51,14 @@ class QuickDataset(torch.utils.data.Dataset):
     
     def get_ab(self):
         right = 0
-        wrong = 0
+        count = 0
         true_predicted = self.columns('score','predicted_score')
         for i, a in enumerate(true_predicted):
             for b in true_predicted[i+1:]:
                 if a[0]==b[0] or a[1]==b[1]: continue
                 if (a[0]<b[0] and a[1]<b[1]) or (a[0]>b[0] and a[1]>b[1]): right += 1
-                else: wrong += 1
-        return right/(right+wrong) if (right+wrong) else 0
-        
-    #def get_rmse(self): return self.get_mse()
+                count += 1
+        return right/count if count else 0
 
     def get_mse(self):
         loss_fn = torch.nn.MSELoss()
