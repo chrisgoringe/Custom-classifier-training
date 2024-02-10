@@ -2,7 +2,7 @@ import torch
 from transformers import Trainer, TrainingArguments, TrainerCallback, TrainerState, EvalPrediction
 from src.ap.aesthetic_predictor import AestheticPredictor
 from src.ap.dataset import QuickDataset
-import random, re
+import random
 from src.time_context import Timer
 
 class EvaluationCallback(TrainerCallback):
@@ -47,7 +47,7 @@ class CustomTrainer(Trainer):
     def trainer(cls, loss, **kwargs):
         if loss=='mse':
             return MSELossTrainer(**kwargs)
-        if loss=='ranking':
+        if loss=='ab':
             return RankingLossTrainer(**kwargs)
         if loss=='nll':
             return NegativeLogLikelihoodLossTrainer(**kwargs)
@@ -59,32 +59,10 @@ class MSELossTrainer(CustomTrainer):
         return self.loss_fn(scores, torch.squeeze( outputs ))
     
 class NegativeLogLikelihoodLossTrainer(CustomTrainer):
-    def __init__(self, model, special_lr_parameters=dict[re.Pattern, float], **kwargs):
-        super().__init__(model, **kwargs)
-        self.special_lr_parameters = {x:special_lr_parameters[x] for x in special_lr_parameters}
-        self.special_lr_parameters[re.compile('')] = 1.0
-
     loss_fn = torch.nn.GaussianNLLLoss()
     def _compute_loss(self, scores, outputs):
         return self.loss_fn(outputs[:,0],scores,torch.square(outputs[:,1]))
-    
-    def first_match(self, n):
-        for i,r in enumerate(self.special_lr_parameters):
-            if r.search(n): return i
 
-    def create_optimizer(self):
-        all_params = list((p,self.first_match(n)) for n,p in self.model.named_parameters() if p.requires_grad)
-
-        optimizer_grouped_parameters = [
-            {
-                "params": [ p for p, m in all_params if m==i ],
-                "lr": self.args.learning_rate * self.special_lr_parameters[r],
-            } for i, r in enumerate(self.special_lr_parameters)
-        ]
-
-        optimizer_cls, optimizer_kwargs = Trainer.get_optimizer_cls_and_kwargs(self.args)
-        self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
-        return self.optimizer
     
 class UnequalSampler:
     def __init__(self, batch_size:int, dataset:torch.utils.data.Dataset):
@@ -131,7 +109,7 @@ class RankingLossTrainer(CustomTrainer):
         dl = torch.utils.data.DataLoader(self.train_dataset, batch_sampler = self.sampler)
         return dl
     
-    def evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix=None):
-        ev = eval_dataset or self.eval_dataset
-        return { "eval_ranking" : ev.get_ab_score(), "eval_loss" : ev.get_rmse() }
+    def evaluate(self, eval_dataset:QuickDataset=None, ignore_keys=None, metric_key_prefix=None):
+        ev:QuickDataset = eval_dataset or self.eval_dataset
+        return { "eval_ab" : ev.get_ab_score(), "eval_rmse" : ev.get_rmse(), "eval_nll" : ev.get_nll }
 

@@ -1,49 +1,43 @@
-import os, re
+import os
 
 common_args = {
-    # if restarting a previous run, this is the folder to load from. 
+    # if restarting a previous run (or using other tools). Normally "" for training.
     "load_model"                : r"",
-    # folder to save the resulting model in. Required for training. 
-    "save_model"                : r"training\mse.safetensors",
+    # where to save the model
+    "save_model"                : r"training\model.safetensors",
     # path to the top level image directory
     "top_level_image_directory" : r"training", 
     # the scores to train from
-    "scorefile"                 : "image_scores.json",
-
+    "scorefile"                 : "scores.json",
+    # three additional (optional) output files: the scores as predicted by the model, the errors (scores - model_scores), and the split (train/test)
     "model_scorefile"           : "model_scores.json",
     "error_scorefile"           : "error_scores.json",
     "splitfile"                 : "split.json",
 }
 
-# SDXL uses openai/clip-vit-large-patch14 and laion/CLIP-ViT-bigG-14-laion2B-39B-b160k 
+# Feature extraction model. This is a list, normally length 1, but if there are multiple entries the features are concatenated
+# Default is laion/CLIP-ViT-H-14-laion2B-s32B-b79K, which has been resaved in torch.half format as ChrisGoringe/vitH16
+
+# SDXL uses [openai/clip-vit-large-patch14, laion/CLIP-ViT-bigG-14-laion2B-39B-b160k] (mostly the second?)
 # see https://github.com/huggingface/diffusers/blob/v0.26.2/src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py#L149
 
-# SD1.5 uses openai/clip-vit-large-patch14
+# SD1.5 uses [openai/clip-vit-large-patch14]
 # see https://github.com/huggingface/diffusers/blob/v0.26.2/src/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion.py#L312
-aesthetic_model_args = {
-    "clip_model" : [
-        #"models/apple/aim-600M-half", 
-        #"models/apple/aim-1B-half", 
-        #"models/apple/aim-3B-half", 
-        #"models/apple/aim-7B-half", 
-        #"models/openai/clip-vit-large-patch14-half", 
-        #"models/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k-half",
-        #"models/laion/CLIP-ViT-H-14-laion2B-s32B-b79K-half",
-        #"laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K"
-        "ChrisGoringe/vitH16"
-    ],
-}
 
-aesthetic_model_extras = {
-    "high_end_fix" : False,
-    "variable_hef" : False,
+# Others include:
+# apple/aim-600M, apple/aim-1B, apple/aim-3B, apple/aim-7B, laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K
+
+aesthetic_model_args = {
+    "clip_model" : ["ChrisGoringe/vitH16"],
+    "final_layer_bias" : False,
 }
 
 aesthetic_training_args = {
-    # loss model. 'nll', 'mse' or 'ranking'. nll is negative log likelihood, which returns prediction and a sigma
+    # loss model. 'nll', 'mse' or 'ab'. nll is negative log likelihood, which returns prediction and a sigma
     "loss_model"                : 'mse',
 
-    "parameter_for_scoring"     : 'eval_mse',   # We keep the best model, according to... [full|train|eval]_[ab|rmse|nll]  
+    # What defines "good" for a model when comparing between training runs? [full|train|eval]_[ab|mse|nll]
+    "parameter_for_scoring"     : 'eval_mse',   
 
     # set these next two to None by default
     "prune_bad_by"              : None,   # prune tests which are worse than the best so far by this much 
@@ -54,12 +48,8 @@ aesthetic_training_args = {
     "test_pick_seed"            : 42,        
 }
 
-trainer_extras = {
-    "special_lr_parameters" : { re.compile("^parallel_blocks\.1\.*"): None },  # set by "delta_log_spec_lr"
-} if aesthetic_training_args['loss_model']=='nll' else {}
-
 metaparameter_args = {
-    "name"              : "CmaEa200",     
+    "name"              : None,     
     "meta_trials"       : 200,
     "sampler"           : "CmaEs",      # CmaEs, random, QMC.  CmaEs seems to work best
 
@@ -70,18 +60,17 @@ metaparameter_args = {
     "half_batch_size"    : (1, 50),            
 
     # A list, each element is either a tuple (min, max) or a value
-    "dropouts"           : [ (0.0, 0.8), (0.0, 0.8), 0 ],
-    "hidden_layers"      : [ (100, 1000), (4, 1000) ],
-
-    # again, this time for the error estimation - the delta is how different the lr is for the second network
-    #"delta_log_spec_lr"  : (-3, 0),    
-    #"dropouts_0"           : [ (0.0, 0.2), 0, 0 ],
-    #"hidden_layers_0"      : [ (4,64), (4, 16) ],
+    "dropouts"           : [ (0.0, 0.8), (0.0, 0.8), ],
+    "hidden_layers"      : [ (10, 1000), (10, 1000), ],
 }
 
 aesthetic_analysis_args = {
-    "ab_analysis_regexes"       : [  ],
+    "ab_analysis_regexes"       : [ ],
 }
+
+# passed to the constructor of the Trainer - https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer
+trainer_extras = {
+}  
 
 # training_args are passed directly into the TrainingArguments object.
 # Below are the most common of the 101 arguments available
@@ -89,25 +78,18 @@ aesthetic_analysis_args = {
 #
 training_args = {
     "lr_scheduler_type"             : "cosine",
-    "gradient_accumulation_steps"   : 1,  
     "per_device_eval_batch_size"    : 2000,     
-
-    # save and evaluate during the run? 'epoch' (every epoch) or 'steps', and maximum number to keep
     "save_strategy"                 : "no",
-    "save_steps"                    : 100,
-    "save_total_limit"              : 4,
     "evaluation_strategy"           : "no",
-    "eval_steps"                    : 100,
     "output_dir"                    : "out",
-
-    # if save strategy and evaluation strategy are the same, can set this to True
-    "load_best_model_at_end"        : False,  
 }
+
+####### STOP HERE ########
 
 # Calculated args
 aesthetic_training_args['direction']='maximize' if aesthetic_training_args['loss_model']=='ranking' else 'minimize'
+aesthetic_model_extras = { f:aesthetic_model_args[f] for f in aesthetic_model_args if f!="clip_model" }
 
-# Default values that get overwritten by any of the above - generally things that used to be options but really shouldn't be
 class Args:
     args = { }
 

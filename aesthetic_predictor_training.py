@@ -36,7 +36,7 @@ def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:Qui
                                        **aesthetic_model_extras)
 
     with Timer('Train model'):
-        training_args["metric_for_best_model"] = "ranking" if args['loss_model']=="ranking" else "loss"  #TODO
+        training_args["metric_for_best_model"] = "ab" if args['loss_model']=="ab" else "loss"
         train_args = TrainingArguments( remove_unused_columns=False, **training_args )
         trainer = CustomTrainer.trainer(loss = args['loss_model'], model = predictor, 
                                         train_dataset = tds, eval_dataset = eds, 

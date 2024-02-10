@@ -11,7 +11,9 @@ with Timer("python imports"):
 def main():
     get_args(aesthetic_model=True, show_training_args=False, show_args=False)
     top_level_images = args['top_level_image_directory']
-    assert args["load_model_path"], "Need to specify load_model (the directory where the model is located, or the safetensors file itself)"
+    if not args.get('load_model_path', None):
+        print("load_model not specified, assuming it is save_model")
+        args['load_model_path'] = args['save_model_path']
     
     with Timer('load models'):
         feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=args['clip_model'], image_directory=top_level_images)
