@@ -7,5 +7,7 @@ spotlight
 optuna
 optuna-dashboard
 cmaes
+Pillow
 
+# Install torch - https://pytorch.org/
 # pip install git+https://git@github.com/apple/ml-aim.git for aim feature extractors
