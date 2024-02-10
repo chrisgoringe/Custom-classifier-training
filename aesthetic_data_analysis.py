@@ -29,7 +29,7 @@ def analyse(splitfile=None, split=None):
     if split: print(f"ONLY ANALYSING split='{split}'")
     get_args(aesthetic_analysis=True, aesthetic_model=True, show_training_args=False, show_args=False)
     dir = args['top_level_image_directory']
-    database_scores:ImageScores = ImageScores.from_scorefile(dir, args['scorefile'], splitfile, split)
+    database_scores:ImageScores = ImageScores.from_scorefile(dir, args['scorefile'], splitfile=splitfile, split=split)
 
     regexes = ['',] + [r for r in args['ab_analysis_regexes']] + [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir,d))]
 
@@ -46,7 +46,7 @@ def analyse(splitfile=None, split=None):
             for f in database_scores.image_files():
                 print(f"{f},{database_scores.score(f)},{model_scores.score(f)},{model_sigma.score(f)}", file=fhdl)
     else:
-        model_scores = ImageScores.from_scorefile(dir, args['model_scorefile'], splitfile, split) if args.get('model_scorefile', None) else None
+        model_scores = ImageScores.from_scorefile(dir, args['model_scorefile'], splitfile=splitfile, split=split) if args.get('model_scorefile', None) else None
         ap = None
 
     for r in regexes:
