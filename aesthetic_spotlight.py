@@ -24,7 +24,6 @@ def main():
             database_scores = ImageScores.from_scorefile(top_level_images, args['scorefile'])
             feature_extractor.precache(database_scores.image_files(fullpath=True))
             model_scores = ImageScores.from_evaluator(predictor.evaluate_file, database_scores.image_files(), top_level_images)
-            model_sigma = ImageScores.from_evaluator(predictor.evaluate_file_sigma, database_scores.image_files(), top_level_images)
             splits = {}
             if 'splitfile' in args and args['splitfile']:
                 split_path = os.path.join(top_level_images, args['splitfile'])
@@ -36,7 +35,6 @@ def main():
             df['db_score'] = database_scores.scores()
             df['model_score'] = model_scores.scores()
             df['error'] = list(abs(x) for x in df['db_score']-df['model_score'])
-            df['sigma'] = model_sigma.scores()
             df['db_rank'] = database_scores.ranks()
             df['model_rank'] = model_scores.ranks()
             
