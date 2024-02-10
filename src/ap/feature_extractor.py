@@ -160,7 +160,7 @@ class Apple_FeatureExtractor(FeatureExtractor):
         
     def _load(self):
         self.model = AIMForImageClassification.from_pretrained(self.model_path, cache_dir="models").to(self.device)
-        self.number_of_features = self.model.projection_dim
+        self.number_of_features = self.model.head.bn.num_features
         self.processor = val_transforms()
 
     def _get_image_features_tensor(self, image:Image) -> torch.Tensor:
