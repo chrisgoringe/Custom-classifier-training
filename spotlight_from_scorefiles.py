@@ -19,8 +19,9 @@ def display(directory, sources):
 if __name__=='__main__':
     display(directory="training4", sources=(
         ('split', 'split.json'),
-        ('true value', 'start_from_model_6000.json'),
+        ('true value', 'scores.json'),
+        ('t4 model score', 'model_scores.json'),
+        ('t4 errors', 'error_scores.json'),
         ('t1 model score', 'scores_from_training1_model.json'),
-        ('t1 error', 'errors_from_training1_model.json'),
-        ('errors predicted by error model', 'errors_predicted_by_errormodel.json'),
+        ('t1 errors', 'errors_from_training1_model.json'),
     ))

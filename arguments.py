@@ -4,9 +4,9 @@ common_args = {
     # if restarting a previous run (or using other tools). Normally "" for training.
     "load_model"                : r"",
     # where to save the model
-    "save_model"                : r"training\model.safetensors",
+    "save_model"                : r"training4\model.safetensors",
     # path to the top level image directory
-    "top_level_image_directory" : r"training", 
+    "top_level_image_directory" : r"training4", 
     # the scores to train from
     "scorefile"                 : "scores.json",
     # three additional (optional) output files: the scores as predicted by the model, the errors (scores - model_scores), and the split (train/test)
@@ -34,10 +34,10 @@ aesthetic_model_args = {
 
 aesthetic_training_args = {
     # loss model. 'nll', 'mse' or 'ab'. nll is negative log likelihood, which returns prediction and a sigma
-    "loss_model"                : 'mse',
+    "loss_model"                : 'ab',
 
     # What defines "good" for a model when comparing between training runs? [full|train|eval]_[ab|mse|nll]
-    "parameter_for_scoring"     : 'eval_mse',   
+    "parameter_for_scoring"     : 'eval_ab',   
 
     # set these next two to None by default
     "prune_bad_by"              : None,   # prune tests which are worse than the best so far by this much 
@@ -50,7 +50,7 @@ aesthetic_training_args = {
 
 metaparameter_args = {
     "name"              : None,     
-    "meta_trials"       : 200,
+    "meta_trials"       : 10,
     "sampler"           : "CmaEs",      # CmaEs, random, QMC.  CmaEs seems to work best
 
     # Each of these is a tuple (min, max) or a value.

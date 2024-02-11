@@ -38,7 +38,7 @@ class ImageScores:
         if splitfile and split:
             with open(os.path.join(top_level_directory,splitfile),'r') as f:
                 splits = json.load(f)
-                keep = lambda a : splits[a]==split
+                keep = lambda a : splits[os.path.normpath(a)]==split
         else:
             keep = lambda a : True
         with open(os.path.join(top_level_directory,scorefilename),'r') as f:

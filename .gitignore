@@ -168,4 +168,4 @@ models/*
 meta-results.*
 ~$meta-results.xlsx
 training*/
-
+aesthetic/

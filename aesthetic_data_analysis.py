@@ -29,6 +29,7 @@ def analyse(splitfile=None, split=None):
     if split: print(f"ONLY ANALYSING split='{split}'")
     get_args(aesthetic_analysis=True, aesthetic_model=True, show_training_args=False, show_args=False)
     dir = args['top_level_image_directory']
+    print(f"database scores from {args['scorefile']}")
     database_scores:ImageScores = ImageScores.from_scorefile(dir, args['scorefile'], splitfile=splitfile, split=split)
 
     regexes = ['',] + [r for r in args['ab_analysis_regexes']] + [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir,d))]
@@ -40,12 +41,12 @@ def analyse(splitfile=None, split=None):
         with torch.no_grad():
             feature_extractor.precache(database_scores.image_files(fullpath=True))
             model_scores:ImageScores = ImageScores.from_evaluator(ap.evaluate_file, database_scores.image_files(), dir)
-            model_sigma:ImageScores = ImageScores.from_evaluator(ap.evaluate_file_sigma, database_scores.image_files(), dir)
         with open("scores_and_sigmas.csv",'w') as fhdl:
             print(f"file, true score, model score, model sigma", file=fhdl)
             for f in database_scores.image_files():
-                print(f"{f},{database_scores.score(f)},{model_scores.score(f)},{model_sigma.score(f)}", file=fhdl)
+                print(f"{f},{database_scores.score(f)},{model_scores.score(f)}", file=fhdl)
     else:
+        print(f"model scores from {args['model_scorefile']}")
         model_scores = ImageScores.from_scorefile(dir, args['model_scorefile'], splitfile=splitfile, split=split) if args.get('model_scorefile', None) else None
         ap = None
 

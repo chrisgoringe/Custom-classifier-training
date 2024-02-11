@@ -24,6 +24,7 @@ class AestheticPredictor(nn.Module):
         super().to(device)
         if self.feature_extractor is not None: self.feature_extractor._to(device, load_if_needed=False)
         self.device = device
+        return self
 
     def __init__(self, feature_extractor:FeatureExtractor|int, pretrained, device="cuda", dropouts:list=[], hidden_layer_sizes=None, seed=None, **kwargs):  
         super().__init__()
