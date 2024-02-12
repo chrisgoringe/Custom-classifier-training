@@ -6,13 +6,13 @@ import torch
 from src.ap.create_scorefiles import create_scorefiles
 
 class Args:
-    top_level_image_directory = r"training4"
-    scorefile = "scores.json"
+    top_level_image_directory = r"training1"
+    scorefile = "image_scores.json"
     splitfile = "split.json"
     test_split_only = True
 
     load_and_run_model = True
-    model = r"training4\clip_g_model.safetensors"
+    model = r"training4\vitH_shallow_model.safetensors"
     save_model_score_and_errors = True
     save_model_scorefile = "model_scores.json"
     save_error_scorefile = "error_scores.json"

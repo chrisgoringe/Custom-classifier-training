@@ -8,3 +8,4 @@ optuna
 optuna-dashboard
 cmaes
 Pillow
+renumics-spotlight

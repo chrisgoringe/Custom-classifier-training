@@ -97,6 +97,7 @@ if __name__=='__main__':
                 if f"hidden_layers{suffix}" in metaparameter_args and metaparameter_args[f"hidden_layers{suffix}"]:
                     args[f"hidden_layers{suffix}"] = mrp.meta_list(trial.suggest_int,   f"hidden_layers{suffix}",metaparameter_args[f"hidden_layers{suffix}"] )
 
+            trial.set_user_attr("Input number of features", feature_extractor.number_of_features)
             result = train_predictor(feature_extractor, ds, eds, tds)
             score = result[args['parameter_for_scoring']]
             for r in result: trial.set_user_attr(r, float(result[r]))

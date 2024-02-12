@@ -28,4 +28,42 @@ model4
 
 
 
+##
 
+
+
+
+    "num_train_epochs"   : (5, 50),
+    "warmup_ratio"       : (0.0, 0.2),
+    "log_learning_rate"  : (-3.5, -1.5),
+    "half_batch_size"    : (1, 50),   
+    "dropouts"           : [ (0.0, 0.8), (0.0, 0.8), ],
+    "hidden_layers"      : [ (10, 1000), (10, 1000), ],
+    mse=0.272, ab=77.96% (test split only
+    
+    
+    "num_train_epochs"   : (5, 50),
+    "warmup_ratio"       : (0.0, 0.2),
+    "log_learning_rate"  : (-3.5, -1.5),
+    "half_batch_size"    : (1, 50),   
+    "dropouts"           : [ (0.0, 0.8), (0.0, 0.8), (0.0, 0.8), (0.0, 0.8),],
+    "hidden_layers"      : [ (10, 100),  (10, 100),  (10, 100),  (10, 100), ],)
+    0.278, 77.34
+
+
+    "num_train_epochs"   : (15, 30),
+    "warmup_ratio"       : (0.0, 0.2),
+    "log_learning_rate"  : (-4.5, -3),
+    "half_batch_size"    : (20, 50),            
+    "dropouts"           : [ (0.0, 0.5), (0.0, 0.5), (0.0, 0.5), (0.0, 0.5),],
+    "hidden_layers"      : [ (10, 100),  (10, 100),  (10, 100),  (10, 100), ],
+    0.279
+
+
+    "num_train_epochs"   : (15, 30),
+    "warmup_ratio"       : (0.0, 0.2),
+    "log_learning_rate"  : (-4.5, -3),
+    "half_batch_size"    : (20, 50),            
+    "dropouts"           : [ (0.0, 0.5), (0.0, 0.5), ],
+    "hidden_layers"      : [ (1000, 2000), ],
+    0.276, 78.15

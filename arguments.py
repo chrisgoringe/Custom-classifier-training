@@ -3,7 +3,7 @@ args = {
     # path to the top level image directory
     "top_level_image_directory" : r"training4", 
     # where to save the model
-    "save_model"                : r"training4\vitH_model.safetensors",
+    "save_model"                : r"training4\vitH_shallow_model.safetensors",
     # the scores to train from (relative to tlid)
     "scorefile"                 : "scores.json",
 
@@ -41,19 +41,19 @@ aesthetic_model_extras = {
 }
 
 metaparameter_args = {
-    "name"              : "vitH",     
+    "name"              : "vitH_shallow",     
     "meta_trials"       : 200,
     "sampler"           : "CmaEs",      # CmaEs, random, QMC.  CmaEs seems to work best
 
     # Each of these is a tuple (min, max) or a value.
-    "num_train_epochs"   : (5, 50),
+    "num_train_epochs"   : (15, 30),
     "warmup_ratio"       : (0.0, 0.2),
-    "log_learning_rate"  : (-3.5, -1.5),
-    "half_batch_size"    : (1, 50),            
+    "log_learning_rate"  : (-4.5, -3),
+    "half_batch_size"    : (20, 50),            
 
     # A list, each element is either a tuple (min, max) or a value
-    "dropouts"           : [ (0.0, 0.8), (0.0, 0.8), ],
-    "hidden_layers"      : [ (10, 1000), (10, 1000), ],
+    "dropouts"           : [ (0.0, 0.5), (0.0, 0.5), ],
+    "hidden_layers"      : [ (1000, 2000), ],
 }
 
 # passed to the constructor of the Trainer - https://huggingface.co/docs/transformers/v4.35.0/en/main_classes/trainer
