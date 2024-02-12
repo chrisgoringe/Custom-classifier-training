@@ -1,19 +1,19 @@
 import statistics, os
 import scipy.stats
 from src.ap.aesthetic_predictor import AestheticPredictor
-from src.ap.image_scores import ImageScores
+from src.ap.image_scores import ImageScores, get_ab
 import torch
 from src.ap.create_scorefiles import create_scorefiles
 
 class Args:
-    top_level_image_directory = r"training1"
-    scorefile = "image_scores.json"
+    top_level_image_directory = r"training4"
+    scorefile = "scores.json"
     splitfile = "split.json"
     test_split_only = True
 
     load_and_run_model = True
-    model = r"training4\vitH_shallow_model.safetensors"
-    save_model_score_and_errors = True
+    model = r"training4\model.safetensors"
+    save_model_score_and_errors = False
     save_model_scorefile = "model_scores.json"
     save_error_scorefile = "error_scores.json"
 
@@ -21,18 +21,6 @@ class Args:
     model_scorefile = "model_scores.json"
 
     regexes = []
-
-def get_ab_score(scores, true_scores):
-    right = 0
-    wrong = 0
-    for i in range(len(scores)):
-        a = (scores[i], true_scores[i])
-        for j in range(i+1,len(scores)):
-            b = (scores[j], true_scores[j])
-            if a[0]==b[0] or a[1]==b[1]: continue
-            if (a[0]<b[0] and a[1]<b[1]) or (a[0]>b[0] and a[1]>b[1]): right += 1
-            else: wrong += 1
-    return right/(right+wrong) if (right+wrong) else 0
 
 def compare(label:str, database_scores:ImageScores, model_scores:ImageScores, **kwargs):
     scores = database_scores.scores(normalised=False, **kwargs)
@@ -47,7 +35,7 @@ def compare(label:str, database_scores:ImageScores, model_scores:ImageScores, **
         spearman = scipy.stats.spearmanr(dbranks,mdranks)
         pearson = scipy.stats.pearsonr(scores,mscores)
         results += (statistics.mean(mscores),statistics.stdev(mscores),spearman.statistic, spearman.pvalue, pearson.statistic, pearson.pvalue)
-        results += (100*get_ab_score(mscores, scores),)
+        results += (100*get_ab(mscores, scores),)
         print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}, model score {:>6.3f} +/- {:>4.2f}, spearman {:>6.4f} (p={:>8.2}), pearson {:>6.4f} (p={:>8.2}), AB {:>6.2f}%".format(label,*results))
     else:
         print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(label,*results))

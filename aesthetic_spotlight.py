@@ -6,7 +6,7 @@ import torch, json, os
 
 class Args:
     top_level_image_directory = "training4"
-    model = r"training4/vitH_model.safetensors"
+    model = r"training4/vitH_tiniest2_model.safetensors"
     scorefile = "scores.json"
     splitfile = "split.json"
 

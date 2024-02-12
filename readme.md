@@ -93,7 +93,7 @@ In a new command line, enter `optuna-dashboard sqlite:///db.sqlite` to launch th
 
 # Spotlight
 
-[Spotlight](https://github.com/Renumics/spotlight) is a gui for analysing datasets. After a training run, run `aesthetic_spotlight.py` to see it's magic!
+[Spotlight](https://github.com/Renumics/spotlight) is a gui for analysing datasets. After a training run, run `aesthetic_spotlight.py` to see its magic!
 
 # Acknowledgements
 

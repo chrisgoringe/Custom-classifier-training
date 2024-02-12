@@ -14,6 +14,16 @@ def valid_directory(dir_path:str):
     if os.path.basename(dir_path).startswith("."): return False
     return True
 
+def get_ab(scores, predicted_scores):
+    right = 0
+    total = 0
+    for i in range(len(scores)):
+        for j in range(i+1,len(scores)):
+            if (predicted_scores[i]<predicted_scores[j] and scores[i]<scores[j]) or \
+                (predicted_scores[i]>predicted_scores[j] and scores[i]>scores[j]): right += 1
+            total += 1
+    return right/total if total else 0
+
 class ImageScores:
     def __init__(self, image_scores:dict[str, float], top_level_directory:str, normalisation, comparisons:dict[str,int]={}):
         clean = lambda d : { os.path.normpath(f) : d[f] for f in d }

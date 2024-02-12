@@ -2,6 +2,7 @@ from pandas import DataFrame
 from .aesthetic_predictor import AestheticPredictor
 import random, statistics
 import torch
+from .image_scores import get_ab
         
 class QuickDataset(torch.utils.data.Dataset):
     def __init__(self, df:DataFrame, split:str=None):
@@ -50,16 +51,8 @@ class QuickDataset(torch.utils.data.Dataset):
         return self.get_ab()
     
     def get_ab(self):
-        right = 0
-        count = 0
-        true_predicted = self.columns('score','predicted_score')
-        for i, a in enumerate(true_predicted):
-            for b in true_predicted[i+1:]:
-                if a[0]==b[0] or a[1]==b[1]: continue
-                if (a[0]<b[0] and a[1]<b[1]) or (a[0]>b[0] and a[1]>b[1]): right += 1
-                count += 1
-        return right/count if count else 0
-
+        return get_ab(self.column('score'), self.column('predicted_score'))
+        
     def get_mse(self):
         loss_fn = torch.nn.MSELoss()
         rmse = loss_fn(torch.tensor(self.column('score')), torch.tensor(self.column('predicted_score')))
