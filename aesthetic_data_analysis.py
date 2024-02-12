@@ -1,11 +1,26 @@
-from arguments import args, get_args
 import statistics, os
 import scipy.stats
 from src.ap.aesthetic_predictor import AestheticPredictor
-from src.ap.feature_extractor import FeatureExtractor
 from src.ap.image_scores import ImageScores
 import torch
 from src.ap.create_scorefiles import create_scorefiles
+
+class Args:
+    top_level_image_directory = r"training4"
+    scorefile = "scores.json"
+    splitfile = "split.json"
+    test_split_only = True
+
+    load_and_run_model = True
+    model = r"training4\clip_g_model.safetensors"
+    save_model_score_and_errors = True
+    save_model_scorefile = "model_scores.json"
+    save_error_scorefile = "error_scores.json"
+
+    load_model_scorefile = False
+    model_scorefile = "model_scores.json"
+
+    regexes = []
 
 def get_ab_score(scores, true_scores):
     right = 0
@@ -17,59 +32,53 @@ def get_ab_score(scores, true_scores):
             if a[0]==b[0] or a[1]==b[1]: continue
             if (a[0]<b[0] and a[1]<b[1]) or (a[0]>b[0] and a[1]>b[1]): right += 1
             else: wrong += 1
-            
     return right/(right+wrong) if (right+wrong) else 0
-        
-def get_rmse(scores, true_scores):
-    loss_fn = torch.nn.MSELoss()
-    rmse = loss_fn(torch.tensor(scores), torch.tensor(true_scores))
-    return float(rmse)
 
-def analyse(splitfile=None, split=None):
-    if split: print(f"ONLY ANALYSING split='{split}'")
-    get_args(aesthetic_analysis=True, aesthetic_model=True, show_training_args=False, show_args=False)
-    dir = args['top_level_image_directory']
-    print(f"database scores from {args['scorefile']}")
-    database_scores:ImageScores = ImageScores.from_scorefile(dir, args['scorefile'], splitfile=splitfile, split=split)
+def compare(label:str, database_scores:ImageScores, model_scores:ImageScores, **kwargs):
+    scores = database_scores.scores(normalised=False, **kwargs)
+    dbranks = database_scores.scores(rankings=True, **kwargs)
+    if len(scores)<2:
+        print("{:>20} : {:>5} images, too few for statistics".format(label, len(scores)))
+        return
+    results = (len(scores),statistics.mean(scores),statistics.stdev(scores))
+    if model_scores:    
+        mscores = model_scores.scores(normalised=False, **kwargs)
+        mdranks = model_scores.scores(rankings=True, **kwargs)
+        spearman = scipy.stats.spearmanr(dbranks,mdranks)
+        pearson = scipy.stats.pearsonr(scores,mscores)
+        results += (statistics.mean(mscores),statistics.stdev(mscores),spearman.statistic, spearman.pvalue, pearson.statistic, pearson.pvalue)
+        results += (100*get_ab_score(mscores, scores),)
+        print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}, model score {:>6.3f} +/- {:>4.2f}, spearman {:>6.4f} (p={:>8.2}), pearson {:>6.4f} (p={:>8.2}), AB {:>6.2f}%".format(label,*results))
+    else:
+        print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(label,*results))
 
-    regexes = ['',] + [r for r in args['ab_analysis_regexes']] + [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir,d))]
+def analyse():
+    if Args.test_split_only: print(f"\nAnalysing test split only")
+    else: print("\mAnalysing all images")
+    dir = Args.top_level_image_directory
+    print(f"database scores from {Args.scorefile}")
+    database_scores:ImageScores = ImageScores.from_scorefile(dir, Args.scorefile, splitfile=Args.splitfile, split='test')
 
-    if args['load_model_path']:
-        feature_extractor=FeatureExtractor.get_feature_extractor(image_directory=dir, pretrained=args['clip_model'])
-        ap = AestheticPredictor(feature_extractor=feature_extractor, pretrained=args['load_model_path'])
+    if Args.load_and_run_model:
+        print(f"using {Args.model} to evaluate images")
+        ap = AestheticPredictor.from_pretrained(pretrained=Args.model, image_directory=Args.top_level_image_directory)
         ap.eval()
         with torch.no_grad():
-            feature_extractor.precache(database_scores.image_files(fullpath=True))
+            ap.precache(database_scores.image_files(fullpath=True))
             model_scores:ImageScores = ImageScores.from_evaluator(ap.evaluate_file, database_scores.image_files(), dir)
-        with open("scores_and_sigmas.csv",'w') as fhdl:
-            print(f"file, true score, model score, model sigma", file=fhdl)
-            for f in database_scores.image_files():
-                print(f"{f},{database_scores.score(f)},{model_scores.score(f)}", file=fhdl)
+    elif Args.load_model_scorefile:
+        print(f"loading model scores from {Args.model_scorefile}")
+        model_scores = ImageScores.from_scorefile(dir, Args.model_scorefile, splitfile=Args.splitfile, split=Args.analyse_split)
     else:
-        print(f"model scores from {args['model_scorefile']}")
-        model_scores = ImageScores.from_scorefile(dir, args['model_scorefile'], splitfile=splitfile, split=split) if args.get('model_scorefile', None) else None
-        ap = None
+        model_scores = None
 
-    for r in regexes:
-        scores = database_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=False)
-        dbranks = database_scores.scores(r, regex=(r in args['ab_analysis_regexes']), rankings=True)
-        if len(scores)<2:
-            print("{:>20} : too few matches")
-            continue
-        results = (len(scores),statistics.mean(scores),statistics.stdev(scores))
-        if model_scores:    
-            mscores = model_scores.scores(r, regex=(r in args['ab_analysis_regexes']), normalised=False)
-            mdranks = model_scores.scores(r, regex=(r in args['ab_analysis_regexes']), rankings=True)
-            spearman = scipy.stats.spearmanr(dbranks,mdranks)
-            pearson = scipy.stats.pearsonr(scores,mscores)
-            results += (statistics.mean(mscores),statistics.stdev(mscores),spearman.statistic, spearman.pvalue, pearson.statistic, pearson.pvalue)
-            results += (100*get_ab_score(mscores, scores),)
-            print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}, model score {:>6.3f} +/- {:>4.2f}, spearman {:>6.4f} (p={:>8.2}), pearson {:>6.4f} (p={:>8.2}), AB {:>6.2f}%".format(r,*results))
-        else:
-            print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(r,*results))
+    compare("All", database_scores, model_scores)
+    for r in Args.regexes: compare(f"/{r}/", database_scores, model_scores, match=r, regex=True )
+    for d in [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir,d))]: compare(d, database_scores, model_scores, directory=d)
 
-    if ap:
-        create_scorefiles(ap, database_scores, args['model_scorefile'], args['error_scorefile'])
+    if Args.save_model_score_and_errors and Args.load_and_run_model:
+        create_scorefiles(ap, database_scores, Args.save_model_scorefile, Args.save_error_scorefile)
             
 if __name__=='__main__':
-    analyse('split.json', 'test')
+    assert not (Args.load_and_run_model and Args.load_model_scorefile), "Can't do both load_and_run_model and load_model_scorefile"
+    analyse()

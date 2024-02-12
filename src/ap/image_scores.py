@@ -102,7 +102,7 @@ class ImageScores:
                 conds.append(lambda a : r.match(a))
             else:
                 conds.append(lambda a : match in a)
-        if directory:
+        if directory is not None:
             conds.append(lambda a:os.path.split(a)[0]==directory)
         return self._create_condition_stack(conds)
 

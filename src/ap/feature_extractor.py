@@ -23,18 +23,18 @@ class FeatureExtractor:
         return REALNAMES.get(pretrained, pretrained)
     
     @classmethod
-    def get_feature_extractor(cls, pretrained="ViT-L/14", device="cuda", image_directory=".", use_cache=True, base_directory=None):
+    def get_feature_extractor(cls, pretrained=None, **kwargs):
         pretrained = pretrained[0] if isinstance(pretrained,list) and len(pretrained)==1 else pretrained
         if isinstance(pretrained,list):
-            return Multi_FeatureExtractor(pretrained=pretrained, device=device, image_directory=image_directory, use_cache=use_cache, base_directory=base_directory)
+            return Multi_FeatureExtractor(pretrained=pretrained, **kwargs)
         elif "___" in pretrained:
-            return Multi_FeatureExtractor(pretrained=pretrained.split("___"), device=device, image_directory=image_directory, use_cache=use_cache, base_directory=base_directory)
+            return Multi_FeatureExtractor(pretrained=pretrained.split("___"), **kwargs)
         elif "apple" in pretrained:
-            return Apple_FeatureExtractor(pretrained=pretrained, device=device, image_directory=image_directory, use_cache=use_cache, base_directory=base_directory)
+            return Apple_FeatureExtractor(pretrained=pretrained, **kwargs)
         else:
-            return Transformers_FeatureExtractor(pretrained=pretrained, device=device, image_directory=image_directory, use_cache=use_cache, base_directory=base_directory)
+            return Transformers_FeatureExtractor(pretrained=pretrained, **kwargs)
 
-    def __init__(self, pretrained, device, image_directory, use_cache, base_directory):
+    def __init__(self, pretrained, device="cuda", image_directory=".", use_cache=True, base_directory=None):
         self.metadata = {"feature_extractor_model":pretrained if isinstance(pretrained,str) else "___".join(pretrained)}
         self.device = device
         self.image_directory = image_directory

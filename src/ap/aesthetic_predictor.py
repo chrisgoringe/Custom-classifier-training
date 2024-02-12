@@ -15,10 +15,9 @@ class AestheticPredictor(nn.Module):
                                                                    base_directory=base_directory, 
                                                                    image_directory=image_directory) if explicit_nof is None else explicit_nof
         return AestheticPredictor(feature_extractor=feature_extractor, pretrained=pretrained)
-
-    def set_dtype(self, dtype):
-        super().to(dtype)
-        self.feature_extractor.set_dtype(dtype)
+    
+    def precache(self, image_filepaths:list):
+        self.feature_extractor.precache(image_filepaths)
 
     def to(self, device):
         super().to(device)

@@ -11,7 +11,7 @@ with Timer("Python imports"):
 
     from src.ap.dataset import QuickDataset
 
-    from arguments import training_args, args, get_args, metaparameter_args, MetaRangeProcessor, aesthetic_model_extras, trainer_extras
+    from arguments import training_args, args, show_args, metaparameter_args, MetaRangeProcessor, aesthetic_model_extras, trainer_extras
     from src.ap.feature_extractor import FeatureExtractor
     from src.ap.aesthetic_predictor import AestheticPredictor
     from src.ap.ap_trainers import CustomTrainer, EvaluationCallback
@@ -26,17 +26,14 @@ def combine_metadata(*args):
     return metadata
 
 def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:QuickDataset, tds:QuickDataset):
-    pretrained = args['load_model_path']
-
     with Timer('Create model'):
-        predictor = AestheticPredictor(pretrained=pretrained, feature_extractor=feature_extractor, 
+        predictor = AestheticPredictor(pretrained=None, feature_extractor=feature_extractor, 
                                        dropouts=args['dropouts'], hidden_layer_sizes=args['hidden_layers'],
                                        dropouts_0=args.get('dropouts_0',None), hidden_layer_sizes_0=args.get('hidden_layers_0',None),
                                        output_channels=(2 if args['loss_model']=="nll" else 1),
                                        **aesthetic_model_extras)
 
     with Timer('Train model'):
-        training_args["metric_for_best_model"] = "ab" if args['loss_model']=="ab" else "loss"
         train_args = TrainingArguments( remove_unused_columns=False, **training_args )
         trainer = CustomTrainer.trainer(loss = args['loss_model'], model = predictor, 
                                         train_dataset = tds, eval_dataset = eds, 
@@ -48,33 +45,32 @@ def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:Qui
         predictor.eval()
         with torch.no_grad(): ds.update_prediction(predictor)
         metrics = {}
-        for measure in ('ab','mse','nll') if args['loss_model']=="nll" else ('ab','mse'):
+        for measure in args['measures']:
             for the_set, the_set_name in ((ds, "full"),(tds, "train"),(eds, "eval")):
                 with Timer(f"{the_set_name}_{measure}"):
                     metrics[f"{the_set_name}_{measure}"] = the_set.__getattribute__(f"get_{measure}")()
 
     with Timer("Save model"):
         metadata = combine_metadata( ds.get_metadata(), feature_extractor.get_metadata(), predictor.get_metadata() )
-        save_file(predictor.state_dict(),args['save_model_path'],metadata=metadata)
+        save_file(predictor.state_dict(),args['save_model'],metadata=metadata)
 
     return metrics
 
 if __name__=='__main__':
-    get_args(aesthetic_training=True, aesthetic_model=True)
+    show_args()
     name = f"{metaparameter_args['name']}_{random.randint(10000,99999)}" if metaparameter_args.get('name',None) else None
 
-    best_keeper = BestKeeper(save_model_path=args['save_model_path'], minimise=(not args['parameter_for_scoring'].endswith("_ab")))
+    best_keeper = BestKeeper(save_model_path=args['save_model'], minimise=(not args['parameter_for_scoring'].endswith("_ab")))
 
     with Timer('Build datasets from images') as logger:
         data = DataHolder(top_level=args['top_level_image_directory'], 
-                          save_model_folder=args['save_model'], 
                           use_score_file=args['scorefile'], 
                           fraction_for_test=args['fraction_for_test'],
                           test_pick_seed=args['test_pick_seed'])
         df = data.get_dataframe()
         ds = QuickDataset(df)
 
-        feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=args['clip_model'], image_directory=args['top_level_image_directory'], device="cuda")
+        feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=args['feature_extractor_model'], image_directory=args['top_level_image_directory'], device="cuda")
         feature_extractor.precache((f for f in df['image']))
         df['features'] = [feature_extractor.get_features_from_file(f, device="cpu") for f in df['image']]
         
@@ -104,10 +100,6 @@ if __name__=='__main__':
             result = train_predictor(feature_extractor, ds, eds, tds)
             score = result[args['parameter_for_scoring']]
             for r in result: trial.set_user_attr(r, float(result[r]))
-
-            if best_keeper.bad_by(score, args['prune_bad_by'], args['prune_bad_limit']): 
-                logger(f"Pruning score {score}")
-                raise optuna.TrialPruned()
 
             best_keeper.keep_if_best(score)
 

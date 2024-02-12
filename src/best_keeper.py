@@ -17,13 +17,3 @@ class BestKeeper:
         assert self.best_score is not None
         shutil.copyfile(self.best_temp, self.save_model_path)
         return self.save_model_path
-
-    def bad_by(self, score, margin, absolute):
-        if score is None: return True
-        if absolute is not None:
-            if (score > absolute and self.minimise) or (score < absolute and not self.minimise): return True
-
-        if self.best_score is not None and margin is not None:
-            if (score > self.best_score + margin and self.minimise) or (score < self.best_score - margin and not self.minimise): return True
-
-        return False

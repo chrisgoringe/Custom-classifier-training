@@ -1,34 +1,33 @@
 from src.time_context import Timer
 with Timer("python imports"):
-    from arguments import args, get_args
-    from src.ap.feature_extractor import FeatureExtractor
     from src.ap.aesthetic_predictor import AestheticPredictor
     from renumics import spotlight
     from src.ap.image_scores import ImageScores
     from pandas import DataFrame
     import torch, json, os
 
+class Args:
+    top_level_image_directory = ""
+    model = ""
+    scorefile = ""
+    splitfile = ""
+
 def main():
-    get_args(aesthetic_model=True, show_training_args=False, show_args=False)
-    top_level_images = args['top_level_image_directory']
-    if not args.get('load_model_path', None):
-        print("load_model not specified, assuming it is save_model")
-        args['load_model_path'] = args['save_model_path']
-    
+    top_level_images = Args.top_level_image_directory
+
     with Timer('load models'):
-        feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=args['clip_model'], image_directory=top_level_images)
-        predictor = AestheticPredictor(pretrained=args['load_model_path'], feature_extractor=feature_extractor, input_size=feature_extractor.number_of_features)
+        predictor = AestheticPredictor.from_pretrained(pretrained=Args.model)
         predictor.eval()
 
     with Timer("prepare data"):
         with torch.no_grad():
             df = DataFrame()
-            database_scores = ImageScores.from_scorefile(top_level_images, args['scorefile'])
-            feature_extractor.precache(database_scores.image_files(fullpath=True))
+            database_scores = ImageScores.from_scorefile(top_level_images, Args.scorefile)
+            predictor.precache(database_scores.image_files(fullpath=True))
             model_scores = ImageScores.from_evaluator(predictor.evaluate_file, database_scores.image_files(), top_level_images)
             splits = {}
-            if 'splitfile' in args and args['splitfile']:
-                split_path = os.path.join(top_level_images, args['splitfile'])
+            if Args.splitfile:
+                split_path = os.path.join(top_level_images, Args.splitfile)
                 if os.path.exists(split_path):
                     splits = json.load(open(split_path))
 

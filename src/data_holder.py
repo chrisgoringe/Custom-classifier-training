@@ -16,7 +16,7 @@ def valid_directory(dir_path:str):
     return False
 
 class DataHolder:
-    def __init__(self, top_level:str, save_model_folder:str=None, fraction_for_test:float=0.25, test_pick_seed:int=42, use_score_file:str=None):
+    def __init__(self, top_level:str, fraction_for_test:float=0.25, test_pick_seed:int=42, use_score_file:str=None):
         self.df = pd.DataFrame(columns=["image","score","split"])
         self.labels = []
         self.fraction_for_test = fraction_for_test
