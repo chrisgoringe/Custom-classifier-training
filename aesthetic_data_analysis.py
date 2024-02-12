@@ -9,18 +9,21 @@ class Args:
     top_level_image_directory = r"training4"
     scorefile = "scores.json"
     splitfile = "split.json"
-    test_split_only = True
+    test_split_only = True        # Only include files that were in the 'test' (or eval) split of the training
 
-    load_and_run_model = True
-    model = r"training4\model.safetensors"
-    save_model_score_and_errors = False
+    load_and_run_model = True     # If True, specify the model in the next line
+    model = r"training4\model.safetensors" # Relative to the script; all other files are relative to the top_level_image_directory
+    save_model_score_and_errors = False  # If True, save model scores and errors in the next two files
     save_model_scorefile = "model_scores.json"
     save_error_scorefile = "error_scores.json"
 
-    load_model_scorefile = False
+    load_model_scorefile = False  # If not loading and running a model, can just load a scorefile
     model_scorefile = "model_scores.json"
 
-    regexes = []
+    regexes = []    # Zero or more regexes (as strings to be compiled). The analysis will run on (subject to the test_split constraint)
+                    # - all files 
+                    # - for each subfolder, just the files in it
+                    # - for each regex, just the files whose path matches the regex
 
 def compare(label:str, database_scores:ImageScores, model_scores:ImageScores, **kwargs):
     scores = database_scores.scores(normalised=False, **kwargs)
