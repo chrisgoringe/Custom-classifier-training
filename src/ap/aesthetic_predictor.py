@@ -6,14 +6,16 @@ import os, json
 
 class AestheticPredictor(nn.Module):
     @classmethod
-    def from_pretrained(cls, pretrained:str, use_cache=True, base_directory=None, image_directory=None, explicit_nof=None):
+    def from_pretrained(cls, pretrained:str, use_cache=True, base_directory=".", image_directory=None, explicit_nof=None, **feargs):
         metadata, _ = cls.load_metadata_and_sd(pretrained=pretrained, return_sd=False)
         fe_model = metadata["feature_extractor_model"]
-        if base_directory and os.path.exists(os.path.join(base_directory, fe_model)): fe_model = os.path.join(base_directory, fe_model)
+        if os.path.exists(os.path.join(base_directory, fe_model)): fe_model = os.path.join(base_directory, fe_model)
         feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=fe_model, 
                                                                    use_cache=use_cache, 
                                                                    base_directory=base_directory, 
-                                                                   image_directory=image_directory) if explicit_nof is None else explicit_nof
+                                                                   image_directory=image_directory,
+                                                                   ap_metadata=metadata,
+                                                                   **feargs) if explicit_nof is None else explicit_nof
         return AestheticPredictor(feature_extractor=feature_extractor, pretrained=pretrained)
     
     def precache(self, image_filepaths:list):
@@ -34,6 +36,7 @@ class AestheticPredictor(nn.Module):
 
         self.output_channels = int(self.metadata['output_channels']) if 'output_channels' in self.metadata else kwargs.get('output_channels',1)
         self.final_layer_bias = self.metadata['final_layer_bias']=="True" if 'final_layer_bias' in self.metadata else kwargs.get('final_layer_bias', True)
+        self.weight_n_output_layers = int(self.metadata['weight_n_output_layers']) if 'weight_n_output_layers' in self.metadata else kwargs.get('weight_n_output_layers', 0)
 
         hidden_layer_sizes = [int(x) for x in self.metadata.get('layers','[0]')[1:-1].split(',')] if 'layers' in self.metadata else hidden_layer_sizes
         while len(dropouts) < len(hidden_layer_sizes)+1: dropouts.append(0)
@@ -60,6 +63,7 @@ class AestheticPredictor(nn.Module):
         self.metadata['feature_extractor_model'] = self.metadata.get('feature_extractor_model',None) or feature_extractor.metadata["feature_extractor_model"]
         self.metadata['output_channels'] = str(self.output_channels)
         self.metadata['final_layer_bias'] = str(self.final_layer_bias)
+        self.metadata['weight_n_output_layers'] = str(self.weight_n_output_layers)
 
         if isinstance(self.feature_extractor,int): 
             nof = feature_extractor
@@ -67,6 +71,10 @@ class AestheticPredictor(nn.Module):
         else:
             nof = feature_extractor.number_of_features
 
+        self.preprocess = None
+        if self.weight_n_output_layers:
+            self.preprocess = nn.Linear(self.weight_n_output_layers, 1, bias=False)
+            self.feature_extractor.return_n_output_layers = self.weight_n_output_layers
         self.parallel_blocks = torch.nn.ModuleList(
             (self.build_block(nof, hls, dropouts[i]) for i, hls in enumerate(hidden_layer_sizes))
         )
@@ -110,7 +118,12 @@ class AestheticPredictor(nn.Module):
         return self.metadata
 
     def forward(self, x, **kwargs):
-        primary = torch.cat(tuple(block(x) for block in self.parallel_blocks), dim=1)
+        if self.preprocess:
+            xp = self.preprocess(x.permute((0,2,1)))
+            xp = xp.reshape((x.shape[0],-1))
+        else:
+            xp = x
+        primary = torch.cat(tuple(block(xp) for block in self.parallel_blocks), dim=1)
         return primary
         
     def evaluate_image(self, img):

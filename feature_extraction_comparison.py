@@ -4,13 +4,13 @@ import torch
 import matplotlib.pyplot as plt
 
 class Args:
-    top_level_image_directory = ""
+    directory = ""
     feature_extractor_model = ""
 
 mse = torch.nn.MSELoss()
 
 def compare_images(imgfilenames:list[str]):
-    image_directory = Args.top_level_image_directory
+    image_directory = Args.directory
     feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=Args.feature_extractor_model, image_directory=image_directory, device="cuda")
 
     features = [feature_extractor.get_features_from_file(os.path.join(image_directory,f), caching=True) for f in imgfilenames]

@@ -11,7 +11,7 @@ If load_model_path is specified, use the scores given by the model, otherwise us
 '''
 
 args = {
-    'top_level_image_directory' : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output",
+    'directory' : r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output",
     'clip_model'                : ["openai/clip-vit-large-patch14", "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"], 
     'load_model_path'           : None,
     "input_size"                : 2048,
@@ -44,7 +44,7 @@ def make_weighter(scores_list:list):
     
 
 def make_nudge_from_scores():
-    dir = args['top_level_image_directory']
+    dir = args['directory']
     scores:ImageScores = ImageScores.from_scorefile(dir)
     if args['load_model_path']:
         ap = AestheticPredictor(clipper=clipper, pretrained=args['load_model_path'], input_size=args['input_size'])
@@ -53,20 +53,20 @@ def make_nudge_from_scores():
     weighter = make_weighter(list(scores_dict[f] for f in scores_dict))
 
     clipper = FeatureExtractor.get_feature_extractor(image_directory=dir, pretrained=args[f"clip_model"])
-    clipper.precache(list(os.path.join(args['top_level_image_directory'],f) for f in scores_dict))
+    clipper.precache(list(os.path.join(args['directory'],f) for f in scores_dict))
     
     nudge = torch.zeros(args[f"input_size"]).cuda()
     for f in tqdm(scores_dict):
-        features = clipper.get_features_from_file(os.path.join(args['top_level_image_directory'],f))
+        features = clipper.get_features_from_file(os.path.join(args['directory'],f))
         nudge = nudge + features * weighter(scores_dict[f])
 
-    save_file({'nudge':nudge}, os.path.join(args['top_level_image_directory'], 'nudge.safetensors'))
+    save_file({'nudge':nudge}, os.path.join(args['directory'], 'nudge.safetensors'))
 
 def make_nudge_from_image(f:str):
-    dir = args['top_level_image_directory']
+    dir = args['directory']
     clipper = FeatureExtractor.get_feature_extractor(image_directory=dir, pretrained=args[f"clip_model"])
-    nudge = clipper.get_features_from_file(os.path.join(args['top_level_image_directory'],f))
-    save_file({'nudge':nudge}, os.path.join(args['top_level_image_directory'], os.path.splitext(f)[0]+".safetensors"))
+    nudge = clipper.get_features_from_file(os.path.join(args['directory'],f))
+    save_file({'nudge':nudge}, os.path.join(args['directory'], os.path.splitext(f)[0]+".safetensors"))
 
 if __name__=='__main__':
     #make_nudge_from_scores()

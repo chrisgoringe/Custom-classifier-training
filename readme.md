@@ -37,42 +37,31 @@ There must also be a `score.json` file. This is best generated using the image_a
 
 ## Configuration and running
 
-Edit `arguments.py`. You only really need to change `save_model` and `top_level_image_directory`.
+`python aesthetic_predictor_training.py -d=DIRECTORY`
 
-Basic settings:
+There are lots of other options: `python aesthetic_predictor_training.py --help` to see them. Some are discussed below.
 
-```python
-    # if restarting a previous run (or using other tools). Normally "" for training. 
-    "load_model"                : r"",
-    # where to save the model. 
-    "save_model"                : r"training4\model_trained_training4.safetensors",
-    # path to the top level image directory
-    "top_level_image_directory" : r"training4", 
-    # the scores to train from
-    "scorefile"                 : "scores.json",
-    # three additional (optional) output files: the scores as predicted by the model, the errors (scores - model_scores), and the split (train/test)
-    "model_scorefile"           : "model_scores.json",
-    "error_scorefile"           : "error_scores.json",
-    "splitfile"                 : "split.json",
-}
-```
+- `--loss_model` - `mse` (mean square error) is default, `ab` evaluates loss using MarginRankingLoss
+- `--parameter_for_scoring` - choosing the best model based on `mse` or `ab`, and using the `full`, `train`, or `test` portions.
 
-Then just run `python aesthetic_predictor_training.py`.
+Some more fancy (experimental!) options for defining the model
 
-Some other things you might want to change (see the notes in the arguments file)
-- `clip_model` - used as a feature extractor
-- `loss_model` - `mse` (mean square error) is default, `ab` evaluates loss using MarginRankingLoss
-- `parameter_for_scoring` - choosing the best model based on `mse` or `ab`, and using the `full`, `train`, or `test` portions.
+- `--feature_extractor_model` - used as a feature extractor - you don't have to use the default. More below.
+- `--hidden_states` - a comma separated list of which hidden states to use. Default is [0,] (the output), try things like [0,1,2,] to get three times as many features from the last three layers.
+- `--weight_n_output_layers=n` - instead of `--hidden_states`, have a trained weighting of the last `n` layers. Doesn't increase the number of features (so less danger of overfitting), but weights the layers.
 
 # Metaparameters
 
-Model training is so fast that we do a metaparameter search instead of choosing. Below are the things you could tweak
+Model training is so fast that we do a metaparameter search instead of choosing. 
+
+- `--name` to give the run a name
+- `--trials` to set the number of trials in the run
+- `--sampler` choice of sampler for Optuna metaparameter search
+
+Below are the things you could tweak in `arguments.py`:
+
 ```python
 metaparameter_args = {
-    "name"              : None,     # name used by Optuna Dashboard
-    "meta_trials"       : 200,
-    "sampler"           : "CmaEs",      # CmaEs, random, QMC.  CmaEs seems to work best
-
     # Each of these is a tuple (min, max) or a value.
     "num_train_epochs"   : (5, 50),
     "warmup_ratio"       : (0.0, 0.2),
@@ -86,6 +75,23 @@ metaparameter_args = {
     "hidden_layers"      : [ (10, 1000), (10, 1000), ],
 }
 ```
+
+# Feature Extractor Models
+
+--feature_extractor_model
+
+This is a list, or a string; if there are multiple entries the features are concatenated.
+
+Default is laion/CLIP-ViT-H-14-laion2B-s32B-b79K, which has been resaved in torch.half format as ChrisGoringe/vitH16
+
+SDXL uses [openai/clip-vit-large-patch14, laion/CLIP-ViT-bigG-14-laion2B-39B-b160k] (mostly the second?)
+see https://github.com/huggingface/diffusers/blob/v0.26.2/src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py#L149
+
+SD1.5 uses [openai/clip-vit-large-patch14]
+see https://github.com/huggingface/diffusers/blob/v0.26.2/src/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion.py#L312
+
+Others include:
+apple/aim-600M, apple/aim-1B, apple/aim-3B, apple/aim-7B, laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K     
 
 # Monitoring training
 

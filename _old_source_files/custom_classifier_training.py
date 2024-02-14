@@ -9,7 +9,7 @@ VERSION = "0.3"
 
 def load_data():
     with Timer("load"):
-        dh = DataHolder(args['top_level_image_directory'], args['save_model'], args['fraction_for_test'], args['test_pick_seed'])
+        dh = DataHolder(args['directory'], args['save_model'], args['fraction_for_test'], args['test_pick_seed'])
         df = dh.get_dataframe()
         category_sizes = dh.sizes
         return df, category_sizes

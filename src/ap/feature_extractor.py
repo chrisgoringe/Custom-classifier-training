@@ -3,7 +3,7 @@ from PIL import Image
 from safetensors.torch import save_file, load_file
 import os
 from torch._tensor import Tensor
-from transformers import AutoProcessor, CLIPModel, AutoTokenizer
+from transformers import AutoProcessor, CLIPModel, AutoTokenizer, CLIPTextModelWithProjection
 from tqdm import tqdm
 
 try:
@@ -34,7 +34,7 @@ class FeatureExtractor:
         else:
             return Transformers_FeatureExtractor(pretrained=pretrained, **kwargs)
 
-    def __init__(self, pretrained, device="cuda", image_directory=".", use_cache=True, base_directory=None):
+    def __init__(self, pretrained, device="cuda", image_directory=".", use_cache=True, base_directory="."):
         self.metadata = {"feature_extractor_model":pretrained if isinstance(pretrained,str) else "___".join(pretrained)}
         self.device = device
         self.image_directory = image_directory
@@ -46,14 +46,12 @@ class FeatureExtractor:
         self.dtype = torch.float
 
         self.cached = {}
-        unique_name = pretrained if isinstance(pretrained, str) else "__".join(pretrained)
-        self.cachefile = os.path.join(image_directory,f"featurecache.{unique_name.replace('/','_').replace(':','_')}.safetensors")
         if self.use_cache:
             if os.path.exists(self.cachefile):
                 self.cached = load_file(self.cachefile, device=self.device)
                 if len(self.cached):
                     print(f"Reloaded features from {self.cachefile} - delete this file if you don't want to do that")
-                    self.number_of_features = len(next(iter(self.cached.values())))
+                    self.number_of_features = next(iter(self.cached.values())).shape[-1]
                     return
                 else:
                     self._load()
@@ -61,8 +59,13 @@ class FeatureExtractor:
         self._load()
 
     @property
+    def cachefile(self):
+        unique_name = self.pretrained if isinstance(self.pretrained, str) else "__".join(self.pretrained)
+        return os.path.join(self.image_directory,f"featurecache.{unique_name.replace('/','_').replace(':','_')}.safetensors")        
+
+    @property
     def model_path(self):
-        return os.path.join(self.base_directory, self.pretrained) if self.base_directory else self.pretrained
+        return os.path.join(self.base_directory, self.pretrained)
     
     def get_features_from_file(self, filepath, device="cuda", caching=False):
         rel = os.path.relpath(filepath, self.image_directory)
@@ -136,14 +139,56 @@ class TextFeatureExtractor:
    
 class Transformers_FeatureExtractor(FeatureExtractor):
     def __init__(self, **kwargs):
+        self.hidden_states = kwargs.pop('hidden_states', [0,])
+        ap_metadata = kwargs.pop('ap_metadata', {})
+        if 'hidden_states' in ap_metadata:
+            self.hidden_states = list(int(x) for x in ap_metadata['hidden_states'].split('_'))
+        if 'weight_n_output_layers' in ap_metadata:
+            self.return_n_output_layers = int(ap_metadata['weight_n_output_layers'])
+        else:
+            self.return_n_output_layers = kwargs.pop('weight_n_output_layers',0)
+        if self.return_n_output_layers: self.hidden_states = [0,]
         super().__init__(**kwargs)
+        self.metadata['hidden_states'] = "_".join(str(x) for x in self.hidden_states)
 
     def _load(self):
         self.model = CLIPModel.from_pretrained(self.pretrained, cache_dir="models")
-        self.number_of_features = self.model.projection_dim
+        self.number_of_features = self.model.projection_dim * len(self.hidden_states)
+        self.metadata['number_of_features'] = str(self.number_of_features)
         self.model.text_model = None
         self.model.to(self.device)
         self.processor = AutoProcessor.from_pretrained(self.realname(self.pretrained), cache_dir="models")
+
+    @property
+    def cachefile(self):
+        unique_name = self.pretrained 
+        if not (len(self.hidden_states)==1 and self.hidden_states[0]==0):
+            unique_name = unique_name + "_" + "_".join(str(x) for x in self.hidden_states)
+        if self.return_n_output_layers:
+            unique_name = self.pretrained + f"_last{self.return_n_output_layers}"
+        return os.path.join(self.image_directory,f"featurecache.{unique_name.replace('/','_').replace(':','_')}.safetensors")     
+
+    def _get_image_features(self, pixel_values, hidden_state):
+        vision_outputs = self.model.vision_model(
+            pixel_values=pixel_values,
+            output_attentions=False,
+            output_hidden_states=True,
+            return_dict=True,
+        )
+        poolable = vision_outputs.hidden_states[-1-hidden_state][:,0,:]
+        pooled_output = self.model.vision_model.post_layernorm(poolable)
+        image_features = self.model.visual_projection(pooled_output)
+        return image_features.flatten()
+    
+    def _get_image_features_n_layers(self, n, pixel_values):
+        vision_outputs = self.model.vision_model(
+            pixel_values=pixel_values,
+            output_attentions=False,
+            output_hidden_states=True,
+            return_dict=True,
+        )
+        image_features = torch.cat(list(self.model.visual_projection(self.model.vision_model.post_layernorm(x[:,0,:])) for x in vision_outputs.hidden_states[-n:]))
+        return image_features
 
     def _get_image_features_tensor(self, image:Image) -> torch.Tensor:
         if self.model==None: self._load()
@@ -151,11 +196,15 @@ class Transformers_FeatureExtractor(FeatureExtractor):
             inputs = self.processor(images=image, return_tensors="pt")
             for k in inputs:
                 if isinstance(inputs[k],torch.Tensor): inputs[k] = inputs[k].to(self.device)
-            outputs = self.model.get_image_features(output_hidden_states=True, **inputs)
+            if self.return_n_output_layers:
+                return self._get_image_features_n_layers(self.return_n_output_layers, **inputs)
+            outputs = torch.cat(tuple(self._get_image_features(**inputs, hidden_state=x) for x in self.hidden_states))
             return outputs.flatten()
         
 class Apple_FeatureExtractor(FeatureExtractor):
     def __init__(self, **kwargs):
+        if (hs := kwargs.pop('hidden_states', None)): print(f"hidden_states not implemented for Apple_FeatureExtractor - ignoring {hs}")
+        kwargs.pop('ap_metadata', None)
         super().__init__(**kwargs)
         
     def _load(self):

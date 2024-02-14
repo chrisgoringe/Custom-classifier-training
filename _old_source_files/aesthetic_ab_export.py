@@ -3,7 +3,7 @@ import os, shutil, json, random
 
 args = {
     # Where are the images?
-    'top_level_image_directory':r"SOURCE/DIRECTORY",
+    'directory':r"SOURCE/DIRECTORY",
 
     # export directory
     'export_directory':r"OUTPUT/DIRECTORY",
@@ -24,8 +24,8 @@ def random_name():
     return "".join( random.choices('abcdefghijklmnopqrstuvwxyz',k=8) )
 
 def export():
-    assert os.path.exists(args['top_level_image_directory']), f"{args['top_level_image_directory']} not found"
-    d = Database(args['top_level_image_directory'])
+    assert os.path.exists(args['directory']), f"{args['directory']} not found"
+    d = Database(args['directory'])
     list = d.sorted_list(best_first=True)
     if not os.path.exists(args['export_directory']): os.makedirs(args['export_directory'])
     minimum = args['minimum_score'] if args['minimum_score'] is not None else float('-inf')
@@ -38,7 +38,7 @@ def export():
                        'score':score,
                        'randomname':random_name(),
             }
-            old_filepath = os.path.join(args['top_level_image_directory'], filename)
+            old_filepath = os.path.join(args['directory'], filename)
             if os.path.exists(old_filepath):
                 new_filename = args['filename_format'].format(**details)
                 new_filepath = os.path.join(args['export_directory'], new_filename)

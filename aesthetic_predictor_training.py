@@ -3,7 +3,7 @@ from src.time_context import Timer
 with Timer("Python imports"):
     import torch
     from safetensors.torch import save_file
-    import math, random
+    import math, random, os
 
     from src.data_holder import DataHolder
     from transformers import TrainingArguments
@@ -11,7 +11,7 @@ with Timer("Python imports"):
 
     from src.ap.dataset import QuickDataset
 
-    from arguments import training_args, args, show_args, metaparameter_args, MetaRangeProcessor, aesthetic_model_extras, trainer_extras
+    from arguments import Args 
     from src.ap.feature_extractor import FeatureExtractor
     from src.ap.aesthetic_predictor import AestheticPredictor
     from src.ap.ap_trainers import CustomTrainer, EvaluationCallback
@@ -28,49 +28,54 @@ def combine_metadata(*args):
 def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:QuickDataset, tds:QuickDataset):
     with Timer('Create model'):
         predictor = AestheticPredictor(pretrained=None, feature_extractor=feature_extractor, 
-                                       dropouts=args['dropouts'], hidden_layer_sizes=args['hidden_layers'],
-                                       dropouts_0=args.get('dropouts_0',None), hidden_layer_sizes_0=args.get('hidden_layers_0',None),
-                                       output_channels=(2 if args['loss_model']=="nll" else 1),
-                                       **aesthetic_model_extras)
+                                       dropouts=Args.dropouts, hidden_layer_sizes=Args.hidden_layers,
+                                       dropouts_0=Args.get('dropouts_0',None), hidden_layer_sizes_0=Args.get('hidden_layers_0',None),
+                                       output_channels=Args.output_channels,
+                                       **Args.aesthetic_model_extras)
 
     with Timer('Train model'):
-        train_args = TrainingArguments( remove_unused_columns=False, **training_args )
-        trainer = CustomTrainer.trainer(loss = args['loss_model'], model = predictor, 
+        train_args = TrainingArguments( remove_unused_columns=False, **Args.training_args )
+        trainer = CustomTrainer.trainer(loss = Args.loss_model, model = predictor, 
                                         train_dataset = tds, eval_dataset = eds, 
                                         args = train_args, callbacks = [EvaluationCallback((tds,eds,ds)),],
-                                        **trainer_extras )
+                                        **Args.trainer_extras )
         trainer.train()
 
     with Timer("Evaluate model"):
         predictor.eval()
         with torch.no_grad(): ds.update_prediction(predictor)
         metrics = {}
-        for measure in args['measures']:
+        for measure in Args.measures:
             for the_set, the_set_name in ((ds, "full"),(tds, "train"),(eds, "eval")):
                 with Timer(f"{the_set_name}_{measure}"):
                     metrics[f"{the_set_name}_{measure}"] = the_set.__getattribute__(f"get_{measure}")()
 
     with Timer("Save model"):
         metadata = combine_metadata( ds.get_metadata(), feature_extractor.get_metadata(), predictor.get_metadata() )
-        save_file(predictor.state_dict(),args['save_model'],metadata=metadata)
+        save_file(predictor.state_dict(),Args.save_model_path,metadata=metadata)
 
     return metrics
 
-if __name__=='__main__':
-    show_args()
-    name = f"{metaparameter_args['name']}_{random.randint(10000,99999)}" if metaparameter_args.get('name',None) else None
+def validate():
+    assert os.path.isdir(Args.directory), f"{Args.directory} doesn't exist or isn't a directory"
+    assert os.path.exists(os.path.join(Args.directory, Args.scores)), f"{os.path.join(Args.directory, Args.scores)} not found"
 
-    best_keeper = BestKeeper(save_model_path=args['save_model'], minimise=(not args['parameter_for_scoring'].endswith("_ab")))
+if __name__=='__main__':
+    Args.parse_arguments(show=True)
+    validate()
+    name = f"{Args.get('name','')}_{random.randint(10000,99999)}"
+
+    best_keeper = BestKeeper(save_model_path=Args.save_model_path, minimise=Args.best_minimize)
 
     with Timer('Build datasets from images') as logger:
-        data = DataHolder(top_level=args['top_level_image_directory'], 
-                          use_score_file=args['scorefile'], 
-                          fraction_for_test=args['fraction_for_test'],
-                          test_pick_seed=args['test_pick_seed'])
+        data = DataHolder(top_level=Args.directory, 
+                          use_score_file=Args.scores, 
+                          fraction_for_test=Args.fraction_for_test,
+                          test_pick_seed=Args.test_pick_seed)
         df = data.get_dataframe()
         ds = QuickDataset(df)
 
-        feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=args['feature_extractor_model'], image_directory=args['top_level_image_directory'], device="cuda")
+        feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=Args.feature_extractor_model, image_directory=Args.directory, device="cuda", **Args.feature_extractor_extras)
         feature_extractor.precache((f for f in df['image']))
         df['features'] = [feature_extractor.get_features_from_file(f, device="cpu") for f in df['image']]
         
@@ -80,54 +85,50 @@ if __name__=='__main__':
         logger(f"{len(ds)} images ({len(tds)} training, {len(eds)} evaluation)")
 
     with Timer("Metaparameter search"):
-        mrp = MetaRangeProcessor()
+        ta = Args.training_args
+        ma = Args.metaparameter_args
         def objective(trial:optuna.trial.Trial):
-            training_args['num_train_epochs']            =             mrp.meta(trial.suggest_int,  'num_train_epochs',  metaparameter_args['num_train_epochs'])
-            training_args['learning_rate']               = math.pow(10,mrp.meta(trial.suggest_float,'log_learning_rate', metaparameter_args['log_learning_rate']))
-            training_args['per_device_train_batch_size'] =         2 * mrp.meta(trial.suggest_int,  'half_batch_size',   metaparameter_args['half_batch_size'])
-            training_args['warmup_ratio']                =             mrp.meta(trial.suggest_float,'warmup_ratio',      metaparameter_args['warmup_ratio'])
-
-            for i,k in enumerate(trainer_extras.get('special_lr_parameters',[])):
-                trainer_extras['special_lr_parameters'][k] = math.pow(10,mrp.meta(trial.suggest_float, f"special_lr_{i}", metaparameter_args['delta_log_spec_lr']))
+            ta['num_train_epochs']            =             Args.meta(trial.suggest_int,  'num_train_epochs',  ma['num_train_epochs'])
+            ta['learning_rate']               = math.pow(10,Args.meta(trial.suggest_float,'log_learning_rate', ma['log_learning_rate']))
+            ta['per_device_train_batch_size'] =         2 * Args.meta(trial.suggest_int,  'half_batch_size',   ma['half_batch_size'])
+            ta['warmup_ratio']                =             Args.meta(trial.suggest_float,'warmup_ratio',      ma['warmup_ratio'])
 
             for suffix in ('', '_0'):
-                if f"dropouts{suffix}" in metaparameter_args and metaparameter_args[f"dropouts{suffix}"]:
-                    args[f"dropouts{suffix}"]      = mrp.meta_list(trial.suggest_float, f"dropouts{suffix}",    metaparameter_args[f"dropouts{suffix}"] )
+                if f"dropouts{suffix}" in ma and ma[f"dropouts{suffix}"]:
+                    Args.set(f"dropouts{suffix}", Args.meta_list(trial.suggest_float, f"dropouts{suffix}", ma[f"dropouts{suffix}"] ))
 
-                if f"hidden_layers{suffix}" in metaparameter_args and metaparameter_args[f"hidden_layers{suffix}"]:
-                    args[f"hidden_layers{suffix}"] = mrp.meta_list(trial.suggest_int,   f"hidden_layers{suffix}",metaparameter_args[f"hidden_layers{suffix}"] )
+                if f"hidden_layers{suffix}" in ma and ma[f"hidden_layers{suffix}"]:
+                    Args.set(f"hidden_layers{suffix}", Args.meta_list(trial.suggest_int,   f"hidden_layers{suffix}", ma[f"hidden_layers{suffix}"] ))
 
             trial.set_user_attr("Input number of features", feature_extractor.number_of_features)
             result = train_predictor(feature_extractor, ds, eds, tds)
-            score = result[args['parameter_for_scoring']]
+            score = result[Args.parameter_for_scoring]
             for r in result: trial.set_user_attr(r, float(result[r]))
 
             best_keeper.keep_if_best(score)
 
             return score
 
-        sampler = None
-        if 'sampler' in metaparameter_args and metaparameter_args['sampler']:
-            if metaparameter_args['sampler']=="CmaEs": sampler = optuna.samplers.CmaEsSampler()
-            elif metaparameter_args['sampler']=="random": sampler = optuna.samplers.RandomSampler()
-            elif metaparameter_args['sampler']=="QMC": sampler = optuna.samplers.QMCSampler()
-            else: raise NotImplementedError()
+        if Args.sampler=="CmaEs": sampler = optuna.samplers.CmaEsSampler()
+        elif Args.sampler=="random": sampler = optuna.samplers.RandomSampler()
+        elif Args.sampler=="QMC": sampler = optuna.samplers.QMCSampler()
+        else: raise NotImplementedError()
 
-        study:optuna.study.Study = optuna.create_study(study_name=name, direction=args['direction'], sampler=sampler, storage=r"sqlite:///db.sqlite")
+        study:optuna.study.Study = optuna.create_study(study_name=name, direction=Args.direction, sampler=sampler, storage=r"sqlite:///db.sqlite")
         print(f"optuna-dashboard sqlite:///db.sqlite")
-        for k in metaparameter_args: study.set_user_attr(k, metaparameter_args[k])
-        for k in args: study.set_user_attr(k, args[k])
+        for k in ma: study.set_user_attr(k, ma[k])
+        for k in Args.keys: study.set_user_attr(k, Args.get(k))
         study.set_user_attr("image_count", len(df))
 
-        study.optimize(objective, n_trials=metaparameter_args['meta_trials'])
+        study.optimize(objective, n_trials=Args.trials)
 
     with Timer('Save results'):
         best_filepath = best_keeper.restore_best()
 
-        predictor = AestheticPredictor.from_pretrained(pretrained=best_filepath, image_directory=args['top_level_image_directory'])
+        predictor = AestheticPredictor.from_pretrained(pretrained=best_filepath, image_directory=Args.directory)
         predictor.eval()
         with torch.no_grad():
             create_scorefiles(predictor, database_scores=data.get_image_scores(), 
-                            model_scorefile=args.get("model_scorefile",None), 
-                            error_scorefile=args.get("error_scorefile",None))
-            data.save_split(args.get('splitfile',None))
+                            model_scorefile=Args.get("model_scorefile",None), 
+                            error_scorefile=Args.get("error_scorefile",None))
+            data.save_split(Args.get('splitfile',None))

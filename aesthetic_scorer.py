@@ -3,11 +3,11 @@ import os
 from src.ap.aesthetic_predictor import AestheticPredictor
 
 class Args:
-    top_level_image_directory = ""
+    directory = ""
     load_model = ""
 
 def print_image_scores():
-    image_score_file = ImageScores.from_directory(Args.top_level_image_directory)
+    image_score_file = ImageScores.from_directory(Args.directory)
 
     ap = AestheticPredictor.from_pretrained(pretrained=Args.load_model)
     ap.precache(image_score_file.image_files(fullpath=True))
@@ -16,7 +16,7 @@ def print_image_scores():
     unsorted_scores = image_score_file.scores_dictionary()
     model_scores = sorted((unsorted_scores[f], f) for f in unsorted_scores)
 
-    with open(os.path.join(Args.top_level_image_directory, "model_scores.csv"),'w') as f:
+    with open(os.path.join(Args.directory, "model_scores.csv"),'w') as f:
         for score, filename in model_scores:
             print(f"{filename},{score}",file=f)     
 

@@ -8,7 +8,7 @@ do_analyse = True
 
 args = {
     # Where are the images?
-    'top_level_image_directory':r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\compare2",
+    'directory':r"C:\Users\chris\Documents\GitHub\ComfyUI_windows_portable\ComfyUI\output\compare2",
 
     # How strongly to prefer images that have been shown less. Values 0-0.9999 
     # 0 = totally random, 0.999 = very very strong preference
@@ -75,8 +75,8 @@ class TheApp:
             print(self.db.choices_made())
 
 def main():
-    assert os.path.exists(args['top_level_image_directory']), f"{args['top_level_image_directory']} not found"
-    db = Database(args['top_level_image_directory'], args, low_count_weight=args['low_count_weight'], threshold=args['threshold'])
+    assert os.path.exists(args['directory']), f"{args['directory']} not found"
+    db = Database(args['directory'], args, low_count_weight=args['low_count_weight'], threshold=args['threshold'])
     print(f"{len(db)} images")
 
     TheApp(args['ab_scorer_size'], args['ab_max_width_ratio'], args['ab_image_count'], db).app.mainloop()
@@ -85,15 +85,15 @@ def main():
         for result in results:
             print("{:>30} : {:>6.3f} ({:>3} tests)".format(*result))
     if args['save_csv']:
-        with open(os.path.join(args['top_level_image_directory'],'scores.csv'),'w') as f:
+        with open(os.path.join(args['directory'],'scores.csv'),'w') as f:
             for result in results:
                 print("{:>30},{:>6.3f}".format(*result), file=f)
 
 def analyse():
-    database_scores:ImageScores = ImageScores.from_scorefile(args['top_level_image_directory'])
+    database_scores:ImageScores = ImageScores.from_scorefile(args['directory'])
     named_results = []
-    for thing in os.listdir(args['top_level_image_directory']):
-        if os.path.isdir(os.path.join(args['top_level_image_directory'],thing)):
+    for thing in os.listdir(args['directory']):
+        if os.path.isdir(os.path.join(args['directory'],thing)):
             scores = database_scores.scores(normalised=True, directory=thing)
             results = (len(scores),statistics.mean(scores),statistics.stdev(scores))
             named_results.append( (thing, *results) )
