@@ -17,6 +17,9 @@ with Timer("Python imports"):
     from src.ap.ap_trainers import CustomTrainer, EvaluationCallback
     from src.best_keeper import BestKeeper
     from src.ap.create_scorefiles import create_scorefiles
+    from src.ap.image_scores import ImageScores
+    from aesthetic_data_analysis import compare
+
 
 def combine_metadata(*args):
     metadata = {}
@@ -84,7 +87,7 @@ if __name__=='__main__':
 
     with Timer("Metaparameter search"):
         ta = Args.training_args
-        ma = Args.metaparameter_args
+        #ma = Args.metaparameter_args
         def objective(trial:optuna.trial.Trial):
             ta['num_train_epochs']            =             Args.meta(trial.suggest_int,  'num_train_epochs',  Args.train_epochs)
             ta['learning_rate']               = math.pow(10,Args.meta(trial.suggest_float,'log_learning_rate', Args.log_lr))
@@ -92,8 +95,10 @@ if __name__=='__main__':
             ta['warmup_ratio']                =             Args.meta(trial.suggest_float,'warmup_ratio',      Args.warmup_ratio)
             if Args.loss_model=='nll': ta['per_device_train_batch_size'] = ((ta['per_device_train_batch_size']+1)//2)*2
 
-            Args.set("dropouts", Args.meta_list(trial.suggest_float, "dropouts", ma["dropouts"] ))
-            Args.set("layers", Args.meta_list(trial.suggest_int, "layers", ma["layers"] ))
+            Args.set("layers", list( Args.meta(trial.suggest_int,  f"layer_size_{i}",  Args.layer_size) for i in (0,1) ) )
+            Args.set("dropouts", list( Args.meta(trial.suggest_float,  f"dropout_{i}",  Args.dropout) for i in (0,1) ) )
+            #Args.set("dropouts", Args.meta_list(trial.suggest_float, "dropouts", ma["dropouts"] ))
+            #Args.set("layers", Args.meta_list(trial.suggest_int, "layers", ma["layers"] ))
 
             trial.set_user_attr("Input number of features", feature_extractor.number_of_features)
             result = train_predictor(feature_extractor, ds, eds, tds)
@@ -112,7 +117,7 @@ if __name__=='__main__':
 
         study:optuna.study.Study = optuna.create_study(study_name=name, direction=Args.direction, sampler=sampler, storage=r"sqlite:///db.sqlite")
         print(f"optuna-dashboard sqlite:///db.sqlite")
-        for k in ma: study.set_user_attr(k, ma[k])
+        #for k in ma: study.set_user_attr(k, ma[k])
         for k in Args.keys: study.set_user_attr(k, Args.get(k))
         study.set_user_attr("image_count", len(df))
 
@@ -127,4 +132,10 @@ if __name__=='__main__':
             create_scorefiles(predictor, database_scores=data.get_image_scores(), 
                             model_scorefile=Args.get("model_scorefile",None), 
                             error_scorefile=Args.get("error_scorefile",None))
-            data.save_split(Args.get('splitfile',None))
+            data.save_split(Args.get('split',None))
+
+    with Timer('Statistics'):
+        with torch.no_grad():
+            db_scores = ImageScores.from_scorefile(Args.directory, Args.scores, splitfile=Args.split, split='test')
+            model_scores = ImageScores.from_evaluator(predictor.evaluate_file, db_scores.image_files(), Args.directory)
+            compare("Best model", db_scores, model_scores)
