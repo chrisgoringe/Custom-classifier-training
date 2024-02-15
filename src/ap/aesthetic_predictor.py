@@ -10,12 +10,12 @@ def to_bool(s):
     raise NotImplementedError()
 
 def to_int_list(s):
-    if isinstance(s,str): list(int(x) for x in s[1:-1].split(','))
+    if isinstance(s,str): return list(int(x) for x in s[1:-1].split(',') if x)
     if isinstance(s,list): return s
     raise NotImplementedError()
 
 def to_float_list(s):
-    if isinstance(s,str): list(float(x) for x in s[1:-1].split(','))
+    if isinstance(s,str): return list(float(x) for x in s[1:-1].split(',') if x)
     if isinstance(s,list): return s
     raise NotImplementedError()
     
@@ -80,7 +80,7 @@ class AestheticPredictor(nn.Module):
             self.main_process.append(nn.Linear(current_size, hidden_layer_size))
             self.main_process.append(nn.ReLU())
             current_size = hidden_layer_size
-        self.main_process.append(nn.Dropout(self.dropouts[-1]))
+        self.main_process.append(nn.Dropout(self.dropouts[-1] if self.dropouts else 0.0))
         self.main_process.append(nn.Linear(current_size, self.output_channels, bias=self.final_layer_bias))
 
         if sd: self.load_state_dict(sd)

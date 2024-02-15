@@ -49,7 +49,11 @@ class FeatureExtractor:
         self.dtype = torch.float
         
         self.return_n_output_layers = return_n_output_layers
+        if self.return_n_output_layers:
+            self.return_n_output_layers = int(self.return_n_output_layers)
         self.hidden_states = hidden_states
+        if self.hidden_states and isinstance(self.hidden_states,str):
+            self.hidden_states = list(int(x) for x in self.hidden_states[1:-1].split(',') if x)
         if self.hidden_states and self.return_n_output_layers: raise FeatureExtractorException("Can't specify a hidden states list and a weight_n_output_layers")
 
         self.cached = {}
@@ -204,7 +208,10 @@ class Transformers_FeatureExtractor(FeatureExtractor):
                 if isinstance(inputs[k],torch.Tensor): inputs[k] = inputs[k].to(self.device)
             if self.return_n_output_layers:
                 return self._get_image_features_n_layers(self.return_n_output_layers, **inputs)
-            outputs = torch.cat(tuple(self._get_image_features(**inputs, hidden_state=x) for x in self.hidden_states))
+            elif self.hidden_states:
+                outputs = torch.cat(tuple(self._get_image_features(**inputs, hidden_state=x) for x in self.hidden_states))
+            else:
+                outputs = self._get_image_features(**inputs, hidden_state=0)
             return outputs.flatten()
         
 class Apple_FeatureExtractor(FeatureExtractor):
