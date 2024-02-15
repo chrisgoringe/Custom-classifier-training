@@ -17,6 +17,9 @@ REALNAMES = {
     "ChrisGoringe/vitH16" : "laion/CLIP-ViT-H-14-laion2B-s32B-b79K",
 }
 
+class FeatureExtractorException(Exception):
+    pass
+
 class FeatureExtractor:
     @classmethod
     def realname(cls, pretrained):
@@ -34,7 +37,7 @@ class FeatureExtractor:
         else:
             return Transformers_FeatureExtractor(pretrained=pretrained, **kwargs)
 
-    def __init__(self, pretrained, device="cuda", image_directory=".", use_cache=True, base_directory="."):
+    def __init__(self, pretrained, device="cuda", image_directory=".", use_cache=True, base_directory=".", hidden_states=None, return_n_output_layers=None):
         self.metadata = {"feature_extractor_model":pretrained if isinstance(pretrained,str) else "___".join(pretrained)}
         self.device = device
         self.image_directory = image_directory
@@ -44,6 +47,10 @@ class FeatureExtractor:
         self.use_cache = use_cache
         self.base_directory = base_directory
         self.dtype = torch.float
+        
+        self.return_n_output_layers = return_n_output_layers
+        self.hidden_states = hidden_states
+        if self.hidden_states and self.return_n_output_layers: raise FeatureExtractorException("Can't specify a hidden states list and a weight_n_output_layers")
 
         self.cached = {}
         if self.use_cache:
@@ -57,6 +64,10 @@ class FeatureExtractor:
                     self._load()
             print(f"No feature cachefile found at {self.cachefile}")
         self._load()
+
+    def check_model(self, model):
+        if model and self.metadata["feature_extractor_model"]!=model:
+            raise FeatureExtractorException(f"Feature extractor has model {self.metadata['feature_extractor_model']} not {model}")
 
     @property
     def cachefile(self):
@@ -139,21 +150,16 @@ class TextFeatureExtractor:
    
 class Transformers_FeatureExtractor(FeatureExtractor):
     def __init__(self, **kwargs):
-        self.hidden_states = kwargs.pop('hidden_states', [0,])
         ap_metadata = kwargs.pop('ap_metadata', {})
-        if 'hidden_states' in ap_metadata:
-            self.hidden_states = list(int(x) for x in ap_metadata['hidden_states'].split('_'))
-        if 'weight_n_output_layers' in ap_metadata:
-            self.return_n_output_layers = int(ap_metadata['weight_n_output_layers'])
-        else:
-            self.return_n_output_layers = kwargs.pop('weight_n_output_layers',0)
-        if self.return_n_output_layers: self.hidden_states = [0,]
+        kwargs['hidden_states'] = kwargs.pop('hidden_states', None) or ap_metadata.get('hidden_states', None)
+        kwargs['return_n_output_layers'] = kwargs.pop('weight_n_output_layers',None) or ap_metadata.get('weight_n_output_layers', None)
+
         super().__init__(**kwargs)
-        self.metadata['hidden_states'] = "_".join(str(x) for x in self.hidden_states)
+        if self.hidden_states: self.metadata['hidden_states'] = "_".join(str(x) for x in self.hidden_states)
 
     def _load(self):
         self.model = CLIPModel.from_pretrained(self.pretrained, cache_dir="models")
-        self.number_of_features = self.model.projection_dim * len(self.hidden_states)
+        self.number_of_features = self.model.projection_dim * (len(self.hidden_states) if self.hidden_states else 1)
         self.metadata['number_of_features'] = str(self.number_of_features)
         self.model.text_model = None
         self.model.to(self.device)
@@ -162,7 +168,7 @@ class Transformers_FeatureExtractor(FeatureExtractor):
     @property
     def cachefile(self):
         unique_name = self.pretrained 
-        if not (len(self.hidden_states)==1 and self.hidden_states[0]==0):
+        if self.hidden_states:
             unique_name = unique_name + "_" + "_".join(str(x) for x in self.hidden_states)
         if self.return_n_output_layers:
             unique_name = self.pretrained + f"_last{self.return_n_output_layers}"

@@ -27,11 +27,7 @@ def combine_metadata(*args):
 
 def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:QuickDataset, tds:QuickDataset):
     with Timer('Create model'):
-        predictor = AestheticPredictor(pretrained=None, feature_extractor=feature_extractor, 
-                                       dropouts=Args.dropouts, hidden_layer_sizes=Args.hidden_layers,
-                                       dropouts_0=Args.get('dropouts_0',None), hidden_layer_sizes_0=Args.get('hidden_layers_0',None),
-                                       output_channels=Args.output_channels,
-                                       **Args.aesthetic_model_extras)
+        predictor = AestheticPredictor(pretrained=None, feature_extractor=feature_extractor, **Args.aesthetic_model_extras)
 
     with Timer('Train model'):
         train_args = TrainingArguments( remove_unused_columns=False, **Args.training_args )
@@ -53,6 +49,8 @@ def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:Qui
     with Timer("Save model"):
         metadata = combine_metadata( ds.get_metadata(), feature_extractor.get_metadata(), predictor.get_metadata() )
         save_file(predictor.state_dict(),Args.save_model_path,metadata=metadata)
+
+    metrics['extra'] = predictor.info()
 
     return metrics
 
@@ -88,21 +86,19 @@ if __name__=='__main__':
         ta = Args.training_args
         ma = Args.metaparameter_args
         def objective(trial:optuna.trial.Trial):
-            ta['num_train_epochs']            =             Args.meta(trial.suggest_int,  'num_train_epochs',  ma['num_train_epochs'])
-            ta['learning_rate']               = math.pow(10,Args.meta(trial.suggest_float,'log_learning_rate', ma['log_learning_rate']))
-            ta['per_device_train_batch_size'] =         2 * Args.meta(trial.suggest_int,  'half_batch_size',   ma['half_batch_size'])
-            ta['warmup_ratio']                =             Args.meta(trial.suggest_float,'warmup_ratio',      ma['warmup_ratio'])
+            ta['num_train_epochs']            =             Args.meta(trial.suggest_int,  'num_train_epochs',  Args.train_epochs)
+            ta['learning_rate']               = math.pow(10,Args.meta(trial.suggest_float,'log_learning_rate', Args.log_lr))
+            ta['per_device_train_batch_size'] =             Args.meta(trial.suggest_int,  'batch_size',        Args.batch_size)
+            ta['warmup_ratio']                =             Args.meta(trial.suggest_float,'warmup_ratio',      Args.warmup_ratio)
+            if Args.loss_model=='nll': ta['per_device_train_batch_size'] = ((ta['per_device_train_batch_size']+1)//2)*2
 
-            for suffix in ('', '_0'):
-                if f"dropouts{suffix}" in ma and ma[f"dropouts{suffix}"]:
-                    Args.set(f"dropouts{suffix}", Args.meta_list(trial.suggest_float, f"dropouts{suffix}", ma[f"dropouts{suffix}"] ))
-
-                if f"hidden_layers{suffix}" in ma and ma[f"hidden_layers{suffix}"]:
-                    Args.set(f"hidden_layers{suffix}", Args.meta_list(trial.suggest_int,   f"hidden_layers{suffix}", ma[f"hidden_layers{suffix}"] ))
+            Args.set("dropouts", Args.meta_list(trial.suggest_float, "dropouts", ma["dropouts"] ))
+            Args.set("layers", Args.meta_list(trial.suggest_int, "layers", ma["layers"] ))
 
             trial.set_user_attr("Input number of features", feature_extractor.number_of_features)
             result = train_predictor(feature_extractor, ds, eds, tds)
             score = result[Args.parameter_for_scoring]
+            trial.set_user_attr('extra', str(result.pop('extra','')))
             for r in result: trial.set_user_attr(r, float(result[r]))
 
             best_keeper.keep_if_best(score)

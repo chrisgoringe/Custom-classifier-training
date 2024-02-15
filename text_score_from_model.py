@@ -8,7 +8,7 @@ class Args:
 
 def main():
     tfe = TextFeatureExtractor(pretrained=Args.text_feature_extractor_model)
-    ap = AestheticPredictor.from_pretrained(pretrained=Args.model, explicit_nof=tfe.number_of_features)
+    ap = AestheticPredictor.no_feature_extractor(pretrained=Args.model)
     ap.eval()
 
     while text := input('text to evaluate: '):
