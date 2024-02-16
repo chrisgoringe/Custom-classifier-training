@@ -5,7 +5,6 @@ with Timer("Python imports"):
     from safetensors.torch import save_file
     import math, random, os
 
-    from src.data_holder import DataHolder
     from transformers import TrainingArguments
     import optuna
 
@@ -69,19 +68,13 @@ if __name__=='__main__':
     best_keeper = BestKeeper(save_model_path=Args.save_model_path, minimise=Args.best_minimize)
 
     with Timer('Build datasets from images') as logger:
-        data = DataHolder(top_level=Args.directory, 
-                          use_score_file=Args.scores, 
-                          fraction_for_eval=Args.fraction_for_eval,
-                          eval_pick_seed=Args.eval_pick_seed)
-        df = data.get_dataframe()
-        ds = QuickDataset(df)
+        ds = QuickDataset.from_scorefile(image_folder=Args.directory, scorefile=Args.scores, 
+                                         fraction_for_eval=Args.fraction_for_eval, eval_pick_seed=Args.eval_pick_seed)
 
         feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=Args.feature_extractor_model, image_directory=Args.directory, device="cuda", **Args.feature_extractor_extras)
-        feature_extractor.precache((f for f in df['image']))
-        df['features'] = [feature_extractor.get_features_from_file(f, device="cpu") for f in df['image']]
-        
-        tds = QuickDataset(df, 'train')
-        eds = QuickDataset(df, 'eval')
+        ds.extract_features(feature_extractor)
+        tds = QuickDataset.subset(ds, 'train')
+        eds = QuickDataset.subset(ds, 'eval')
 
         logger(f"{len(ds)} images ({len(tds)} training, {len(eds)} evaluation)")
 
@@ -119,7 +112,7 @@ if __name__=='__main__':
         print(f"optuna-dashboard sqlite:///db.sqlite")
         #for k in ma: study.set_user_attr(k, ma[k])
         for k in Args.keys: study.set_user_attr(k, Args.get(k))
-        study.set_user_attr("image_count", len(df))
+        study.set_user_attr("image_count", len(ds))
 
         study.optimize(objective, n_trials=Args.trials)
 
