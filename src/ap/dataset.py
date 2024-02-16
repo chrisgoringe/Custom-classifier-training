@@ -2,6 +2,7 @@ from pandas import DataFrame
 from .aesthetic_predictor import AestheticPredictor
 import random, statistics
 import torch
+import scipy.stats
 from .image_scores import get_ab
         
 class QuickDataset(torch.utils.data.Dataset):
@@ -62,3 +63,6 @@ class QuickDataset(torch.utils.data.Dataset):
         loss_fn = torch.nn.GaussianNLLLoss()
         nll = loss_fn(torch.tensor(self.column('predicted_score')), torch.tensor(self.column('score')), torch.square(torch.tensor(self.column('sigma'))))
         return float(nll)
+    
+    def get_spearman(self):
+        return scipy.stats.spearmanr(self.column('predicted_score'), self.column('score')).statistic
