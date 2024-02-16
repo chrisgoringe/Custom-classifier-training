@@ -16,7 +16,7 @@ class EvaluationCallback(TrainerCallback):
                 predictor.eval()
                 dataset.update_prediction(predictor)
                 if was_train: predictor.train()
-            Timer.message("==== Epoch {:>3} ({:8}): rmse {:>6.3f} ab {:>5.2f}%".format(state.epoch,label,dataset.get_rmse(),100*dataset.get_ab_score()))
+            Timer.message("==== Epoch {:>3} ({:8}): rmse {:>6.3f} ab {:>5.2f}%".format(state.epoch,label,dataset.get_rmse(),100*dataset.get_ab()))
 
     def on_epoch_end(self, arguments, state: TrainerState, control, **kwargs):
         for dataset in self.datasets: dataset.shuffle()
@@ -111,5 +111,5 @@ class RankingLossTrainer(CustomTrainer):
     
     def evaluate(self, eval_dataset:QuickDataset=None, ignore_keys=None, metric_key_prefix=None):
         ev:QuickDataset = eval_dataset or self.eval_dataset
-        return { "eval_ab" : ev.get_ab_score(), "eval_rmse" : ev.get_rmse(), "eval_nll" : ev.get_nll }
+        return { "eval_ab" : ev.get_ab(), "eval_rmse" : ev.get_rmse(), "eval_nll" : ev.get_nll }
 

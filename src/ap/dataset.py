@@ -38,18 +38,18 @@ class QuickDataset(torch.utils.data.Dataset):
     def column(self, col:str, convert:callable=lambda a:a) -> list:
         return [convert(self._df[col].array[x]) for x in self.map]
     
-    def column_where(self, col:str, match_col:str, match:str, convert:callable=lambda a:a) -> list:
-        return [convert(self._df[col].array[x]) for x in self.map if self._df[match_col].array[x]==match] 
+    #def column_where(self, col:str, match_col:str, match:str, convert:callable=lambda a:a) -> list:
+    #    return [convert(self._df[col].array[x]) for x in self.map if self._df[match_col].array[x]==match] 
     
-    def columns(self, *args) -> list:
-        cols = []
-        for x in self.map:
-            cols.append(tuple(self._df[col].array[x] for col in args))
-        return cols
+    #def columns(self, *args) -> list:
+    #    cols = []
+    #    for x in self.map:
+    #        cols.append(tuple(self._df[col].array[x] for col in args))
+    #    return cols
     
-    def get_ab_score(self):
-        print(f"get_ab_score deprecated - use get_ab")
-        return self.get_ab()
+    #def get_ab_score(self):
+    #    print(f"get_ab_score deprecated - use get_ab")
+    #    return self.get_ab()
     
     def get_ab(self):
         return get_ab(self.column('score'), self.column('predicted_score'))
