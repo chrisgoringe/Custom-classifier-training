@@ -80,7 +80,6 @@ if __name__=='__main__':
 
     with Timer("Metaparameter search"):
         ta = Args.training_args
-        #ma = Args.metaparameter_args
         def objective(trial:optuna.trial.Trial):
             ta['num_train_epochs']            =             Args.meta(trial.suggest_int,  'num_train_epochs',  Args.train_epochs)
             ta['learning_rate']               = math.pow(10,Args.meta(trial.suggest_float,'log_learning_rate', Args.log_lr))
@@ -90,8 +89,6 @@ if __name__=='__main__':
 
             Args.set("layers", list( Args.meta(trial.suggest_int,  f"layer_size_{i}",  Args.layer_size) for i in (0,1) ) )
             Args.set("dropouts", list( Args.meta(trial.suggest_float,  f"dropout_{i}",  Args.dropout) for i in (0,1) ) )
-            #Args.set("dropouts", Args.meta_list(trial.suggest_float, "dropouts", ma["dropouts"] ))
-            #Args.set("layers", Args.meta_list(trial.suggest_int, "layers", ma["layers"] ))
 
             trial.set_user_attr("Input number of features", feature_extractor.number_of_features)
             result = train_predictor(feature_extractor, ds, eds, tds)
@@ -110,7 +107,7 @@ if __name__=='__main__':
 
         study:optuna.study.Study = optuna.create_study(study_name=name, direction=Args.direction, sampler=sampler, storage=r"sqlite:///db.sqlite")
         print(f"optuna-dashboard sqlite:///db.sqlite")
-        #for k in ma: study.set_user_attr(k, ma[k])
+
         for k in Args.keys: study.set_user_attr(k, Args.get(k))
         study.set_user_attr("image_count", len(ds))
 
@@ -122,10 +119,10 @@ if __name__=='__main__':
         predictor = AestheticPredictor.from_pretrained(pretrained=best_filepath, image_directory=Args.directory)
         predictor.eval()
         with torch.no_grad():
-            create_scorefiles(predictor, database_scores=data.get_image_scores(), 
+            create_scorefiles(predictor, database_scores=ds.get_image_scores(), 
                             model_scorefile=Args.get("model_scorefile",None), 
                             error_scorefile=Args.get("error_scorefile",None))
-            data.save_split(Args.get('split',None))
+            ds.save_split(Args.get('split',None))
 
     with Timer('Statistics'):
         with torch.no_grad():
