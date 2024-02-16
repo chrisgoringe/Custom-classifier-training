@@ -87,7 +87,11 @@ class AestheticPredictor(nn.Module):
         self.to(device)
 
     def info(self):
-        return { "hidden_layer_projection" : ",".join("{:>8.4f}".format(x.item()) for x in self.preprocess.weight.squeeze()) } if self.preprocess else {}
+        if self.preprocess:
+            ws = self.preprocess.weight.squeeze()
+            last = float(ws[-1].item())
+            return { "normalised_hidden_layer_projection" : ",".join("{:>8.4f}".format(x.item()/last) for x in ws) }
+        return {}
 
     @classmethod
     def load_metadata_and_sd(cls, pretrained, return_sd=True):
