@@ -6,12 +6,6 @@ from torch._tensor import Tensor
 from transformers import AutoProcessor, CLIPModel, AutoTokenizer, CLIPTextModelWithProjection
 from tqdm import tqdm
 
-try:
-    from aim.torch.models import AIMForImageClassification
-    from aim.torch.data import val_transforms
-except:
-    print("AIM not available - pip install git+https://git@github.com/apple/ml-aim.git if you want to use it")
-
 # REALNAMES is used for downloading the (small) preprocessor file
 REALNAMES = {
     "ChrisGoringe/vitH16" : "laion/CLIP-ViT-H-14-laion2B-s32B-b79K",
@@ -221,6 +215,13 @@ class Apple_FeatureExtractor(FeatureExtractor):
         super().__init__(**kwargs)
         
     def _load(self):
+        try:
+            from aim.torch.models import AIMForImageClassification
+            from aim.torch.data import val_transforms
+        except:
+            print("AIM not available - pip install git+https://git@github.com/apple/ml-aim.git if you want to use it")
+            raise NotImplementedError("AIM not available - pip install git+https://git@github.com/apple/ml-aim.git if you want to use it")
+        
         self.model = AIMForImageClassification.from_pretrained(self.model_path, cache_dir="models").to(self.device)
         self.number_of_features = self.model.head.bn.num_features
         self.processor = val_transforms()
