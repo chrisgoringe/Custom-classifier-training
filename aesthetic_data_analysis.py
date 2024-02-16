@@ -12,7 +12,7 @@ def parse_arguments():
     parser.add_argument('-m', '--model', default="", help="Model (if any) to load and run on images (default is not to load a model)")
     parser.add_argument('--model_scores', default="", help="Filename of model scores file (ignored if model is specified)")
     parser.add_argument('--split', default="split.json", help="Filename of split file (default split.json)")
-    parser.add_argument('--include_train_split', action="store_true", help="Include training split in analysis (default is test images only)")
+    parser.add_argument('--include_train_split', action="store_true", help="Include training split in analysis (default is eval images only)")
     parser.add_argument('--save_scores_and_errors', action="store_true", help="Save score and error files from running model")
     parser.add_argument('--save_model_scorefile', default="model_scores.json")
     parser.add_argument('--save_error_scorefile', default="error_scores.json")
@@ -31,7 +31,7 @@ class _Args(object):
 _Args.instance = _Args.instance or _Args()
 Args = _Args.instance
 
-regexes = []    # Zero or more regexes (as strings to be compiled). The analysis will run on (subject to the test_split constraint)
+regexes = []    # Zero or more regexes (as strings to be compiled). The analysis will run on (subject to the eval constraint)
                 # - all files 
                 # - for each subfolder, just the files in it
                 # - for each regex, just the files whose path matches the regex
@@ -55,11 +55,11 @@ def compare(label:str, database_scores:ImageScores, model_scores:ImageScores, **
         print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(label,*results))
 
 def analyse():
-    if not Args.include_train_split: print(f"\nAnalysing test split only")
+    if not Args.include_train_split: print(f"\nAnalysing eval split only")
     else: print("\mAnalysing all images")
     dir = Args.directory
     print(f"database scores from {Args.scores}")
-    database_scores:ImageScores = ImageScores.from_scorefile(dir, Args.scores, splitfile=Args.split, split='test')
+    database_scores:ImageScores = ImageScores.from_scorefile(dir, Args.scores, splitfile=Args.split, split='eval')
 
     if Args.model:
         print(f"using {Args.model} to evaluate images")

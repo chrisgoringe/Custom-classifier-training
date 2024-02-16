@@ -71,8 +71,8 @@ if __name__=='__main__':
     with Timer('Build datasets from images') as logger:
         data = DataHolder(top_level=Args.directory, 
                           use_score_file=Args.scores, 
-                          fraction_for_test=Args.fraction_for_test,
-                          test_pick_seed=Args.test_pick_seed)
+                          fraction_for_eval=Args.fraction_for_eval,
+                          eval_pick_seed=Args.eval_pick_seed)
         df = data.get_dataframe()
         ds = QuickDataset(df)
 
@@ -81,7 +81,7 @@ if __name__=='__main__':
         df['features'] = [feature_extractor.get_features_from_file(f, device="cpu") for f in df['image']]
         
         tds = QuickDataset(df, 'train')
-        eds = QuickDataset(df, 'test')
+        eds = QuickDataset(df, 'eval')
 
         logger(f"{len(ds)} images ({len(tds)} training, {len(eds)} evaluation)")
 
@@ -136,6 +136,6 @@ if __name__=='__main__':
 
     with Timer('Statistics'):
         with torch.no_grad():
-            db_scores = ImageScores.from_scorefile(Args.directory, Args.scores, splitfile=Args.split, split='test')
+            db_scores = ImageScores.from_scorefile(Args.directory, Args.scores, splitfile=Args.split, split='eval')
             model_scores = ImageScores.from_evaluator(predictor.evaluate_file, db_scores.image_files(), Args.directory)
             compare("Best model", db_scores, model_scores)

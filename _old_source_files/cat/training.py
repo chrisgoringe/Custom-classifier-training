@@ -41,7 +41,7 @@ class EvaluationCallback(TrainerCallback):
         score = 100*sum( ps[i][self.eval_labels[i]] for i in range(len(self.eval_labels)) ) / len(self.eval_labels)
         preds = np.argmax(ps, axis=1).tolist()
         correct = sum([x==y for x,y in zip(preds, self.eval_labels)])
-        print("\n\n======\nEpoch {:>5.1f}, test set: {:>3}/{:>3} correct, average prob. assigned to correct label {:>6.2f}% \n======\n".format(state.epoch,correct,len(self.eval_labels),score))
+        print("\n\n======\nEpoch {:>5.1f}, eval set: {:>3}/{:>3} correct, average prob. assigned to correct label {:>6.2f}% \n======\n".format(state.epoch,correct,len(self.eval_labels),score))
 
 
 class CustomTrainer(Trainer):

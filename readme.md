@@ -73,17 +73,17 @@ Feature extraction:
 Training constants:
   --loss_model {mse,ab,nll}
                         Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood)
-  --set_for_scoring {test,full,train}
-                        Image set to be used for scoring a model when trained (default test)
+  --set_for_scoring {eval,full,train}
+                        Image set to be used for scoring a model when trained (default eval)
   --metric_for_scoring {mse,ab,nll,spearman}
                         Metric to be used for scoring a model when trained (default is the loss_model)
   --calculate_ab        Calculate ab even if not being used for scoring
   --calculate_mse       Calculate mse even if not being used for scoring
   --calculate_spearman  Calculate spearman even if not being used for scoring
-  --fraction_for_test FRACTION_FOR_TEST
-                        fraction of images to be reserved for test (aka eval) (default 0.25)
-  --test_pick_seed TEST_PICK_SEED
-                        Seed for random numbers when choosing test images (default 42)
+  --fraction_for_eval FRACTION_FOR_EVAL
+                        fraction of images to be reserved for eval (aka eval) (default 0.25)
+  --eval_pick_seed EVAL_PICK_SEED
+                        Seed for random numbers when choosing eval images (default 42)
 
 Metaparameters:
   --name NAME           Name prefix for Optuna
@@ -136,7 +136,7 @@ Most image feature extractors provide access to multiple hidden layers, not just
 
 - `--loss_model` - `mse` (mean square error) is default, `ab` evaluates loss using MarginRankingLoss, `nll` (experimental) produces a value and estimated error and evaluates loss using negative log likelihood (`nn.GaussianNLLLoss`)
 
-- `--set_for_scoring` and `--metric_for_scoring` are used by the metaparameter search to evaluate a model at the end of training. Set can be `full`, `train`, or `test` portions, metric can be `mse` or `nll` (the loss values), `ab` (the percentage of pairs of images that are correctly ordered by the model) or `spearman` (spearman rank comparison). Default is to use the specified loss model applied to the test images only.
+- `--set_for_scoring` and `--metric_for_scoring` are used by the metaparameter search to evaluate a model at the end of training. Set can be `full`, `train`, or `eval` portions, metric can be `mse` or `nll` (the loss values), `ab` (the percentage of pairs of images that are correctly ordered by the model) or `spearman` (spearman rank comparison). Default is to use the specified loss model applied to the eval images only.
 
 - `calculate_ab (mse, spearman)` can be specified to calculate these metrics even if they are not being used for scoring. They are saved in the trial arguments (see Optuna Dashboard)
 

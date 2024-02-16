@@ -16,12 +16,12 @@ def valid_directory(dir_path:str):
     return False
 
 class DataHolder:
-    def __init__(self, top_level:str, fraction_for_test:float=0.25, test_pick_seed:int=42, use_score_file:str=None):
+    def __init__(self, top_level:str, fraction_for_eval:float=0.25, eval_pick_seed:int=42, use_score_file:str=None):
         self.df = pd.DataFrame(columns=["image","score","split"])
         self.labels = []
-        self.fraction_for_test = fraction_for_test
+        self.fraction_for_eval = fraction_for_eval
         self.top_level = top_level
-        random.seed(test_pick_seed)
+        if eval_pick_seed: random.seed(eval_pick_seed)
 
         if use_score_file and os.path.exists(os.path.join(top_level,use_score_file)):
             self.dataframe_from_scorefile(top_level, use_score_file)
@@ -38,7 +38,7 @@ class DataHolder:
                 print(json.dumps(self.dictionary('split'), indent=2), file=fhdl)
         
     def split(self) -> str:
-        return "test" if random.random() < self.fraction_for_test else "train"
+        return "eval" if random.random() < self.fraction_for_eval else "train"
     
     def dictionary(self, column):
         return { os.path.relpath(f, self.top_level) : s for f, s in zip(self.df['image'], self.df[column]) }
@@ -50,7 +50,7 @@ class DataHolder:
         if self.labels:
             for label in self.labels:
                 dfl = self.df[self.df['score']==label]
-                print("{:>10} contains {:>4} images, {:>4} train and {:>3} evaluation".format(label, len(dfl), len(dfl[dfl['split']=='train']), len(dfl[dfl['split']=='test']))) 
+                print("{:>10} contains {:>4} images, {:>4} train and {:>3} evaluation".format(label, len(dfl), len(dfl[dfl['split']=='train']), len(dfl[dfl['split']=='eval']))) 
     
     def dataframe_from_scorefile(self, image_folder, scorefile):
         with open(os.path.join(image_folder,scorefile),'r') as f:

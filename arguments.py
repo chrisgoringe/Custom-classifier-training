@@ -42,14 +42,14 @@ def _parse_arguments(into:dict):
     features_group.add_argument('--weight_n_output_layers', default=0, type=int, help="Add a trainable projection of last n output layers to the start of the model")
     
     training_group.add_argument('--loss_model', default='mse', choices=['mse','ab','nll'], help="Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood)")
-    training_group.add_argument('--set_for_scoring', default='test', choices=['test', 'full', 'train'], help="Image set to be used for scoring a model when trained (default test)")
+    training_group.add_argument('--set_for_scoring', default='eval', choices=['eval', 'full', 'train'], help="Image set to be used for scoring a model when trained (default eval)")
     training_group.add_argument('--metric_for_scoring', choices=['mse', 'ab', 'nll', 'spearman'], help="Metric to be used for scoring a model when trained (default is the loss_model)")
     training_group.add_argument('--calculate_ab', action="store_true", help="Calculate ab even if not being used for scoring")
     training_group.add_argument('--calculate_mse', action="store_true", help="Calculate mse even if not being used for scoring")
     training_group.add_argument('--calculate_spearman', action="store_true", help="Calculate spearman even if not being used for scoring")
     
-    training_group.add_argument('--fraction_for_test', type=float, default=0.25, help="fraction of images to be reserved for test (aka eval) (default 0.25)")
-    training_group.add_argument('--test_pick_seed', type=int, default=42, help="Seed for random numbers when choosing test images (default 42)") 
+    training_group.add_argument('--fraction_for_eval', type=float, default=0.25, help="fraction of images to be reserved for eval (default 0.25)")
+    training_group.add_argument('--eval_pick_seed', type=int, default=42, help="Seed for random numbers when choosing eval images (default 42)") 
 
     metaparameter_group.add_argument('--name', help="Name prefix for Optuna")
     metaparameter_group.add_argument('--trials', type=int, default=200, help="Number of metaparameter trials" )
@@ -73,22 +73,14 @@ def _parse_arguments(into:dict):
     for argument in ['train_epochs', 'warmup_ratio', 'log_lr', 'batch_size', 'layer_size', 'dropout']:
         into[argument] = d[f"min_{argument}"] if d[f"min_{argument}"] == d[f"max_{argument}"] else (d[f"min_{argument}"], d[f"max_{argument}"])
 
-    into['metric_for_scoring'] = into.get('metric_for_scoring', into['loss_model'])
-    into['parameter_for_scoring'] = f"{into['metric_for_scoring']}_{into['set_for_scoring']}"
+    into['metric_for_scoring'] = into.get('metric_for_scoring', None) or into['loss_model']
+    into['parameter_for_scoring'] = f"{into['set_for_scoring']}_{into['metric_for_scoring']}"
+    into['measures'] = list(o for o in ['ab', 'mse', 'spearman'] if o==into['loss_model'] or o==into['metric_for_scoring'] or into.get(f"calculate_{o}",False))
 
     into['save_model_path'] = os.path.join(into['directory'], into['model'])
     into['direction']='maximize' if into['loss_model']=='ab' else 'minimize'
     into['best_minimize'] = not (into['parameter_for_scoring'].endswith("_ab") or into['parameter_for_scoring'].endswith("_spearman"))
     into['output_channels'] = 2 if into['loss_model']=='nll' else 1
-
-    m = {into['loss_model'],}
-    m.add(into['parameter_for_scoring'].split('_')[1])
-    if into['calculate_ab']: m.add('ab')
-    if into['calculate_mse']: m.add('mse')
-    if into['calculate_spearman']: m.add('spearman')
-    into['measures'] = list(m)
-
-    training_args["metric_for_best_model"] = "ab" if into['loss_model']=="ab" else "loss"
 
 class _Args(object):
     instance = None

@@ -9,7 +9,7 @@ VERSION = "0.3"
 
 def load_data():
     with Timer("load"):
-        dh = DataHolder(args['directory'], args['save_model'], args['fraction_for_test'], args['test_pick_seed'])
+        dh = DataHolder(args['directory'], args['save_model'], args['fraction_for_eval'], args['eval_pick_seed'])
         df = dh.get_dataframe()
         category_sizes = dh.sizes
         return df, category_sizes
@@ -31,18 +31,18 @@ def main():
         
     if 'train' in args['mode']:
         with Timer("train"): 
-            finetune( df[df["split"] == "train"], df[df["split"] == "test"], category_sizes )
+            finetune( df[df["split"] == "train"], df[df["split"] == "eval"], category_sizes )
 
         args['load_model'] = args['save_model']
 
     if 'evaluate' in args['mode'] or 'spotlight' in args['mode']:
         with Timer("predict"):
             df["prediction"], df["probs"], scores = predict( df["image"].values, df["label"] )
-            dft = df[df["split"]=="test"]
+            dft = df[df["split"]=="eval"]
             
             count = len(dft)
             correct = sum(dft["prediction"]==dft["label"])
-            print("In test set: {:>3}/{:>3} ({:>6.2f}%) correct".format(correct, count, 100*correct/count))
+            print("In eval set: {:>3}/{:>3} ({:>6.2f}%) correct".format(correct, count, 100*correct/count))
             correct = sum(df["prediction"]==df["label"])
             print("Overall set: {:>3}/{:>3} ({:>6.2f}%) correct".format(correct, count, 100*correct/count))
             print("Average probability assigned to correct label {:>6.2f}%".format(100*sum(scores)/count))
