@@ -22,6 +22,7 @@ def _parse_arguments(into:dict):
     parser = argparse.ArgumentParser("Compare a series of scorefiles")
     main_group = parser.add_argument_group('Main arguments')
     model_group = parser.add_argument_group('Defining the model architecture')
+    features_group = parser.add_argument_group('Feature extraction')
     training_group = parser.add_argument_group('Training constants')
     metaparameter_group = parser.add_argument_group('Metaparameters')
 
@@ -31,33 +32,38 @@ def _parse_arguments(into:dict):
     main_group.add_argument('--errors', default="errors.json", help="Filename of errors file (default errors.json)")
     main_group.add_argument('--split', default="split.json", help="Filename of split file (default split.json)")
 
-    model_group.add_argument('--feature_extractor_model', default="ChrisGoringe/vitH16", help="Model to use for feature extraction", type=to_string_list)
-    model_group.add_argument('--weight_n_output_layers', default=0, type=int, help="Add a trainable projection of last n output layers to the start of the model")
-    model_group.add_argument('--hidden_states', default="", help="Comma separated list of the hidden states to concatenate (0 is output layer, 1 is last hidden layer etc.)", type=to_int_list)
     model_group.add_argument('--final_layer_bias', action="store_true", help="Train with a bias in the final layer") 
-    model_group.add_argument('--model_seed', type=int, default=0, help="Seed for initialising model")
-    model_group.add_argument('--min_layer_size', type=int, default=10, help="Minimum number of features in each hidden layer")
-    model_group.add_argument('--max_layer_size', type=int, default=1000, help="Maximum number of features in each hidden layer")
+    model_group.add_argument('--model_seed', type=int, default=0, help="Seed for initialising model (default none)")
+    model_group.add_argument('--min_layer_size', type=int, default=10, help="Minimum number of features in each hidden layer (default 10)")
+    model_group.add_argument('--max_layer_size', type=int, default=1000, help="Maximum number of features in each hidden layer (default 1000)")
 
-    training_group.add_argument('--loss_model', default='mse', choices=['mse','ab','nll'], help="Loss model (mse=mean square error, ab=ab ranking, nll=negative log likelihood)")
-    training_group.add_argument('--include_other_evaluations', action="store_true", help="Calculate scoring options other than the one being used")
-    training_group.add_argument('--parameter_for_scoring', default='eval_mse', help="dataset_scorer to be used to evaluate trained model in format [full|train|eval]_[ab|mse|nll]")
-    training_group.add_argument('--fraction_for_test', type=float, default=0.25, help="fraction of images to be reserved for test (eval)")
-    training_group.add_argument('--test_pick_seed', type=int, default=42, help="Seed for random numbers when choosing test images") 
+    features_group.add_argument('--feature_extractor_model', default="ChrisGoringe/vitH16", help="Model to use for feature extraction", type=to_string_list)
+    features_group.add_argument('--hidden_states', default="", help="Comma separated list of the hidden states to concatenate (0 is output layer, 1 is last hidden layer etc.)", type=to_int_list)
+    features_group.add_argument('--weight_n_output_layers', default=0, type=int, help="Add a trainable projection of last n output layers to the start of the model")
+    
+    training_group.add_argument('--loss_model', default='mse', choices=['mse','ab','nll'], help="Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood)")
+    training_group.add_argument('--set_for_scoring', default='test', choices=['test', 'full', 'train'], help="Image set to be used for scoring a model when trained (default test)")
+    training_group.add_argument('--metric_for_scoring', choices=['mse', 'ab', 'nll', 'spearman'], help="Metric to be used for scoring a model when trained (default is the loss_model)")
+    training_group.add_argument('--calculate_ab', action="store_true", help="Calculate ab even if not being used for scoring")
+    training_group.add_argument('--calculate_mse', action="store_true", help="Calculate mse even if not being used for scoring")
+    training_group.add_argument('--calculate_spearman', action="store_true", help="Calculate spearman even if not being used for scoring")
+    
+    training_group.add_argument('--fraction_for_test', type=float, default=0.25, help="fraction of images to be reserved for test (aka eval) (default 0.25)")
+    training_group.add_argument('--test_pick_seed', type=int, default=42, help="Seed for random numbers when choosing test images (default 42)") 
 
     metaparameter_group.add_argument('--name', help="Name prefix for Optuna")
     metaparameter_group.add_argument('--trials', type=int, default=200, help="Number of metaparameter trials" )
     metaparameter_group.add_argument('--sampler', default="CmaEs", choices=['CmaEs', 'random', 'QMC'], help="Metaparameter search algorithm")
-    metaparameter_group.add_argument('--min_train_epochs', type=int, default=5)
-    metaparameter_group.add_argument('--max_train_epochs', type=int, default=50)
-    metaparameter_group.add_argument('--min_warmup_ratio', type=float, default=0.0)
-    metaparameter_group.add_argument('--max_warmup_ratio', type=float, default=0.2)
-    metaparameter_group.add_argument('--min_log_lr', type=float, default=-4.5)
-    metaparameter_group.add_argument('--max_log_lr', type=float, default=-2.5)
-    metaparameter_group.add_argument('--min_batch_size', type=int, default=1)
-    metaparameter_group.add_argument('--max_batch_size', type=int, default=100)    
-    metaparameter_group.add_argument('--min_dropout', type=float, default=0.0)
-    metaparameter_group.add_argument('--max_dropout', type=float, default=0.8)
+    metaparameter_group.add_argument('--min_train_epochs', type=int, default=5, help="(default 5)")
+    metaparameter_group.add_argument('--max_train_epochs', type=int, default=50, help="(default 50)")
+    metaparameter_group.add_argument('--min_warmup_ratio', type=float, default=0.0, help="(default 0.0)")
+    metaparameter_group.add_argument('--max_warmup_ratio', type=float, default=0.2, help="(default 0.2)")
+    metaparameter_group.add_argument('--min_log_lr', type=float, default=-4.5, help="(default -4.5)")
+    metaparameter_group.add_argument('--max_log_lr', type=float, default=-2.5, help="(default -2.5)")
+    metaparameter_group.add_argument('--min_batch_size', type=int, default=1, help="(default 1)")
+    metaparameter_group.add_argument('--max_batch_size', type=int, default=100, help="(default 100)")    
+    metaparameter_group.add_argument('--min_dropout', type=float, default=0.0, help="(default 0.0)")
+    metaparameter_group.add_argument('--max_dropout', type=float, default=0.8, help="(default 0.8)")
 
     namespace = parser.parse_args()
     d = vars(namespace)
@@ -67,14 +73,19 @@ def _parse_arguments(into:dict):
     for argument in ['train_epochs', 'warmup_ratio', 'log_lr', 'batch_size', 'layer_size', 'dropout']:
         into[argument] = d[f"min_{argument}"] if d[f"min_{argument}"] == d[f"max_{argument}"] else (d[f"min_{argument}"], d[f"max_{argument}"])
 
+    into['metric_for_scoring'] = into.get('metric_for_scoring', into['loss_model'])
+    into['parameter_for_scoring'] = f"{into['metric_for_scoring']}_{into['set_for_scoring']}"
+
     into['save_model_path'] = os.path.join(into['directory'], into['model'])
     into['direction']='maximize' if into['loss_model']=='ab' else 'minimize'
-    into['best_minimize'] = not (into['parameter_for_scoring'].endswith("_ab"))
+    into['best_minimize'] = not (into['parameter_for_scoring'].endswith("_ab") or into['parameter_for_scoring'].endswith("_spearman"))
     into['output_channels'] = 2 if into['loss_model']=='nll' else 1
+
     m = {into['loss_model'],}
-    if into['include_other_evaluations']:
-        m.add('ab')
-        m.add('mse')
+    m.add(into['parameter_for_scoring'].split('_')[1])
+    if into['calculate_ab']: m.add('ab')
+    if into['calculate_mse']: m.add('mse')
+    if into['calculate_spearman']: m.add('spearman')
     into['measures'] = list(m)
 
     training_args["metric_for_best_model"] = "ab" if into['loss_model']=="ab" else "loss"
