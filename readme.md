@@ -19,8 +19,9 @@ If creating a new one, first [install torch](https://pytorch.org/get-started/loc
 
 To make sure you have everything
 ```              
-pip install -r requirements.txt                                      
+python -m pip install -r requirements.txt                                      
 ```
+
 
 If you want to use the Apple feature extraction models (optional), then
 ```

@@ -1,8 +1,8 @@
-import statistics, os, argparse, json
+import statistics, os, argparse, json, re
 import scipy.stats
-from src.ap.aesthetic_predictor import AestheticPredictor
-from src.ap.image_scores import ImageScores, get_ab
-import torch
+#from src.ap.aesthetic_predictor import AestheticPredictor
+from src.ap.image_scores import ImageScores
+#import torch
 from src.ap.create_scorefiles import create_scorefiles
 
 def parse_arguments():
@@ -36,18 +36,26 @@ regexes = []    # Zero or more regexes (as strings to be compiled). The analysis
                 # - for each subfolder, just the files in it
                 # - for each regex, just the files whose path matches the regex
 
-def compare(label:str, database_scores:ImageScores, model_scores:ImageScores, **kwargs):
-    scores = database_scores.scores(**kwargs)
+def get_ab(scores, predicted_scores):
+    right = 0
+    total = 0
+    for i in range(len(scores)):
+        for j in range(i+1,len(scores)):
+            if (predicted_scores[i]<predicted_scores[j] and scores[i]<scores[j]) or \
+                (predicted_scores[i]>predicted_scores[j] and scores[i]>scores[j]): right += 1
+            total += 1
+    return right/total if total else 0
+
+def compare(label:str, scores:list, model_scores:list):
     if len(scores)<2:
         print("{:>20} : {:>5} images, too few for statistics".format(label, len(scores)))
         return
     results = (len(scores),statistics.mean(scores),statistics.stdev(scores))
     if model_scores:    
-        mscores = model_scores.scores(**kwargs)
-        spearman = scipy.stats.spearmanr(scores,mscores)
-        pearson = scipy.stats.pearsonr(scores,mscores)
-        results += (statistics.mean(mscores),statistics.stdev(mscores),spearman.statistic, spearman.pvalue, pearson.statistic, pearson.pvalue)
-        results += (100*get_ab(mscores, scores),)
+        spearman = scipy.stats.spearmanr(scores,model_scores)
+        pearson = scipy.stats.pearsonr(scores,model_scores)
+        results += (statistics.mean(model_scores),statistics.stdev(model_scores),spearman.statistic, spearman.pvalue, pearson.statistic, pearson.pvalue)
+        results += (100*get_ab(model_scores, scores),)
         print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}, model score {:>6.3f} +/- {:>4.2f}, spearman {:>6.4f} (p={:>8.2}), pearson {:>6.4f} (p={:>8.2}), AB {:>6.2f}%".format(label,*results))
     else:
         print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(label,*results))
@@ -59,9 +67,9 @@ def analyse():
     if not Args.include_train_split:
         print(f"\nAnalysing eval split only")
         if Args.split:
-            with open(os.path.join(Args.dir, Args.split), 'r') as fhdl:
+            with open(os.path.join(Args.directory, Args.split), 'r') as fhdl:
                 database_scores.add_item('split', json.load(fhdl))
-        database_scores = database_scores.subset('split','eval')
+        database_scores = database_scores.subset(item='split',test=lambda a:a=='eval')
     else:
         print("\mAnalysing all images")
     
@@ -69,18 +77,20 @@ def analyse():
         print(f"using {Args.model} to evaluate images")
         ap = AestheticPredictor.from_pretrained(pretrained=os.path.join(Args.directory, Args.model), image_directory=Args.directory)
         ap.eval()
-        with torch.no_grad():
-            ap.precache(database_scores.image_files(fullpath=True))
-            model_scores:ImageScores = ImageScores.from_evaluator(ap.evaluate_file, database_scores.image_files(), dir)
+        ap.precache(database_scores.image_files(fullpath=True))
+        database_scores.add_item('model_score', ap.evaluate_file)
     elif Args.model_scores:
         print(f"loading model scores from {Args.model_scores}")
-        model_scores = ImageScores.from_scorefile(dir, Args.model_scores, splitfile=Args.split, split=not Args.include_train_split)
-    else:
-        model_scores = None
+        database_scores.add_item('model_score', ImageScores.from_scorefile(dir, Args.model_scores))
 
-    compare("All", database_scores, model_scores)
-    for r in regexes: compare(f"/{r}/", database_scores, model_scores, match=r, regex=True )
-    for d in [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir,d))]: compare(d, database_scores, model_scores, directory=d)
+    compare("All", database_scores.scores(), database_scores.item('model_score'))
+    for r in regexes: 
+        reg = re.compile(r)
+        sub = database_scores.subset(lambda a : reg.match(a))
+        compare(f"/{r}/", sub.scores(), sub.item('model_scores'))
+    for d in [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir,d))]: 
+        sub = database_scores.subset(lambda a : a.startswith(d+os.pathsep))
+        compare(d, sub.scores(), sub.item('model_scores'))
 
     if Args.save_scores_and_errors and Args.model:
         create_scorefiles(ap, database_scores, Args.save_model_scorefile, Args.save_error_scorefile)
