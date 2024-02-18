@@ -1,4 +1,4 @@
-import statistics, os, argparse
+import statistics, os, argparse, json
 import scipy.stats
 from src.ap.aesthetic_predictor import AestheticPredictor
 from src.ap.image_scores import ImageScores, get_ab
@@ -37,16 +37,14 @@ regexes = []    # Zero or more regexes (as strings to be compiled). The analysis
                 # - for each regex, just the files whose path matches the regex
 
 def compare(label:str, database_scores:ImageScores, model_scores:ImageScores, **kwargs):
-    scores = database_scores.scores(normalised=False, **kwargs)
-    dbranks = database_scores.scores(rankings=True, **kwargs)
+    scores = database_scores.scores(**kwargs)
     if len(scores)<2:
         print("{:>20} : {:>5} images, too few for statistics".format(label, len(scores)))
         return
     results = (len(scores),statistics.mean(scores),statistics.stdev(scores))
     if model_scores:    
-        mscores = model_scores.scores(normalised=False, **kwargs)
-        mdranks = model_scores.scores(rankings=True, **kwargs)
-        spearman = scipy.stats.spearmanr(dbranks,mdranks)
+        mscores = model_scores.scores(**kwargs)
+        spearman = scipy.stats.spearmanr(scores,mscores)
         pearson = scipy.stats.pearsonr(scores,mscores)
         results += (statistics.mean(mscores),statistics.stdev(mscores),spearman.statistic, spearman.pvalue, pearson.statistic, pearson.pvalue)
         results += (100*get_ab(mscores, scores),)
@@ -55,12 +53,18 @@ def compare(label:str, database_scores:ImageScores, model_scores:ImageScores, **
         print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(label,*results))
 
 def analyse():
-    if not Args.include_train_split: print(f"\nAnalysing eval split only")
-    else: print("\mAnalysing all images")
     dir = Args.directory
     print(f"database scores from {Args.scores}")
-    database_scores:ImageScores = ImageScores.from_scorefile(dir, Args.scores, splitfile=Args.split, split='eval')
-
+    database_scores:ImageScores = ImageScores.from_scorefile(dir, Args.scores)
+    if not Args.include_train_split:
+        print(f"\nAnalysing eval split only")
+        if Args.split:
+            with open(os.path.join(Args.dir, Args.split), 'r') as fhdl:
+                database_scores.add_item('split', json.load(fhdl))
+        database_scores = database_scores.subset('split','eval')
+    else:
+        print("\mAnalysing all images")
+    
     if Args.model:
         print(f"using {Args.model} to evaluate images")
         ap = AestheticPredictor.from_pretrained(pretrained=os.path.join(Args.directory, Args.model), image_directory=Args.directory)
