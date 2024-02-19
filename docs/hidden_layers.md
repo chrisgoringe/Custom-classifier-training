@@ -1,31 +1,67 @@
-# Different hidden layers
+# Different hidden layer results
 
-Hidden layer 0 is the default behaviour
+||min|max|
+|-|-|-|
+|trials|500|500|
+|layer_size|10|1000|
+|log_lr|-4.4|-3.6|
+|train_epochs|5|50|
+|warmup_ratio|0.0|0.2|
+|batch_size|1|100|
+|dropout|0.0|0.8|
 
-|Hidden layer(s)|Loss|AB|Spearman|
-|-|-|-|-|
-|0|0.2721|77.96%|0.7631|
-|0+0|0.2723|77.71%|0.7598|
-|1|0.2714|77.84%|0.7631|
-|0+1|0.2678|78.09%|0.7694|
-|2|0.2762|77.99%|0.7626|
-|0+2|0.2704|77.83%|0.7627|
-|0+1+2|0.2702|77.95%|0.7636|
-|3|0.2857|77.07%|0.7416|
-|16|0.3558|73.00%|0.6577|
+# Base runs (mean spearman 0.7648)
 
-# Trained weights of last n layers - 500 trials
+|Loss|AB|Spearman|
+|-|-|-|
+|0.2651|78.06%|0.7654|
+|0.2702|77.89%|0.7636|
+|0.2667|77.95%|0.7650|
+
+# Different layer runs
+
+## Runs with 1 (0.7640)
+
+|Loss|AB|Spearman|
+|-|-|-|
+|0.2698|77.91%|0.7662|
+|0.2701|77.70%|0.7604|
+|0.2689|77.91%|0.7654|
+
+## Runs with 2 (0.7688)
 
 
+|Loss|AB|Spearman|
+|-|-|-|
+|0.2624|78.25%|0.7711|
+|0.2624|78.16%|0.7677|
+|0.2640|78.18%|0.7675|
 
-## Runs with n = 2
+## Runs with 3  
+
+
+# Concatenate runs
+
+## Runs with 0,1 (0.7675)
+
+|Loss|AB|Spearman|
+|-|-|-|
+|0.2682|77.98%|0.7660|
+|0.2702|78.02%|0.7688|
+|0.2657|77.95%|0.7678|
+
+
+# Trained weight runs
+
+## Runs with n = 2 (0.7614)
 
 |Loss|AB|Spearman|normalised weights|
 |-|-|-|-|
 |0.2715|77.71%|0.7627|24.25 , 1.000|
 |0.2699|77.74%|0.7621| 3.042, 1.000|
+|0.2712|77.73%|0.7593|-0.2909, 1.000|
 
-## Runs with n = 3
+## Runs with n = 3 (0.7663)
 
 |Loss|AB|Spearman|normalised weights|
 |-|-|-|-|
@@ -33,8 +69,7 @@ Hidden layer 0 is the default behaviour
 |0.2663|77.93%|0.7643| 1.056, -0.3379, 1.0000|
 |0.2633|78.03%|0.7664| 1.006, -0.9558, 1.0000|
 
-
-## Runs with n = 4
+## Runs with n = 4 (0.7648)
 
 |Loss|AB|Spearman|normalised weights|
 |-|-|-|-|
@@ -42,10 +77,16 @@ Hidden layer 0 is the default behaviour
 |0.2685|78.01%|0.7671| 2.028, -3.106, -2.065, 1.0000|
 |0.2623|78.06%|0.7665|-0.1168, 1.918, -0.768, 1.0000|
 
-## Runs with n = 5
+## Runs with n = 5 (0.7680)
 
 |Loss|AB|Spearman|normalised weights|
 |-|-|-|-|
 |0.2663|78.07%|0.7709|-0.5626, -0.5612, 0.9359, 0.3690, 1.0000|
 |0.2656|77.91%|0.7667|-0.5825, -0.5825, 0.9354, 0.3603, 1.0000|
 |0.2667|78.04%|0.7663| 0.3099, -0.6308, 0.6664,-0.5366, 1.0000|
+
+## Runs with n = 8
+
+|Loss|AB|Spearman|normalised weights|
+|-|-|-|-|
+|0.2696|77.82%|0.7613| 0.6701, 0.8685, -0.6133, 0.5330, -0.7023, 0.3306, -0.6507, 1.0000|

@@ -1,8 +1,11 @@
 import os, json
 import pandas as pd
 from typing import Self, Callable
+from collections.abc import Iterable
+from numpy import ndarray
 
 class ImageScores:
+    exclude_from_save = ('path', 'relative_path',)
     def __init__(self, top_level_directory:str, files:list=None, scores:list=None, df:pd.DataFrame=None):
         self.tld = top_level_directory
         self._df = pd.DataFrame(columns=['relative_path', 'path', 'score']) if df is None else df
@@ -52,20 +55,39 @@ class ImageScores:
         recursively_add_images()
         return cls.from_evaluator(evaluator, images, top_level_directory)
     
+    @classmethod
+    def from_baid(cls, top_level_directory, include=('eval', 'train', 'test')) -> Self:
+        images = []
+        scores = []
+        splits = []
+        for split in include:
+            with open(os.path.join(top_level_directory,f"{split}_set.csv"), 'r') as f:
+                for line in f.readlines():
+                    image, score = line.split(",")
+                    if image!='image':
+                        images.append(f"images/{image}")
+                        scores.append(float(score))
+                        splits.append(split)
+        imsc = cls(top_level_directory=top_level_directory, files=images, scores=scores)
+        imsc.add_item('split',splits)
+        return imsc
+    
     def add_item(self, label, values:dict|list|Callable|Self, fullpath=False, cast:Callable=lambda a:a):
         if isinstance(values, dict):
             self._df[label] = list(cast(values[f]) for f in self.image_files(fullpath=fullpath))
-        elif isinstance(values, list):
-            self._df[label] = list(cast(v) for v in values)
         elif callable(values):
             self._df[label] = list(cast(values(f)) for f in self.image_files(fullpath=fullpath))
         elif isinstance(values, ImageScores):
             self._df[label] = list( cast(values.score(f)) for f in self.image_files() )
+        elif isinstance(values,ndarray):
+            self._df[label] = values
+        elif isinstance(values, Iterable):
+            self._df[label] = list(cast(v) for v in values)
         else:
             raise NotImplementedError()
 
     def save_as_scorefile(self, scorefilepath):
-        self._df.to_csv(open(scorefilepath, 'w', newline=''), columns=(c for c in self._df.columns if c not in ('path', 'relative_path',)))
+        self._df.to_csv(open(scorefilepath, 'w', newline=''), columns=(c for c in self._df.columns if c not in self.exclude_from_save))
     
     def set_scores(self, evaluator:callable, fullpath=True):
         self._df['score'] = list(float(evaluator(k)) for k in self.image_files(fullpath))
@@ -104,3 +126,7 @@ class ImageScores:
     @property
     def dataframe(self) -> pd.DataFrame:
         return self._df
+    
+#if __name__=='__main__':
+#    x = ImageScores.from_baid(top_level_directory=r"E:\BAID")
+#    x.save_as_scorefile(r"E:\BAID\scores.csv")

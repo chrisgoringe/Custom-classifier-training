@@ -27,11 +27,12 @@ def _parse_arguments(into:dict):
     metaparameter_group = parser.add_argument_group('Metaparameters')
 
     main_group.add_argument('-d', '--directory', help="Top level directory", required=True)
-    main_group.add_argument('-s', '--savefile', default="scores.csv", help="Filename of scores file to save (default scores.csv)")
+    main_group.add_argument('-s', '--savefile', default="", help="Filename of (csv) scores file to save (default no save)")
     main_group.add_argument('--model', default="model.safetensors", help="Filename to save model (default model.safetensors)")
     main_group.add_argument('--scores', default="scores.json", help="Filename of scores file (default scores.json)")
-    main_group.add_argument('--errors', default="errors.json", help="Filename of errors file (default errors.json)")
-    main_group.add_argument('--split', default="split.json", help="Filename of split file (default split.json)")
+    main_group.add_argument('--no_server', action="store_true", help="Don't run an optuna dashboard server")
+    #main_group.add_argument('--errors', default="errors.json", help="Filename of errors file (default errors.json)")
+    #main_group.add_argument('--split', default="split.json", help="Filename of split file (default split.json)")
 
     model_group.add_argument('--final_layer_bias', action="store_true", help="Train with a bias in the final layer") 
     model_group.add_argument('--model_seed', type=int, default=0, help="Seed for initialising model (default none)")
@@ -44,13 +45,17 @@ def _parse_arguments(into:dict):
     
     training_group.add_argument('--loss_model', default='mse', choices=['mse','ab','nll'], help="Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood)")
     training_group.add_argument('--set_for_scoring', default='eval', choices=['eval', 'full', 'train'], help="Image set to be used for scoring a model when trained (default eval)")
-    training_group.add_argument('--metric_for_scoring', choices=['mse', 'ab', 'nll', 'spearman'], help="Metric to be used for scoring a model when trained (default is the loss_model)")
+    training_group.add_argument('--metric_for_scoring', choices=['mse', 'ab', 'nll', 'spearman', 'pearson'], help="Metric to be used for scoring a model when trained (default is the loss_model)")
     training_group.add_argument('--calculate_ab', action="store_true", help="Calculate ab even if not being used for scoring")
     training_group.add_argument('--calculate_mse', action="store_true", help="Calculate mse even if not being used for scoring")
-    training_group.add_argument('--calculate_spearman', action="store_true", help="Calculate spearman even if not being used for scoring")
+    training_group.add_argument('--calculate_spearman', action="store_true", help="Calculate spearman")
+    training_group.add_argument('--calculate_pearson', action="store_true", help="Calculate pearson")
+    training_group.add_argument('--calculate_accuracy', action="store_true", help="Calculate accuracy (fraction correct side of accuracy_divider)")
+    training_group.add_argument('--accuracy_divider', type=float, default=0.0, help="Divider between 'high' and 'low' for accuracy")
     
     training_group.add_argument('--fraction_for_eval', type=float, default=0.25, help="fraction of images to be reserved for eval (default 0.25)")
     training_group.add_argument('--eval_pick_seed', type=int, default=42, help="Seed for random numbers when choosing eval images (default 42)") 
+    training_group.add_argument('--ignore_existing_split', action="store_true", help="Discard existing train/eval split")
 
     metaparameter_group.add_argument('--name', help="Name prefix for Optuna")
     metaparameter_group.add_argument('--trials', type=int, default=200, help="Number of metaparameter trials" )
@@ -77,7 +82,7 @@ def _parse_arguments(into:dict):
 
     into['metric_for_scoring'] = into.get('metric_for_scoring', None) or into['loss_model']
     into['parameter_for_scoring'] = f"{into['set_for_scoring']}_{into['metric_for_scoring']}"
-    into['measures'] = list(o for o in ['ab', 'mse', 'spearman'] if o==into['loss_model'] or o==into['metric_for_scoring'] or into.get(f"calculate_{o}",False))
+    into['measures'] = list(o for o in ['ab', 'mse', 'spearman', 'pearson', 'accuracy'] if o==into['loss_model'] or o==into['metric_for_scoring'] or into.get(f"calculate_{o}",False))
 
     into['save_model_path'] = os.path.join(into['directory'], into['model'])
     into['direction']='maximize' if into['loss_model']=='ab' else 'minimize'
@@ -86,6 +91,7 @@ def _parse_arguments(into:dict):
 
 class _Args(object):
     instance = None
+    exception = Exception()
     def __init__(self):
         self.args = { "training_args" : training_args }
         self.arg_sets = {}

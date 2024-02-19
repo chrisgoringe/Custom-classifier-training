@@ -108,7 +108,7 @@ class AestheticPredictor(nn.Module):
         
     def get_metadata(self): return self.metadata
 
-    def forward(self, x, **kwargs):
+    def forward(self, x, **kwargs) -> torch.Tensor:
         if self.preprocess:
             xp = self.preprocess(x.permute((0,2,1)))
             xp = xp.reshape((x.shape[0],-1))

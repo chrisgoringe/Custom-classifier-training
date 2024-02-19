@@ -6,22 +6,22 @@ import random, statistics
 import torch
 from torch.utils.data import Dataset
 import scipy.stats
-import os, json
 from typing import Self, Callable
 
 pd.options.mode.copy_on_write = True
 
 class QuickDataset(Dataset, ImageScores):
+    exclude_from_save = ImageScores.exclude_from_save + ('features',)
     def __init__(self, **kwargs):
         Dataset.__init__(self)
         ImageScores.__init__(self, **kwargs)
         self.map = [i for i in range(len(self._df))]
         self.shuffle()
-        self.children = []
+        #self.children = []
 
     def subset(self, test:Callable, item:str='relative_path') -> Self:
         qd = QuickDataset(top_level_directory=self.tld, df=self._df.loc[test(self._df[item])])
-        self.children.append(qd)
+        #self.children.append(qd)
         return qd
 
     def allocate_split(self, fraction_for_eval:float=0.25, eval_pick_seed:int=42, replace=False):
@@ -37,13 +37,13 @@ class QuickDataset(Dataset, ImageScores):
 
     def update_prediction(self, predictor:AestheticPredictor):
         data = torch.stack(self.item('features')).to(predictor.device)
-        p = predictor(data).cpu()
-        #p = predictor.evaluate_files(self._df['image'], output_value=None)
-        self.add_item('model_score', list(float(pi[0]) for pi in p))
-        self.add_item('sigma', list(float(abs(pi[1])) if len(pi)>1 else 1.0 for pi in p))
-        for child in self.children:
-            child.add_item(label='model_score', values=lambda a:self.element(label='model_score', file=a))
-            child.add_item(label='sigma', values=lambda a:self.element(label='sigma', file=a))
+        predictions = predictor(data).cpu()
+        for i in range(predictor.output_channels):
+            label = 'model_score' if i==0 else f"model_score_{i}"
+            p = predictions[:,i].numpy()
+            self.add_item(label, p)
+            #for child in self.children:
+            #    child.add_item(label=label, values=lambda a:self.element(label=label, file=a))
 
     def __getitem__(self, i):
         x = self._df['features'].array[self.map[i]]
@@ -67,17 +67,24 @@ class QuickDataset(Dataset, ImageScores):
     def get_ab(self):
         raise NotImplementedError()
         
-    def get_mse(self):
+    def get_mse(self, **kwargs):
         loss_fn = torch.nn.MSELoss()
         rmse = loss_fn(torch.tensor(self.item('score')), torch.tensor(self.item('model_score')))
         return float(rmse)
     
-    def get_nll(self):
+    def get_nll(self, **kwargs):
         loss_fn = torch.nn.GaussianNLLLoss()
         nll = loss_fn(torch.tensor(self.item('model_score')), torch.tensor(self.item('score')), torch.square(torch.tensor(self.item('sigma'))))
         return float(nll)
     
-    def get_spearman(self):
+    def get_spearman(self, **kwargs):
         return scipy.stats.spearmanr(self.item('model_score'), self.item('score')).statistic
+    
+    def get_pearson(self, **kwargs):
+        return scipy.stats.pearsonr(self.item('model_score'), self.item('score')).statistic
+    
+    def get_accuracy(self, divider, **kwargs):
+        x = sum(( (a>=divider and b>=divider) or (a<divider and b<divider) ) for a,b in zip(self.item('model_score'), self.item('score')))
+        return (x/(len(self)))
 
      
