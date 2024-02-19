@@ -68,13 +68,13 @@ if __name__=='__main__':
     best_keeper = BestKeeper(save_model_path=Args.save_model_path, minimise=Args.best_minimize)
 
     with Timer('Build datasets from images') as logger:
-        ds = QuickDataset.from_scorefile(image_folder=Args.directory, scorefile=Args.scores, 
-                                         fraction_for_eval=Args.fraction_for_eval, eval_pick_seed=Args.eval_pick_seed)
+        ds = QuickDataset.from_scorefile(top_level_directory=Args.directory, scorefilename=Args.scores)
+        ds.allocate_split(fraction_for_eval=Args.fraction_for_eval, eval_pick_seed=Args.eval_pick_seed)
 
         feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=Args.feature_extractor_model, image_directory=Args.directory, device="cuda", **Args.feature_extractor_extras)
         ds.extract_features(feature_extractor)
-        tds = QuickDataset.subset(ds, 'train')
-        eds = QuickDataset.subset(ds, 'eval')
+        tds = ds.subset(lambda a:a=='train', 'split')
+        eds = ds.subset(lambda a:a=='eval', 'split')
 
         logger(f"{len(ds)} images ({len(tds)} training, {len(eds)} evaluation)")
 
@@ -119,13 +119,8 @@ if __name__=='__main__':
         predictor = AestheticPredictor.from_pretrained(pretrained=best_filepath, image_directory=Args.directory)
         predictor.eval()
         with torch.no_grad():
-            create_scorefiles(predictor, database_scores=ds.get_image_scores(), 
-                            model_scorefile=Args.get("model_scorefile",None), 
-                            error_scorefile=Args.get("error_scorefile",None))
-            ds.save_split(Args.get('split',None))
+            ds.update_prediction(predictor)
+            ds.save_as_scorefile(os.path.join(Args.directory, Args.savefile))
 
     with Timer('Statistics'):
-        with torch.no_grad():
-            db_scores = ImageScores.from_scorefile(Args.directory, Args.scores, splitfile=Args.split, split='eval')
-            model_scores = ImageScores.from_evaluator(predictor.evaluate_file, db_scores.image_files(), Args.directory)
-            compare("Best model", db_scores, model_scores)
+        compare("Best model",  eds.scores(), eds.item('model_score'))

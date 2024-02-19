@@ -8,11 +8,13 @@ class ImageScores:
         self._df = pd.DataFrame(columns=['relative_path', 'path', 'score']) if df is None else df
         if files:
             self._df['relative_path'] = list(os.path.normpath(f) for f in files)
-            self._df['path'] = list(os.path.normpath(os.path.join(self.tld,f)) for f in self._df['relative_path'])
             if scores: 
-                self._df['scores'] = scores
+                self._df['score'] = scores
             else:
-                scores._df['scores'] = [0]*len(files)
+                self._df['score'] = [0]*len(files)
+        self._df['path'] = list(os.path.normpath(os.path.join(self.tld,f)) for f in self._df['relative_path'])
+        self._df.set_index('relative_path',drop=False,inplace=True)
+        pass
         
     def subset(self, test:Callable, item:str='relative_path') -> Self:
         return ImageScores(top_level_directory=self.tld, df=self._df.loc[test(self._df[item])])
@@ -25,18 +27,17 @@ class ImageScores:
                 if "ImageRecords" in image_scores_dict:
                     files = list(k for k in image_scores_dict["ImageRecords"])
                     scores = list(float(image_scores_dict["ImageRecords"][k]['score']) for k in files)
-                    imsc = ImageScores(top_level_directory, files=files, scores=scores)
-                    for item in image_scores_dict.get("Additionals",['comparisons,']):
-                        imsc.add_item(item, list(image_scores_dict["ImageRecords"][k].get(item,0) for k in files))
-                    return imsc
+                    imsc = cls(top_level_directory=top_level_directory, files=files, scores=scores)
+                    for item in image_scores_dict.get("Additionals",['comparisons',]):
+                        imsc.add_item(item, list(image_scores_dict["ImageRecords"][k].get(item,0) for k in files)) 
         elif os.path.splitext(scorefilename)[1]==".csv":
-            imsc = ImageScores(top_level_directory)
-            imsc._df = pd.read_csv(os.path.join(top_level_directory,scorefilename))
+            imsc = cls(top_level_directory=top_level_directory, df=pd.read_csv(os.path.join(top_level_directory,scorefilename)))
+        return imsc
     
     @classmethod
     def from_evaluator(cls, evaluator:Callable, images:list[str], top_level_directory, fullpath=True) -> Self:
         scores = list(float(evaluator(os.path.join(top_level_directory,k) if fullpath else k)) for k in images)
-        return ImageScores(top_level_directory, files=images, scores=scores) 
+        return cls(top_level_directory=top_level_directory, files=images, scores=scores) 
 
     @classmethod
     def from_directory(cls, top_level_directory, evaluator:Callable=lambda a:0) -> Self:
@@ -51,23 +52,23 @@ class ImageScores:
         recursively_add_images()
         return cls.from_evaluator(evaluator, images, top_level_directory)
     
-    def add_item(self, label, values:dict|list|Callable|Self, fullpath=False):
+    def add_item(self, label, values:dict|list|Callable|Self, fullpath=False, cast:Callable=lambda a:a):
         if isinstance(values, dict):
-            self._df[label] = list(values[f] for f in self.image_files(fullpath=fullpath))
+            self._df[label] = list(cast(values[f]) for f in self.image_files(fullpath=fullpath))
         elif isinstance(values, list):
-            self._df[label] = list(v for v in values)
+            self._df[label] = list(cast(v) for v in values)
         elif callable(values):
-            self._df[label] = list(values(f) for f in self.image_files(fullpath=fullpath))
+            self._df[label] = list(cast(values(f)) for f in self.image_files(fullpath=fullpath))
         elif isinstance(values, ImageScores):
-            self._df[label] = list( values.score(f) for f in self.image_files() )
+            self._df[label] = list( cast(values.score(f)) for f in self.image_files() )
         else:
             raise NotImplementedError()
 
     def save_as_scorefile(self, scorefilepath):
-        self._df.to_csv(open(scorefilepath, 'w', newline=''), columns=(c for c in self._df.columns if c!='path'))
+        self._df.to_csv(open(scorefilepath, 'w', newline=''), columns=(c for c in self._df.columns if c not in ('path', 'relative_path',)))
     
     def set_scores(self, evaluator:callable, fullpath=True):
-        self._df['scores'] = list(float(evaluator(k)) for k in self.image_files(fullpath))
+        self._df['score'] = list(float(evaluator(k)) for k in self.image_files(fullpath))
         self.sort()
 
     def sort(self, by="score", add_rank_column=None, resort_after=True):
@@ -78,15 +79,28 @@ class ImageScores:
     def image_files(self, fullpath=False):
         return self._df['path' if fullpath else 'relative_path'] 
     
-    def _element(self, column:str, file:str, is_fullpath=False) -> float:
+    def element(self, label:str, file:str, is_fullpath=False) -> float:
         file = os.path.normpath(os.path.relpath(file, self.tld) if is_fullpath else file)
-        return self._df.loc[file][column]
+        return self._df.loc[file][label]
 
     def score(self, file:str, is_fullpath=False) -> float:
-        return self._element('score', file, is_fullpath)
+        return self.element('score', file, is_fullpath)
+    
+    def item(self, label) -> list:
+        return list(self._df[label])
+    
+    def has_item(self, label):
+        return label in self._df.columns
+    
+    def scores(self) -> list[float]:
+        return self.item('score')
     
     def _dictionary(self, column:str):
         return {f:v for f,v in zip(self._df['relative_path'], self._df[column])}
 
     def scores_dictionary(self) -> dict[str,float]:
         return self._dictionary('score')
+    
+    @property
+    def dataframe(self) -> pd.DataFrame:
+        return self._df

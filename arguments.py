@@ -27,6 +27,7 @@ def _parse_arguments(into:dict):
     metaparameter_group = parser.add_argument_group('Metaparameters')
 
     main_group.add_argument('-d', '--directory', help="Top level directory", required=True)
+    main_group.add_argument('-s', '--savefile', default="scores.csv", help="Filename of scores file to save (default scores.csv)")
     main_group.add_argument('--model', default="model.safetensors", help="Filename to save model (default model.safetensors)")
     main_group.add_argument('--scores', default="scores.json", help="Filename of scores file (default scores.json)")
     main_group.add_argument('--errors', default="errors.json", help="Filename of errors file (default errors.json)")
@@ -65,7 +66,8 @@ def _parse_arguments(into:dict):
     metaparameter_group.add_argument('--min_dropout', type=float, default=0.0, help="(default 0.0)")
     metaparameter_group.add_argument('--max_dropout', type=float, default=0.8, help="(default 0.8)")
 
-    namespace = parser.parse_args()
+    namespace, unknowns = parser.parse_known_args()
+    if unknowns: print(f"\nIgnoring unknown argument(s) {unknowns}")
     d = vars(namespace)
     for argument in d: into[argument] = d[argument]
 
