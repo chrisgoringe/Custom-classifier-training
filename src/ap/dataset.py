@@ -84,6 +84,7 @@ class QuickDataset(Dataset, ImageScores):
         return scipy.stats.pearsonr(self.item('model_score'), self.item('score')).statistic
     
     def get_accuracy(self, divider, **kwargs):
+        if divider is None: divider = statistics.median(self.item('score'))
         x = sum(( (a>=divider and b>=divider) or (a<divider and b<divider) ) for a,b in zip(self.item('model_score'), self.item('score')))
         return (x/(len(self)))
 

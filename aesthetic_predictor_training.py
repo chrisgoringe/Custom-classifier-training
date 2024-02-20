@@ -64,7 +64,7 @@ def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:Qui
         for measure in Args.measures:
             for the_set, the_set_name in ((ds, "full"),(tds, "train"),(eds, "eval")):
                 with Timer(f"{the_set_name}_{measure}"):
-                    metrics[f"{the_set_name}_{measure}"] = the_set.__getattribute__(f"get_{measure}")(divider=Args.accuracy_divider) if len(the_set) else 0
+                    metrics[f"{the_set_name}_{measure}"] = the_set.__getattribute__(f"get_{measure}")(divider=Args.get("accuracy_divider",None)) if len(the_set) else 0
 
     with Timer("Save model"):
         metadata = combine_metadata( ds.get_metadata(), feature_extractor.get_metadata(), predictor.get_metadata() )
@@ -105,8 +105,12 @@ def main():
             ta['warmup_ratio']                =             Args.meta(trial.suggest_float,'warmup_ratio',      Args.warmup_ratio)
             if Args.loss_model=='nll': ta['per_device_train_batch_size'] = ((ta['per_device_train_batch_size']+1)//2)*2
 
-            Args.set("layers", list( Args.meta(trial.suggest_int,  f"layer_size_{i}",  Args.layer_size) for i in (0,1) ) )
-            Args.set("dropouts", list( Args.meta(trial.suggest_float,  f"dropout_{i}",  Args.dropout) for i in (0,1) ) )
+            Args.set("layers", [ Args.meta(trial.suggest_int,  f"layer_size_first",  Args.first_layer_size),
+                                 Args.meta(trial.suggest_int,  f"layer_size_second",  Args.second_layer_size),])
+                     
+            Args.set("dropouts", [ Args.meta(trial.suggest_float,  f"dropout_at_input",  Args.input_dropout),
+                                   Args.meta(trial.suggest_float,  f"dropout_internal",  Args.dropout), 
+                                   Args.meta(trial.suggest_float,  f"dropout_at_output",  Args.output_dropout),])
 
             trial.set_user_attr("Input number of features", feature_extractor.number_of_features)
             result = train_predictor(feature_extractor, ds=ds, eds=eds, tds=tds)

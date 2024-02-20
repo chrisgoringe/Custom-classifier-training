@@ -11,12 +11,14 @@ class EvaluationCallback(TrainerCallback):
         self.datasets_to_score = datasets_to_score
 
     def _do_eval(self, state: TrainerState, predictor:AestheticPredictor):
+        if not len(self.datasets_to_score): return
         was_train = predictor.training
-        predictor.eval()        
+        predictor.eval()
+        Timer.message(" Epoch {:>6.1f}".format(state.epoch))        
         for label, dataset in self.datasets_to_score:
             with torch.no_grad():
                 dataset.update_prediction(predictor)
-            Timer.message("==== Epoch {:>6.1f} ({:8}): rmse {:>6.3f}".format(state.epoch,label,dataset.get_mse()))
+            Timer.message("{:8}: rmse {:>6.3f}".format(label,dataset.get_mse()))
         if was_train: predictor.train()
 
     def on_epoch_end(self, arguments, state: TrainerState, control, **kwargs):
