@@ -6,20 +6,24 @@ import random
 from src.time_context import Timer
 
 class EvaluationCallback(TrainerCallback):
-    def __init__(self, datasets:list[QuickDataset]):
-        self.datasets = datasets
+    def __init__(self, datasets_to_shuffle:list[QuickDataset], datasets_to_score:list[tuple[str, QuickDataset]]):
+        self.datasets_to_shuffle = datasets_to_shuffle
+        self.datasets_to_score = datasets_to_score
 
-    def do_eval(self, state, predictor:AestheticPredictor):
-        for dataset, label, _ in self.datasets:
+    def _do_eval(self, state: TrainerState, predictor:AestheticPredictor):
+        if not len(self.datasets_to_score): return
+        was_train = predictor.training
+        predictor.eval()
+        Timer.message(" Epoch {:>6.1f}".format(state.epoch))        
+        for label, dataset in self.datasets_to_score:
             with torch.no_grad():
-                was_train = predictor.training
-                predictor.eval()
                 dataset.update_prediction(predictor)
-                if was_train: predictor.train()
-            Timer.message("==== Epoch {:>3} ({:8}): rmse {:>6.3f} ab {:>5.2f}%".format(state.epoch,label,dataset.get_rmse(),100*dataset.get_ab()))
+            Timer.message("{:8}: rmse {:>6.3f}".format(label,dataset.get_mse()))
+        if was_train: predictor.train()
 
     def on_epoch_end(self, arguments, state: TrainerState, control, **kwargs):
-        for dataset in self.datasets: dataset.shuffle()
+        for dataset in self.datasets_to_shuffle: dataset.shuffle()
+        if 'model' in kwargs: self._do_eval(state, kwargs['model'])
 
     def compute_metrics(self, predictions:EvalPrediction):
         pass

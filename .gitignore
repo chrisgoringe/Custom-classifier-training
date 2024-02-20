@@ -169,3 +169,5 @@ meta-results.*
 ~$meta-results.xlsx
 training*/
 aesthetic/
+profile.stats
+arguments.txt

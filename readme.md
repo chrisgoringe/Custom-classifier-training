@@ -19,8 +19,9 @@ If creating a new one, first [install torch](https://pytorch.org/get-started/loc
 
 To make sure you have everything
 ```              
-pip install -r requirements.txt                                      
+python -m pip install -r requirements.txt                                      
 ```
+
 
 If you want to use the Apple feature extraction models (optional), then
 ```
@@ -48,10 +49,10 @@ options:
 Main arguments:
   -d DIRECTORY, --directory DIRECTORY
                         Top level directory
+  -s SAVEFILE, --savefile SAVEFILE
+                        Filename for saving csv scorefile (default scores.csv)
   --model MODEL         Filename to save model (default model.safetensors)
-  --scores SCORES       Filename of scores file (default scores.json)
-  --errors ERRORS       Filename of errors file (default errors.json)
-  --split SPLIT         Filename of split file (default split.json)
+  --scores SCORES       Filename of scores file (.json or .csv) (default scores.json)
 
 Defining the model architecture:
   --final_layer_bias    Train with a bias in the final layer
@@ -75,11 +76,13 @@ Training constants:
                         Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood)
   --set_for_scoring {eval,full,train}
                         Image set to be used for scoring a model when trained (default eval)
-  --metric_for_scoring {mse,ab,nll,spearman}
-                        Metric to be used for scoring a model when trained (default is the loss_model)
-  --calculate_ab        Calculate ab even if not being used for scoring
-  --calculate_mse       Calculate mse even if not being used for scoring
-  --calculate_spearman  Calculate spearman even if not being used for scoring
+  --metric_for_scoring {mse,ab,nll,spearman,pearson,accuracy}
+                        Metric to be used for scoring a model when trained (default is the loss_model) - ab is slow for large sets (O(N^2))
+  --calculate_ab        Calculate ab (always calculated if used for scoring) - slow for large sets (O(N^2))
+  --calculate_mse       Calculate mse (always calculated if used for scoring)
+  --calculate_spearman  Calculate spearman
+  --calculate_pearson   Calculate pearson
+  --calculate_accuracy  Calculate accuracy (fraction of scores the correct side of zero)
   --fraction_for_eval FRACTION_FOR_EVAL
                         fraction of images to be reserved for eval (aka eval) (default 0.25)
   --eval_pick_seed EVAL_PICK_SEED

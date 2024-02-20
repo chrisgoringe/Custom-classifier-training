@@ -1,146 +1,132 @@
-import os, json, statistics, re, torch
-
-def compress_rank(ranks:list):
-    ordered = sorted(ranks)
-    return [ordered.index(r) for r in ranks]
-
-def valid_image(filepath:str):
-    if os.path.basename(filepath).startswith("."): return False
-    _,ext = os.path.splitext(filepath)
-    return (ext in ['.png','.jpg','.jpeg'])
-
-def valid_directory(dir_path:str):
-    if not os.path.isdir(dir_path): return False
-    if os.path.basename(dir_path).startswith("."): return False
-    return True
-
-def get_ab(scores, predicted_scores):
-    right = 0
-    total = 0
-    for i in range(len(scores)):
-        for j in range(i+1,len(scores)):
-            if (predicted_scores[i]<predicted_scores[j] and scores[i]<scores[j]) or \
-                (predicted_scores[i]>predicted_scores[j] and scores[i]>scores[j]): right += 1
-            total += 1
-    return right/total if total else 0
+import os, json
+import pandas as pd
+from typing import Self, Callable
+from collections.abc import Iterable
+from numpy import ndarray
 
 class ImageScores:
-    def __init__(self, image_scores:dict[str, float], top_level_directory:str, normalisation, comparisons:dict[str,int]={}):
-        clean = lambda d : { os.path.normpath(f) : d[f] for f in d }
-        self.image_scores = clean(image_scores)
-        self.normaliser = self.create_normaliser() if normalisation else lambda a:a
-        self.set_rankings()
-        self.top_level_directory = top_level_directory
-        self.comparisons = clean(comparisons)
+    exclude_from_save = ('path', 'relative_path',)
+    def __init__(self, top_level_directory:str, files:list=None, scores:list=None, df:pd.DataFrame=None):
+        self.tld = top_level_directory
+        self._df = pd.DataFrame(columns=['relative_path', 'path', 'score']) if df is None else df
+        if files:
+            self._df['relative_path'] = list(os.path.normpath(f) for f in files)
+            if scores: 
+                self._df['score'] = scores
+            else:
+                self._df['score'] = [0]*len(files)
+        self._df['path'] = list(os.path.normpath(os.path.join(self.tld,f)) for f in self._df['relative_path'])
+        self._df.set_index('relative_path',drop=False,inplace=True)
+        pass
+        
+    def subset(self, test:Callable, item:str='relative_path') -> Self:
+        return ImageScores(top_level_directory=self.tld, df=self._df.loc[test(self._df[item])])
+
+    @classmethod
+    def from_scorefile(cls, top_level_directory:str, scorefilename) -> Self:
+        if os.path.splitext(scorefilename)[1]==".json":
+            with open(os.path.join(top_level_directory,scorefilename),'r') as f:
+                image_scores_dict = json.load(f)
+                if "ImageRecords" in image_scores_dict:
+                    files = list(k for k in image_scores_dict["ImageRecords"])
+                    scores = list(float(image_scores_dict["ImageRecords"][k]['score']) for k in files)
+                    imsc = cls(top_level_directory=top_level_directory, files=files, scores=scores)
+                    for item in image_scores_dict.get("Additionals",['comparisons',]):
+                        imsc.add_item(item, list(image_scores_dict["ImageRecords"][k].get(item,0) for k in files)) 
+        elif os.path.splitext(scorefilename)[1]==".csv":
+            imsc = cls(top_level_directory=top_level_directory, df=pd.read_csv(os.path.join(top_level_directory,scorefilename)))
+        return imsc
+    
+    @classmethod
+    def from_evaluator(cls, evaluator:Callable, images:list[str], top_level_directory, fullpath=True) -> Self:
+        scores = list(float(evaluator(os.path.join(top_level_directory,k) if fullpath else k)) for k in images)
+        return cls(top_level_directory=top_level_directory, files=images, scores=scores) 
+
+    @classmethod
+    def from_directory(cls, top_level_directory, evaluator:Callable=lambda a:0) -> Self:
+        images = []
+        valid_image = lambda f : os.path.splitext(f)[1] in ['.png','.jpg','.jpeg']
+        def recursively_add_images(d=""):
+            for thing in os.listdir(os.path.join(top_level_directory,d)):
+                if thing.startswith("."): continue
+                thingpath = os.path.join(top_level_directory,d,thing)
+                if valid_image(thingpath): images.append(os.path.join(d,thing))
+                if os.path.isdir(thingpath): recursively_add_images(os.path.join(d,thing))
+        recursively_add_images()
+        return cls.from_evaluator(evaluator, images, top_level_directory)
+    
+    @classmethod
+    def from_baid(cls, top_level_directory, include=('eval', 'train', 'test')) -> Self:
+        images = []
+        scores = []
+        splits = []
+        for split in include:
+            with open(os.path.join(top_level_directory,f"{split}_set.csv"), 'r') as f:
+                for line in f.readlines():
+                    image, score = line.split(",")
+                    if image!='image':
+                        images.append(f"images/{image}")
+                        scores.append(float(score))
+                        splits.append(split)
+        imsc = cls(top_level_directory=top_level_directory, files=images, scores=scores)
+        imsc.add_item('split',splits)
+        return imsc
+    
+    def add_item(self, label, values:dict|list|Callable|Self, fullpath=False, cast:Callable=lambda a:a):
+        if isinstance(values, dict):
+            self._df[label] = list(cast(values[f]) for f in self.image_files(fullpath=fullpath))
+        elif callable(values):
+            self._df[label] = list(cast(values(f)) for f in self.image_files(fullpath=fullpath))
+        elif isinstance(values, ImageScores):
+            self._df[label] = list( cast(values.score(f)) for f in self.image_files() )
+        elif isinstance(values,ndarray):
+            self._df[label] = values
+        elif isinstance(values, Iterable):
+            self._df[label] = list(cast(v) for v in values)
+        else:
+            raise NotImplementedError()
 
     def save_as_scorefile(self, scorefilepath):
-        saveable = { "ImageRecords" : { f : {
-                                                "relative_filepath": f,
-                                                "comparisons": self.comparisons.get(f,0),
-                                                "score": self.image_scores[f]            
-                                            } for f in self.image_scores } 
-        }
-        with open(scorefilepath, 'w') as f:
-            print(json.dumps(saveable,indent=2), file=f)
-
-    @classmethod
-    def from_scorefile(cls, top_level_directory:str, scorefilename, normalisation=False, splitfile=None, split=None):
-        if splitfile and split:
-            with open(os.path.join(top_level_directory,splitfile),'r') as f:
-                splits = json.load(f)
-                keep = lambda a : splits[os.path.normpath(a)]==split
-        else:
-            keep = lambda a : True
-        with open(os.path.join(top_level_directory,scorefilename),'r') as f:
-            image_scores_dict = json.load(f)
-            if "ImageRecords" in image_scores_dict:
-                image_scores = {k : float(image_scores_dict["ImageRecords"][k]['score']) for k in image_scores_dict["ImageRecords"] if keep(k)}
-                comparisons = {k : float(image_scores_dict["ImageRecords"][k].get('comparisons',0)) for k in image_scores_dict["ImageRecords"] if keep(k)}
-            else:
-                image_scores_dict.pop("#meta#",{})
-                image_scores = {k : float(image_scores_dict[k][0]) if isinstance(image_scores_dict[k],list) else image_scores_dict[k] for k in image_scores_dict if keep(k)}
-                comparisons = {k : int(image_scores_dict[k][1]) if isinstance(image_scores_dict[k],list) else 0 for k in image_scores_dict if keep(k)}
-        return ImageScores(image_scores, top_level_directory, normalisation=normalisation, comparisons=comparisons)
+        self._df.to_csv(open(scorefilepath, 'w', newline=''), columns=(c for c in self._df.columns if c not in self.exclude_from_save))
     
-    @classmethod
-    def from_evaluator(cls, evaluator:callable, images:list[str], top_level_directory, normalisation=False, fullpath=True):
-        image_scores = {k:float(evaluator(os.path.join(top_level_directory,k) if fullpath else k)) for k in images}
-        return ImageScores(image_scores, top_level_directory, normalisation=normalisation)
-    
-    @classmethod
-    def from_directory(cls, top_level_directory, evaluator:callable=lambda a:0, normalisation=False):
-        images = []
-        for thing in os.listdir(top_level_directory):
-            if valid_image(os.path.join(top_level_directory,thing)): images.append(thing)
-            if valid_directory(os.path.join(top_level_directory,thing)):
-                for subthing in os.listdir(os.path.join(top_level_directory,thing)):
-                    if valid_image(os.path.join(top_level_directory,thing,subthing)): images.append(os.path.join(thing,subthing))
-        return cls.from_evaluator(evaluator, images, top_level_directory, normalisation)
-    
-    def set_scores(self, evaluator:callable, normalisation=False):
-        for k in self.image_scores: self.image_scores[k] = float(evaluator(os.path.join(self.top_level_directory,k)))
-        self.normaliser = self.create_normaliser() if normalisation else lambda a:a
-        self.set_rankings()
+    def set_scores(self, evaluator:callable, fullpath=True):
+        self._df['score'] = list(float(evaluator(k)) for k in self.image_files(fullpath))
+        self.sort()
 
-    def create_normaliser(self) -> callable:
-        raise Exception("really?")
-        mean = statistics.mean(self.image_scores[k] for k in self.image_scores)
-        stdev = statistics.stdev(self.image_scores[k] for k in self.image_scores)
-        return lambda a : float( (a-mean)/stdev )
+    def sort(self, by="score", add_rank_column=None, resort_after=True):
+        self._df.sort_values(by=by, ascending=False, inplace=True)
+        if add_rank_column: self._df[add_rank_column] = range(len(self._df))
+        if resort_after and by!='score': self.sort()
     
-    def image_files(self, fullpath=False) -> list[str]:
-        if fullpath:
-            return list(os.path.join(self.top_level_directory,k) for k in self.image_scores)
-        return list(k for k in self.image_scores) 
-
-    def _create_condition_stack(self, *args) -> callable:
-        def condition(a):
-            for cond in args: 
-                if isinstance(cond,list):
-                    for c in cond:
-                        if not c(a): return False
-                else:
-                    if not cond(a): return False
-            return True
-        return condition
+    def image_files(self, fullpath=False):
+        return self._df['path' if fullpath else 'relative_path'] 
     
-    def _create_condition(self, match:str, regex:bool, directory:str) -> callable:
-        conds = []
-        if match:
-            if regex:
-                r = re.compile(match)
-                conds.append(lambda a : r.match(a))
-            else:
-                conds.append(lambda a : match in a)
-        if directory is not None:
-            conds.append(lambda a:os.path.split(a)[0]==directory)
-        return self._create_condition_stack(conds)
+    def element(self, label:str, file:str, is_fullpath=False) -> float:
+        file = os.path.normpath(os.path.relpath(file, self.tld) if is_fullpath else file)
+        return self._df.loc[file][label]
 
-    def set_rankings(self):
-        ordered = [(f,self.image_scores[f]) for f in self.image_scores]
-        ordered.sort(key=lambda a:a[1], reverse=True)
-        self.ranked = {f:0 for f in self.image_scores}
-        for i, f in enumerate(f for f, _ in ordered):
-            self.ranked[f] = i
-
-    def ranks(self):
-        return [self.ranked[f] for f in self.ranked]
+    def score(self, file:str, is_fullpath=False) -> float:
+        return self.element('score', file, is_fullpath)
     
-    def score(self, file:str, normalised=True) -> float:
-        normaliser = self.normaliser if normalised else lambda a : a
-        return normaliser(self.image_scores[file])
-
-    def scores(self, match:str=None, regex=True, normalised=True, rankings=False, compressed=True, directory=None) -> list[float]:
-        condition = self._create_condition(match, regex, directory)
-        if rankings:
-            ranks = [self.ranked[f] for f in self.image_scores if condition(f)]
-            return compress_rank(ranks) if compressed else ranks
-        else:
-            normaliser = self.normaliser if normalised else lambda a : a
-            return [normaliser(self.image_scores[f]) for f in self.image_scores if condition(f)]
-
-    def scores_dictionary(self, match:str=None, regex=True, normalised=True, directory=None) -> dict[str,float]:
-        condition = self._create_condition(match, regex, directory)
-        normaliser = self.normaliser if normalised else lambda a : a
-        return {f:normaliser(self.image_scores[f]) for f in self.image_scores if condition(f)}
+    def item(self, label) -> list:
+        return list(self._df[label])
     
+    def has_item(self, label):
+        return label in self._df.columns
+    
+    def scores(self) -> list[float]:
+        return self.item('score')
+    
+    def _dictionary(self, column:str):
+        return {f:v for f,v in zip(self._df['relative_path'], self._df[column])}
+
+    def scores_dictionary(self) -> dict[str,float]:
+        return self._dictionary('score')
+    
+    @property
+    def dataframe(self) -> pd.DataFrame:
+        return self._df
+    
+#if __name__=='__main__':
+#    x = ImageScores.from_baid(top_level_directory=r"E:\BAID")
+#    x.save_as_scorefile(r"E:\BAID\scores.csv")

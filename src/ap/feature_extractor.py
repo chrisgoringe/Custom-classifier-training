@@ -98,8 +98,10 @@ class FeatureExtractor:
         self.have_warned = True
         newfiles = { f for f in filepaths if os.path.relpath(f, self.image_directory) not in self.cached }
         if newfiles:
-            self._cache_from_files(newfiles)
-            self._save_cache()
+            try:
+                self._cache_from_files(newfiles)
+            finally:
+                self._save_cache()
         if delete_model: self._delete_model()
 
     def _save_cache(self):
