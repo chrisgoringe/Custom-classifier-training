@@ -6,25 +6,16 @@ import torch
 from src.ap.create_scorefiles import create_scorefiles
 
 def parse_arguments():
-    parser = argparse.ArgumentParser("Score a set of images by a series of AB comparisons")
+    parser = argparse.ArgumentParser("Statistics of scored files")
     parser.add_argument('-d', '--directory', help="Top level directory", required=True)
     parser.add_argument('--scores', default="scores.json", help="Filename of scores file (default scores.json)")
-    parser.add_argument('-m', '--model', default="", help="Model (if any) to load and run on images (default is not to load a model)")
-    parser.add_argument('--model_scores', default="", help="Filename of model scores file (ignored if model is specified)")
-    parser.add_argument('--split', default="split.json", help="Filename of split file (default split.json)")
     parser.add_argument('--include_train_split', action="store_true", help="Include training split in analysis (default is eval images only)")
-    parser.add_argument('--save_scores_and_errors', action="store_true", help="Save score and error files from running model")
-    parser.add_argument('--save_model_scorefile', default="model_scores.json")
-    parser.add_argument('--save_error_scorefile', default="error_scores.json")
+    parser.add_argument('--regex', default="", help="Only include images matching this regex")
+    parser.add_argument('--directories', action="store_true", help="Perform separate analysis for each subdirectory")
 
     global Args
     Args, unknowns = parser.parse_known_args()
     if unknowns: print(f"\nIgnoring unknown argument(s) {unknowns}")
-
-regexes = []    # Zero or more regexes (as strings to be compiled). The analysis will run on (subject to the eval constraint)
-                # - all files 
-                # - for each subfolder, just the files in it
-                # - for each regex, just the files whose path matches the regex
 
 def get_ab(scores, predicted_scores):
     right = 0
@@ -51,42 +42,27 @@ def compare(label:str, scores:list, model_scores:list):
         print("{:>20} : {:>5} images, db score {:>6.3f} +/- {:>4.2f}".format(label,*results))
 
 def analyse():
-    dir = Args.directory
-    print(f"database scores from {Args.scores}")
-    database_scores:ImageScores = ImageScores.from_scorefile(dir, Args.scores)
+    database_scores:ImageScores = ImageScores.from_scorefile(Args.directory, Args.scores)
+    
     if not Args.include_train_split:
         print(f"\nAnalysing eval split only")
-        if Args.split:
-            with open(os.path.join(Args.directory, Args.split), 'r') as fhdl:
-                database_scores.add_item('split', json.load(fhdl))
         database_scores = database_scores.subset(item='split',test=lambda a:a=='eval')
-    else:
-        print("\mAnalysing all images")
-    
-    if Args.model:
-        print(f"using {Args.model} to evaluate images")
-        ap = AestheticPredictor.from_pretrained(pretrained=os.path.join(Args.directory, Args.model), image_directory=Args.directory)
-        ap.eval()
-        ap.precache(database_scores.image_files(fullpath=True))
-        database_scores.add_item('model_score', ap.evaluate_file, fullpath=True, cast=float)
-    elif Args.model_scores:
-        print(f"loading model scores from {Args.model_scores}")
-        database_scores.add_item('model_score', ImageScores.from_scorefile(dir, Args.model_scores))
 
-    compare("All", database_scores.scores(), database_scores.item('model_score'))
-    for r in regexes: 
-        reg = re.compile(r)
+    if Args.regex: 
+        reg = re.compile(Args.regex)
         sub = database_scores.subset(lambda a : reg.match(a))
-        compare(f"/{r}/", sub.scores(), sub.item('model_scores'))
-    for d in [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir,d))]: 
-        sub = database_scores.subset(lambda a : a.startswith(d+os.pathsep))
-        compare(d, sub.scores(), sub.item('model_scores'))
+        compare(f"/{Args.regex}/", sub.item('score'), sub.item('model_scores'))
+    else:
+        reg = None
+        compare("All", database_scores.item('score'), database_scores.item('model_score'))
 
-    if Args.save_scores_and_errors and Args.model:
-        create_scorefiles(ap, database_scores, Args.save_model_scorefile, Args.save_error_scorefile)
+    if Args.directories:
+        for d in [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir,d))]: 
+            sub = database_scores.subset(lambda a : a.startswith(d+os.pathsep))
+            if reg: sub = sub.subset(lambda a : reg.match(a))
+            compare(d+(f" /{Args.regex}/" if reg else ""), sub.item('score'), sub.item('model_scores'))
             
 if __name__=='__main__':
     parse_arguments()
-    assert not (Args.model and Args.model_scores), "Can't do both load_and_run_model and load_model_scorefile"
     with torch.no_grad():
         analyse()
