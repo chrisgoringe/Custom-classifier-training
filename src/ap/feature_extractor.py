@@ -22,96 +22,89 @@ class FeatureExtractor:
     @classmethod
     def get_feature_extractor(cls, pretrained=None, **kwargs):
         pretrained = pretrained[0] if isinstance(pretrained,list) and len(pretrained)==1 else pretrained
-        if isinstance(pretrained,list):
-            return Multi_FeatureExtractor(pretrained=pretrained, **kwargs)
-        elif "___" in pretrained:
-            return Multi_FeatureExtractor(pretrained=pretrained.split("___"), **kwargs)
-        elif "apple" in pretrained:
-            return Apple_FeatureExtractor(pretrained=pretrained, **kwargs)
-        else:
-            return Transformers_FeatureExtractor(pretrained=pretrained, **kwargs)
+        #if isinstance(pretrained,list):
+        #    return Multi_FeatureExtractor(pretrained=pretrained, **kwargs)
+        #elif "___" in pretrained:
+        #    return Multi_FeatureExtractor(pretrained=pretrained.split("___"), **kwargs)
+        #elif "apple" in pretrained:
+        #    return Apple_FeatureExtractor(pretrained=pretrained, **kwargs)
+        return Transformers_FeatureExtractor(pretrained=pretrained, **kwargs)
 
-    def __init__(self, pretrained, device="cuda", image_directory=".", use_cache=True, base_directory=".", hidden_states=None, return_n_output_layers=None):
+    def __init__(self, pretrained, device="cuda", image_directory=".", use_cache=True, base_directory=".", hidden_states_used=[0,], stack_hidden_states=False):
         self.metadata = {"feature_extractor_model":pretrained if isinstance(pretrained,str) else "___".join(pretrained)}
         self.device = device
         self.image_directory = image_directory
         self.pretrained = pretrained
         self.model = None
-        self.have_warned = False
         self.use_cache = use_cache
         self.base_directory = base_directory
-        self.dtype = torch.float
-        
-        self.return_n_output_layers = return_n_output_layers
-        if self.return_n_output_layers:
-            self.return_n_output_layers = int(self.return_n_output_layers)
-        self.hidden_states = hidden_states
-        if self.hidden_states and isinstance(self.hidden_states,str):
-            self.hidden_states = list(int(x) for x in self.hidden_states[1:-1].split(',') if x)
-        if self.hidden_states and self.return_n_output_layers: raise FeatureExtractorException("Can't specify a hidden states list and a weight_n_output_layers")
 
-        self.cached = {}
-        if self.use_cache:
-            if os.path.exists(self.cachefile):
-                self.cached = load_file(self.cachefile, device=self.device)
-                if len(self.cached):
-                    print(f"Reloaded features from {self.cachefile} - delete this file if you don't want to do that")
-                    self.number_of_features = next(iter(self.cached.values())).shape[-1]
-                    return
-                else:
-                    self._load()
-            print(f"No feature cachefile found at {self.cachefile}")
-        self._load()
+        self.stack_hidden_states = (stack_hidden_states=="True") if isinstance(stack_hidden_states, str) else stack_hidden_states
+        self.hidden_states_used = list(int(x) for x in hidden_states_used[1:-1].split(',') if x) if isinstance(hidden_states_used,str) else hidden_states_used
 
-    def check_model(self, model):
+        self.caches = { l:{} for l in self.hidden_states_used }
+        self.cache_needs_saving = { l:False for l in self.hidden_states_used }
+
+        for layer in self.hidden_states_used:
+            if os.path.exists(cf := self.cachefile(layer)):
+                self.caches[layer] = load_file(cf, device=self.device)
+                print(f"Reloaded cache from {cf}")
+                self.number_of_features = next(iter(self.caches[layer].values())).shape[-1]
+            else:
+                self._load()
+                print(f"No feature cachefile found at {cf}, will generate features as required")
+
+        self.number_of_features = self.number_of_features * (1 if self.stack_hidden_states else len(self.hidden_states_used))
+
+    def check_model(self, model, hidden_states_used, stack_hidden_states):
         if model and self.metadata["feature_extractor_model"]!=model:
             raise FeatureExtractorException(f"Feature extractor has model {self.metadata['feature_extractor_model']} not {model}")
+        if self.stack_hidden_states!=stack_hidden_states:
+            raise FeatureExtractorException("Inconsistency in feature extractor stack_hidden_states")
+        if self.hidden_states_used!=hidden_states_used:
+            raise FeatureExtractorException("Inconsistency in hidden states used")
 
-    @property
-    def cachefile(self):
-        unique_name = self.pretrained if isinstance(self.pretrained, str) else "__".join(self.pretrained)
-        return os.path.join(self.image_directory,f"featurecache.{unique_name.replace('/','_').replace(':','_')}.safetensors")        
+    def cachefile(self, layer):
+        unique_name = self.pretrained + f"_{layer}"
+        return os.path.join(self.image_directory,f"featurecache.{unique_name.replace('/','_').replace(':','_')}.safetensors")       
 
     @property
     def model_path(self):
         return os.path.join(self.base_directory, self.pretrained)
     
-    def get_features_from_file(self, filepath, device="cuda", caching=False):
+    def ensure_in_cache(self, filepath):
         rel = os.path.relpath(filepath, self.image_directory)
-        if not self.use_cache:
-            return self._get_image_features_tensor(Image.open(filepath))
-        if rel not in self.cached:
-            if caching and not self.have_warned:
-                print("Getting features from file not in feature cache - precaching is likely to be faster!")
-                self.have_warned = True
-            self.cached[rel] = self._get_image_features_tensor(Image.open(filepath))
-        return self.cached[rel].to(device).squeeze()
+        for layer in self.hidden_states_used:
+            if layer not in self.caches: self.caches[layer] = {}
+            if rel not in self.caches[layer]:
+                self.caches[layer][rel] = self._get_image_features_tensor(Image.open(filepath), layer=layer)
+                self.cache_needs_saving[layer] = True
     
-    def _cache_from_files(self, filepaths, device="cuda"):
-        if not self.use_cache: return
-        for filepath in tqdm(filepaths, desc=f"Caching {self.pretrained}"):
-            rel = os.path.relpath(filepath, self.image_directory)
-            self.cached[rel] = self.get_features_from_file(filepath, device, caching=True)
+    def get_features_from_file(self, filepath, device="cuda", caching=False):
+        self.ensure_in_cache(filepath)
+        rel = os.path.relpath(filepath, self.image_directory)
+        if self.stack_hidden_states:
+            return torch.stack(list(self.caches[layer][rel] for layer in self.hidden_states_used))
+        else:
+            return torch.cat(list(self.caches[layer][rel] for layer in self.hidden_states_used))
     
     def precache(self, filepaths, delete_model=True):
-        if not self.use_cache: return
-        self.have_warned = True
-        newfiles = { f for f in filepaths if os.path.relpath(f, self.image_directory) not in self.cached }
-        if newfiles:
-            try:
-                self._cache_from_files(newfiles)
-            finally:
-                self._save_cache()
+        try:
+            for f in filepaths: self.ensure_in_cache(f)
+        finally:
+            self._save_cache()
         if delete_model: self._delete_model()
 
     def _save_cache(self):
-        if not self.use_cache: return
-        save_file(self.cached, self.cachefile)
+        for layer in self.caches:
+            if self.cache_needs_saving[layer]:
+                save_file(self.caches[layer], self.cachefile(layer))
+                self.cache_needs_saving[layer] = False
 
     def get_metadata(self):
         return self.metadata
     
-    def _get_image_features_tensor(self, image:Image) -> torch.Tensor:
+    def _get_image_features_tensor(self, image:Image, layer:int) -> torch.Tensor:
         raise NotImplementedError()
     
     def _load(self):
@@ -151,65 +144,36 @@ class TextFeatureExtractor:
 class Transformers_FeatureExtractor(FeatureExtractor):
     def __init__(self, **kwargs):
         ap_metadata = kwargs.pop('ap_metadata', {})
-        kwargs['hidden_states'] = kwargs.pop('hidden_states', None) or ap_metadata.get('hidden_states', None)
-        kwargs['return_n_output_layers'] = kwargs.pop('weight_n_output_layers',None) or ap_metadata.get('weight_n_output_layers', None)
+        kwargs['hidden_states_used'] = kwargs.pop('hidden_states_used', None) or ap_metadata.get('hidden_states_used', None)
+        kwargs['stack_hidden_states'] = kwargs.pop('stack_hidden_states') if 'stack_hidden_states' in kwargs else ap_metadata.get('stack_hidden_states', None)
 
         super().__init__(**kwargs)
-        if self.hidden_states: self.metadata['hidden_states'] = "_".join(str(x) for x in self.hidden_states)
+        self.metadata['hidden_states_used'] = "_".join(str(x) for x in self.hidden_states_used)
 
     def _load(self):
+        if self.model is not None: return
         self.model = CLIPModel.from_pretrained(self.pretrained, cache_dir="models")
-        self.number_of_features = self.model.projection_dim * (len(self.hidden_states) if self.hidden_states else 1)
+        self.number_of_features = self.model.projection_dim
         self.metadata['number_of_features'] = str(self.number_of_features)
         self.model.text_model = None
         self.model.to(self.device)
         self.processor = AutoProcessor.from_pretrained(self.realname(self.pretrained), cache_dir="models")
 
-    @property
-    def cachefile(self):
-        unique_name = self.pretrained 
-        if self.hidden_states:
-            unique_name = unique_name + "_" + "_".join(str(x) for x in self.hidden_states)
-        if self.return_n_output_layers:
-            unique_name = self.pretrained + f"_last{self.return_n_output_layers}"
-        return os.path.join(self.image_directory,f"featurecache.{unique_name.replace('/','_').replace(':','_')}.safetensors")     
-
-    def _get_image_features(self, pixel_values, hidden_state):
-        vision_outputs = self.model.vision_model(
-            pixel_values=pixel_values,
-            output_attentions=False,
-            output_hidden_states=True,
-            return_dict=True,
-        )
-        poolable = vision_outputs.hidden_states[-1-hidden_state][:,0,:]
-        pooled_output = self.model.vision_model.post_layernorm(poolable)
-        image_features = self.model.visual_projection(pooled_output)
-        return image_features.flatten()
-    
-    def _get_image_features_n_layers(self, n, pixel_values):
-        vision_outputs = self.model.vision_model(
-            pixel_values=pixel_values,
-            output_attentions=False,
-            output_hidden_states=True,
-            return_dict=True,
-        )
-        image_features = torch.cat(list(self.model.visual_projection(self.model.vision_model.post_layernorm(x[:,0,:])) for x in vision_outputs.hidden_states[-n:]))
-        return image_features
-
-    def _get_image_features_tensor(self, image:Image) -> torch.Tensor:
+    def _get_image_features_tensor(self, image:Image, layer:int) -> torch.Tensor:
         if self.model==None: self._load()
         with torch.no_grad():
             inputs = self.processor(images=image, return_tensors="pt")
-            for k in inputs:
-                if isinstance(inputs[k],torch.Tensor): inputs[k] = inputs[k].to(self.device)
-            if self.return_n_output_layers:
-                return self._get_image_features_n_layers(self.return_n_output_layers, **inputs)
-            elif self.hidden_states:
-                outputs = torch.cat(tuple(self._get_image_features(**inputs, hidden_state=x) for x in self.hidden_states))
-            else:
-                outputs = self._get_image_features(**inputs, hidden_state=0)
-            return outputs.flatten()
-        
+            vision_outputs = self.model.vision_model(
+                pixel_values=inputs['pixel_values'].to(self.device),
+                output_attentions=False,
+                output_hidden_states=True,
+                return_dict=True,
+            )
+            poolable = vision_outputs.hidden_states[-1-layer][:,0,:]
+            pooled_output = self.model.vision_model.post_layernorm(poolable)
+            image_features = self.model.visual_projection(pooled_output)
+            return image_features.flatten()
+'''     
 class Apple_FeatureExtractor(FeatureExtractor):
     def __init__(self, **kwargs):
         if (hs := kwargs.pop('hidden_states', None)): print(f"hidden_states not implemented for Apple_FeatureExtractor - ignoring {hs}")
@@ -259,3 +223,4 @@ class Multi_FeatureExtractor(FeatureExtractor):
     def number_of_features(self):
         return sum(fe.number_of_features for fe in self.feature_extractors)
 
+'''

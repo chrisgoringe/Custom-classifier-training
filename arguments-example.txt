@@ -1,0 +1,109 @@
+# One argument per line; white space either side of '=' is removed
+# lines starting '#' are ignored, as are blank lines
+
+#
+# Main arguments. 
+#
+
+--directory         = my_image_directory
+#   Where the images are saved. Subfolders are included. .png, .jpg and .jpeg are considered images
+#--model             = model.safetensors
+#   File to save the model in when trained. 
+#--scores            = saved_scores.csv
+#   Where to find the scores for the images. Can be a .json file or a .csv file 
+#--savefile          = saved_scores.csv
+#   Where to save final scores as a .csv file which includes the score predicted by the best model, and the train/eval split
+#--name              = my_training_run
+#   Prefix for study name in optuna. Studies are saved in db.sqlite
+#--no_server
+#   Don't start an optuna dashboard server
+
+#
+# Defining the model architecture:
+#
+
+#--model_seed=MODEL_SEED
+#   Seed for initialising model (default none)
+#--min_first_layer_size=MIN_FIRST_LAYER_SIZE
+#   Minimum number of features in first hidden layer (default 10)
+#--max_first_layer_size=MAX_FIRST_LAYER_SIZE
+#   Maximum number of features in first hidden layer (default 1000)
+#--min_second_layer_size=MIN_SECOND_LAYER_SIZE
+#   Minimum number of features in second hidden layer (default 10)
+#--max_second_layer_size=MAX_SECOND_LAYER_SIZE
+#   Maximum number of features in second hidden layer (default 1000)
+
+#
+# Feature extraction:
+#
+
+#--feature_extractor_model=FEATURE_EXTRACTOR_MODEL
+#   Model to use for feature extraction
+#--hidden_states_use=HIDDEN_STATES_USED
+#   Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.)
+#--stack_hidden_states
+#   Stack multiple hidden states instead of concatenating them
+
+#
+# Training constants:
+#
+
+#--loss_model={mse,ab,nll}
+#   Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood)
+#--set_for_scoring={eval,full,train}
+#   Image set to be used for scoring a model when trained (default eval)
+#--metric_for_scoring={mse,ab,nll,spearman,pearson,accuracy}
+#   Metric to be used for scoring a model when trained (default is the loss_model)
+#--calculate_ab        
+#--calculate_mse       
+#--calculate_spearman  
+#--calculate_pearson 
+#--calculate_accuracy
+#   Calculate the specified metric. Metrics required for loss or for scoring are calculated as required even if not specified
+#--accuracy_divider=ACCURACY_DIVIDER
+#   Divider between 'high' and 'low' for accuracy. If not specified the median score is used.
+#--fraction_for_eval=FRACTION_FOR_EVAL
+#   fraction of images to be reserved for eval (default 0.25)
+#--eval_pick_seed=EVAL_PICK_SEED
+#   Seed for random numbers when choosing eval images (default 42)
+#--ignore_existing_split
+#   Default behaviour if the scorefile includes splits is to use them. Use this to discard existing split and generate a new eval set
+
+#
+# Metaparameters:
+#
+
+#--name=NAME           
+#   Name prefix for Optuna
+#--trials=TRIALS       
+#   Number of metaparameter trials
+#--sampler={CmaEs,random,QMC}
+#   Metaparameter search algorithm
+#--min_train_epochs=MIN_TRAIN_EPOCHS
+#   (default 5)
+#--max_train_epochs=MAX_TRAIN_EPOCHS
+#   (default 50)
+#--min_warmup_ratio=MIN_WARMUP_RATIO
+#   (default 0.0)
+#--max_warmup_ratio=MAX_WARMUP_RATIO
+#   (default 0.2)
+#--min_log_lr=MIN_LOG_LR
+#   (default -4.5)
+#--max_log_lr=MAX_LOG_LR
+#   (default -2.5)
+#--min_batch_size=MIN_BATCH_SIZE
+#   (default 1)
+#--max_batch_size=MAX_BATCH_SIZE
+#   (default 100)
+#--min_dropout=MIN_DROPOUT
+#   Minimum dropout between two hidden layers (default 0.0)
+#--max_dropout=MAX_DROPOUT
+#   Maximum dropout between two hidden layers (default 0.8)
+#--min_input_dropout=MIN_INPUT_DROPOUT
+#   Minimum dropout between features and first hidden layer (default 0.0)
+#--max_input_dropout=MAX_INPUT_DROPOUT
+#   Maximum dropout between features and first hidden layer (default 0.8)
+#--min_output_dropout=MIN_OUTPUT_DROPOUT
+#   Minimum dropout before final projection (default 0.0)
+#--max_output_dropout=MAX_OUTPUT_DROPOUT
+#   Maximum dropout before final projection (default 0.0)

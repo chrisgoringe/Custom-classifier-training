@@ -85,18 +85,22 @@ def main():
 
     best_keeper = BestKeeper(save_model_path=Args.save_model_path, minimise=Args.best_minimize)
 
-    with Timer('Build datasets from images') as logger:
+    with Timer('Build datasets'):
         ds = QuickDataset.from_scorefile(top_level_directory=Args.directory, scorefilename=Args.scores)
         ds.allocate_split(fraction_for_eval=Args.fraction_for_eval, eval_pick_seed=Args.eval_pick_seed, replace=Args.ignore_existing_split)
 
+    with Timer('Create feature_extractor'):
         feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=Args.feature_extractor_model, image_directory=Args.directory, device="cuda", **Args.feature_extractor_extras)
+
+    with Timer('Extract features:'):
         ds.extract_features(feature_extractor)
+
+    with Timer('Create test and evaluation subsets') as logger:
         tds = ds.subset(lambda a:a=='train', 'split')
         eds = ds.subset(lambda a:a!='train', 'split')
-
         logger(f"{len(ds)} images ({len(tds)} training, {len(eds)} evaluation)")
 
-    with Timer("Metaparameter search"):
+    with Timer("Metaparameter search") as logger:
         ta = Args.training_args
         def objective(trial:optuna.trial.Trial):
             ta['num_train_epochs']            =             Args.meta(trial.suggest_int,  'num_train_epochs',  Args.train_epochs)
@@ -127,14 +131,14 @@ def main():
         elif Args.sampler=="QMC": sampler = optuna.samplers.QMCSampler()
         else: raise NotImplementedError()
 
-        if not Args.no_server:
-            print("Starting optuna dashboard server")
-            storage:optuna.storages.BaseStorage = optuna.storages.RDBStorage(url=r"sqlite:///db.sqlite")
-            study:optuna.study.Study = optuna.create_study(study_name=name, direction=Args.direction, sampler=sampler, storage=storage)
-            threading.Thread(target=run_server,kwargs={'storage':storage}).start()
-
+        storage:optuna.storages.BaseStorage = optuna.storages.RDBStorage(url=r"sqlite:///db.sqlite")
+        study:optuna.study.Study = optuna.create_study(study_name=name, direction=Args.direction, sampler=sampler, storage=storage)
         for k in Args.keys: study.set_user_attr(k, Args.get(k))
         study.set_user_attr("image_count", len(ds))
+
+        if not Args.no_server:
+            logger("Starting optuna dashboard server")
+            threading.Thread(target=run_server,kwargs={'storage':storage}).start()
 
         study.optimize(objective, n_trials=Args.trials)
 
