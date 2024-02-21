@@ -56,7 +56,7 @@ class CustomTrainer(Trainer):
             return RankingLossTrainer(**kwargs)
         if loss=='nll':
             return NegativeLogLikelihoodLossTrainer(**kwargs)
-        if loss=='wmes':
+        if loss=='wmse':
             return WMSELossTrainer(**kwargs)
         raise NotImplementedError(loss)
 
