@@ -73,7 +73,10 @@ class QuickDataset(Dataset, ImageScores):
         return float(mse)
     
     def get_wmse(self, **kwargs):
-        wmse = torch.sum( torch.multiply(torch.square(self.item('score')-self.item('model_score')), self.item('weight') ) )/len(self)
+        sc = self.item('score')
+        ms = self.item('model_score')
+        we = self.item('weight')
+        wmse = sum( (s-m)*(s-m)*w for s,m,w in zip(sc,ms,we) )/len(self)
         return float(wmse)
     
     def get_nll(self, **kwargs):
