@@ -18,7 +18,7 @@ class EvaluationCallback(TrainerCallback):
         for label, dataset in self.datasets_to_score:
             with torch.no_grad():
                 dataset.update_prediction(predictor)
-            Timer.message("{:8}: rmse {:>6.3f}".format(label,dataset.get_mse()))
+            Timer.message("{:8}: mse {:>6.3f}".format(label,dataset.get_mse()))
         if was_train: predictor.train()
 
     def on_epoch_end(self, arguments, state: TrainerState, control, **kwargs):
