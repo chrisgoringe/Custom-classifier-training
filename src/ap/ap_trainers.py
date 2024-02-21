@@ -6,9 +6,10 @@ import random
 from src.time_context import Timer
 
 class EvaluationCallback(TrainerCallback):
-    def __init__(self, datasets_to_shuffle:list[QuickDataset], datasets_to_score:list[tuple[str, QuickDataset]]):
+    def __init__(self, datasets_to_shuffle:list[QuickDataset], datasets_to_score:list[tuple[str, QuickDataset]], measures=['mse',]):
         self.datasets_to_shuffle = datasets_to_shuffle
         self.datasets_to_score = datasets_to_score
+        self.measures = measures
 
     def _do_eval(self, state: TrainerState, predictor:AestheticPredictor):
         if not len(self.datasets_to_score): return
@@ -18,7 +19,8 @@ class EvaluationCallback(TrainerCallback):
         for label, dataset in self.datasets_to_score:
             with torch.no_grad():
                 dataset.update_prediction(predictor)
-            Timer.message("{:8}: mse {:>6.3f}".format(label,dataset.get_mse()))
+                for measure in (m for m in self.measures if m!='accuracy'):
+                    Timer.message("{:8}: {:>8} {:>6.3f}".format(label,measure,dataset.__getattribute__(f"get_{measure}")()))
         if was_train: predictor.train()
 
     def on_epoch_end(self, arguments, state: TrainerState, control, **kwargs):

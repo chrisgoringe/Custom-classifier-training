@@ -93,7 +93,7 @@ def _parse_arguments(into:dict):
 
     into['metric_for_scoring'] = into.get('metric_for_scoring', None) or into['loss_model']
     into['parameter_for_scoring'] = f"{into['set_for_scoring']}_{into['metric_for_scoring']}"
-    into['measures'] = list(o for o in ['ab', 'mse', 'spearman', 'pearson', 'accuracy'] if o==into['loss_model'] or o==into['metric_for_scoring'] or into.get(f"calculate_{o}",False))
+    into['measures'] = list(o for o in ['ab', 'mse', 'wmse', 'spearman', 'pearson', 'accuracy'] if o==into['loss_model'] or o==into['metric_for_scoring'] or into.get(f"calculate_{o}",False))
 
     into['save_model_path'] = os.path.join(into['directory'], into['model'])
     into['direction']='maximize' if into['loss_model']=='ab' else 'minimize'

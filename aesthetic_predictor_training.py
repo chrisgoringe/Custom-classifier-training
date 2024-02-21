@@ -47,7 +47,7 @@ def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:Qui
 
     with Timer('Train model'):
         train_args = TrainingArguments( remove_unused_columns=False, **Args.training_args )
-        callback = EvaluationCallback(datasets_to_shuffle=(tds,), datasets_to_score=(('training',tds),('evaluate',eds),))
+        callback = EvaluationCallback(datasets_to_shuffle=(tds,), datasets_to_score=(('training',tds),('evaluate',eds),), measures=Args.measures)
         trainer = CustomTrainer.trainer(loss = Args.loss_model, model = predictor, 
                                         train_dataset = tds, eval_dataset = None, 
                                         args = train_args, callbacks = [callback,],
