@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from safetensors.torch import load_file
-from .feature_extractor import FeatureExtractor, FeatureExtractorException
+from .feature_extractor import FeatureExtractor
 import json
 
 def to_bool(s): 
@@ -18,7 +18,11 @@ def to_float_list(s):
     if isinstance(s,str): return list(float(x) for x in s[1:-1].split(',') if x)
     if isinstance(s,list): return s
     raise NotImplementedError()
-    
+
+class FakeFE():
+    number_of_features = None
+    check_model = lambda a,b,c : True
+
 class AestheticPredictor(nn.Module):
     @classmethod
     def from_pretrained(cls, pretrained:str, **feargs):
@@ -45,33 +49,29 @@ class AestheticPredictor(nn.Module):
         self.metadata[p] = str(value)
         return cast(value)
 
-    def __init__(self, feature_extractor:FeatureExtractor=None, pretrained="", device="cuda", model_seed=None, **kwargs):  
+    def __init__(self, feature_extractor:FeatureExtractor=FakeFE(), pretrained="", device="cuda", model_seed=None, **kwargs):  
         super().__init__()
         
         self.metadata, sd = self.load_metadata_and_sd(pretrained)
         self.kwargs = kwargs
         self.feature_extractor = feature_extractor
 
-        nof = feature_extractor.number_of_features if feature_extractor else None
         self.output_channels        = self._get_argument('output_channels',         1,      int)
-        self.final_layer_bias       = self._get_argument('final_layer_bias',        True,   to_bool)
-        self.weight_n_output_layers = self._get_argument('weight_n_output_layers',  0,      int)
-        self.hidden_states          = self._get_argument('hidden_states',           [],     to_int_list)
+        self.stack_hidden_states    = self._get_argument('stack_hidden_states',     0,      to_bool)
+        self.hidden_states_used     = self._get_argument('hidden_states_used',      [0,],   to_int_list)
         self.hidden_layer_sizes     = self._get_argument('layers',                  None,   to_int_list)
-        self.number_of_features     = self._get_argument('number_of_features',      nof,    int)
+        self.number_of_features     = self._get_argument('number_of_features',      feature_extractor.number_of_features,    int)
         self.dropouts               = self._get_argument('dropouts',                [],     to_int_list)
         self.metadata.pop('dropouts')        
         
-        if self.feature_extractor:
-            self.feature_extractor.check_model(self.metadata.get("feature_extractor_model", None))
-            if self.weight_n_output_layers and self.weight_n_output_layers!=self.feature_extractor.return_n_output_layers:
-                raise FeatureExtractorException("Inconsistency in feature extractor output layer weighting")
-            if self.hidden_states and self.hidden_states!=self.feature_extractor.hidden_states:
-                raise FeatureExtractorException("Inconsistency in hidden states to be returned by feature extractor")
+        self.feature_extractor.check_model(self.metadata.get("feature_extractor_model", None), self.hidden_states_used, self.stack_hidden_states)
 
         if model_seed: torch.manual_seed(model_seed)
 
-        self.preprocess = nn.Linear(self.weight_n_output_layers, 1, bias=False) if self.weight_n_output_layers > 1 else None
+        self.preprocess = nn.Sequential(
+            nn.Linear(len(self.hidden_states_used), 1),
+            nn.ReLU()
+         ) if self.stack_hidden_states else None
 
         self.main_process = nn.Sequential()
         current_size = self.number_of_features
@@ -81,16 +81,17 @@ class AestheticPredictor(nn.Module):
             self.main_process.append(nn.ReLU())
             current_size = hidden_layer_size
         self.main_process.append(nn.Dropout(self.dropouts[-1] if self.dropouts else 0.0))
-        self.main_process.append(nn.Linear(current_size, self.output_channels, bias=self.final_layer_bias))
+        self.main_process.append(nn.Linear(current_size, self.output_channels))
 
         if sd: self.load_state_dict(sd)
         self.to(device)
 
     def info(self):
         if self.preprocess:
-            ws = self.preprocess.weight.squeeze()
+            ws = self.preprocess[0].weight.squeeze()
+            b = self.preprocess[0].bias
             last = float(ws[-1].item())
-            return { "normalised_hidden_layer_projection" : ",".join("{:>8.4f}".format(x.item()/last) for x in ws) }
+            return { "normalised_hidden_layer_projection" : ",".join("{:>8.4f}".format(x.item()/last) for x in ws) + " (bias {:>8.4f}".format(b.item()) }
         return {}
 
     @classmethod

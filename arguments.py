@@ -37,8 +37,6 @@ def _parse_arguments(into:dict):
     main_group.add_argument('--model', default="model.safetensors", help="Filename to save model (default model.safetensors)")
     main_group.add_argument('--scores', default="scores.json", help="Filename of scores file (default scores.json)")
     main_group.add_argument('--no_server', action="store_true", help="Don't run an optuna dashboard server")
-    #main_group.add_argument('--errors', default="errors.json", help="Filename of errors file (default errors.json)")
-    #main_group.add_argument('--split', default="split.json", help="Filename of split file (default split.json)")
 
     model_group.add_argument('--final_layer_bias', action="store_true", help="Train with a bias in the final layer") 
     model_group.add_argument('--model_seed', type=int, default=0, help="Seed for initialising model (default none)")
@@ -48,12 +46,12 @@ def _parse_arguments(into:dict):
     model_group.add_argument('--max_second_layer_size', type=int, default=1000, help="Maximum number of features in second hidden layer (default 1000)")
 
     features_group.add_argument('--feature_extractor_model', default="ChrisGoringe/vitH16", help="Model to use for feature extraction", type=to_string_list)
-    features_group.add_argument('--hidden_states', default="", help="Comma separated list of the hidden states to concatenate (0 is output layer, 1 is last hidden layer etc.)", type=to_int_list)
-    features_group.add_argument('--weight_n_output_layers', default=0, type=int, help="Add a trainable projection of last n output layers to the start of the model")
+    features_group.add_argument('--hidden_states_used', default="0", help="Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.)", type=to_int_list)
+    features_group.add_argument('--stack_hidden_states', action="store_true", help="Stack multiple hidden states instead of concatenating them")
     
     training_group.add_argument('--loss_model', default='mse', choices=['mse','ab','nll'], help="Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood)")
     training_group.add_argument('--set_for_scoring', default='eval', choices=['eval', 'full', 'train'], help="Image set to be used for scoring a model when trained (default eval)")
-    training_group.add_argument('--metric_for_scoring', choices=['mse', 'ab', 'nll', 'spearman', 'pearson'], help="Metric to be used for scoring a model when trained (default is the loss_model)")
+    training_group.add_argument('--metric_for_scoring', choices=['mse', 'ab', 'nll', 'spearman', 'pearson', 'accuracy'], help="Metric to be used for scoring a model when trained (default is the loss_model)")
     training_group.add_argument('--calculate_ab', action="store_true", help="Calculate ab even if not being used for scoring")
     training_group.add_argument('--calculate_mse', action="store_true", help="Calculate mse even if not being used for scoring")
     training_group.add_argument('--calculate_spearman', action="store_true", help="Calculate spearman")
@@ -113,8 +111,8 @@ class _Args(object):
     
     def parse_arguments(self, show=False):
         _parse_arguments(self.args)
-        self.arg_sets = {   "feature_extractor_extras" : ['hidden_states','weight_n_output_layers',],
-                            "aesthetic_model_extras" : ['final_layer_bias','hidden_states','weight_n_output_layers','model_seed','dropouts','layers','output_channels',],
+        self.arg_sets = {   "feature_extractor_extras" : ['hidden_states_used','stack_hidden_states',],
+                            "aesthetic_model_extras" : ['hidden_states_used','stack_hidden_states','model_seed','dropouts','layers','output_channels',],
                             "trainer_extras" : [],
                             }
         if show: self.show_args()

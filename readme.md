@@ -38,86 +38,17 @@ There must also be a `score.json` file. This is best generated using the image_a
 
 ## Configuration and running
 
-`python aesthetic_predictor_training.py -d=DIRECTORY`
+The command line arguments are kept in a text file. Copy the example `arguments-example.txt` to `arguments.txt` and edit it appropriately, then
 
-There are lots of other options. Here's the output of `python aesthetic_predictor_training.py --help`:
+`python aesthetic_predictor_training.py "@arguments.txt"`
 
-```
-options:
-  -h, --help            show this help message and exit
+You can see all the command line arguments available by running `python aesthetic_predictor_training.py --help`; they are all also described in the `arguments-example.txt` file.
 
-Main arguments:
-  -d DIRECTORY, --directory DIRECTORY
-                        Top level directory
-  -s SAVEFILE, --savefile SAVEFILE
-                        Filename for saving csv scorefile (default scores.csv)
-  --model MODEL         Filename to save model (default model.safetensors)
-  --scores SCORES       Filename of scores file (.json or .csv) (default scores.json)
-
-Defining the model architecture:
-  --final_layer_bias    Train with a bias in the final layer
-  --model_seed MODEL_SEED
-                        Seed for initialising model (default none)
-  --min_layer_size MIN_LAYER_SIZE
-                        Minimum number of features in each hidden layer (default 10)
-  --max_layer_size MAX_LAYER_SIZE
-                        Maximum number of features in each hidden layer (default 1000)
-
-Feature extraction:
-  --feature_extractor_model FEATURE_EXTRACTOR_MODEL
-                        Model to use for feature extraction
-  --hidden_states HIDDEN_STATES
-                        Comma separated list of the hidden states to concatenate (0 is output layer, 1 is last hidden layer etc.)
-  --weight_n_output_layers WEIGHT_N_OUTPUT_LAYERS
-                        Add a trainable projection of last n output layers to the start of the model
-  
-Training constants:
-  --loss_model {mse,ab,nll}
-                        Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood)
-  --set_for_scoring {eval,full,train}
-                        Image set to be used for scoring a model when trained (default eval)
-  --metric_for_scoring {mse,ab,nll,spearman,pearson,accuracy}
-                        Metric to be used for scoring a model when trained (default is the loss_model) - ab is slow for large sets (O(N^2))
-  --calculate_ab        Calculate ab (always calculated if used for scoring) - slow for large sets (O(N^2))
-  --calculate_mse       Calculate mse (always calculated if used for scoring)
-  --calculate_spearman  Calculate spearman
-  --calculate_pearson   Calculate pearson
-  --calculate_accuracy  Calculate accuracy (fraction of scores the correct side of zero)
-  --fraction_for_eval FRACTION_FOR_EVAL
-                        fraction of images to be reserved for eval (aka eval) (default 0.25)
-  --eval_pick_seed EVAL_PICK_SEED
-                        Seed for random numbers when choosing eval images (default 42)
-
-Metaparameters:
-  --name NAME           Name prefix for Optuna
-  --trials TRIALS       Number of metaparameter trials
-  --sampler {CmaEs,random,QMC}
-                        Metaparameter search algorithm
-  --min_train_epochs MIN_TRAIN_EPOCHS
-                        (default 5)
-  --max_train_epochs MAX_TRAIN_EPOCHS
-                        (default 50)
-  --min_warmup_ratio MIN_WARMUP_RATIO
-                        (default 0.0)
-  --max_warmup_ratio MAX_WARMUP_RATIO
-                        (default 0.2)
-  --min_log_lr MIN_LOG_LR
-                        (default -4.5)
-  --max_log_lr MAX_LOG_LR
-                        (default -2.5)
-  --min_batch_size MIN_BATCH_SIZE
-                        (default 1)
-  --max_batch_size MAX_BATCH_SIZE
-                        (default 100)
-  --min_dropout MIN_DROPOUT
-                        (default 0.0)
-  --max_dropout MAX_DROPOUT
-                        (default 0.8)
-  ```
+More details of some of them are below.
 
 ### Defining the model architecture parameters
 
-The base model takes the features from the feature extractor as a vector (typically 1024 or 1280 long). It then has two hidden layers, each consisting of (`nn.Dropout`, `nn.Linear`, `nn.RELU`) and then a final `nn.Linear` to project the last hidden layer to a single value. By default this last step has no bias, this can be set with `--final_layer_bias`. The size of the hidden layers is part of the metaparameter search, defined by the limits `--min_layer_size` and `--max_layer_size`.
+The base model takes the features from the feature extractor as a vector (typically 1024 or 1280 long). It then has two hidden layers, each consisting of (`nn.Dropout`, `nn.Linear`, `nn.RELU`) and then a final `nn.Linear` to project the last hidden layer to a single value. The size of the hidden layers is part of the metaparameter search, defined by the limits `--min_first_layer_size`, `--max_first_layer_size`, `--min_second_layer_size`, `--max_second_layer_size`.
 
 ### Feature extraction
 
@@ -129,28 +60,32 @@ Other models tested include `apple/aim-600M,` `apple/aim-1B`, `apple/aim-3B`, `a
 
 It is possible to use more than one model and have the features concatenated together. This currently isn't support at the command line.
 
-Most image feature extractors provide access to multiple hidden layers, not just the last (using this is analagous to the `CLIP skip` in CLIP text processing). These can be accessed in one of two (mututally exclusive) ways:
+Most image feature extractors provide access to multiple hidden layers, not just the last (using this is analagous to the `CLIP skip` in CLIP text processing). To access these, set `--hidden_states_used` to a comma separated list of integers specifying the layers to use. 0 represents the final output, 1 is the layer before it, 2 the layer before that, etc.. The layers do not need to be consecutive, so `--hidden_states_used=0,2,5` is fine.
 
-- `--hidden_states` takes a comma-separated list of integers, will concatenate the features from the specified layers (0 = usual output, 1 = previous layer, etc). This can be used to pick a hidden layer (eg `--hidden_states=1`) or to train using more than one (eg `--hidden_states=0,1`).
-
-- `--weight_n_output_layers=n` adds a `nn.Linear` to the model which combines the features from the last `n` layers using a single set of `n` trainable weights
+By default these outputs are concatenated to produce a larger input to the model (so instead of 1024 features, with `--hidden_states_used=0,1` the model would receive 2048 features). Alternatively, with `--weight_hidden_states` the layers are be merged using a `nn.Linear` which gives each layer a single weight which is included in the training.
 
 ### Training constants
 
 - `--loss_model` - `mse` (mean square error) is default, `ab` evaluates loss using MarginRankingLoss, `nll` (experimental) produces a value and estimated error and evaluates loss using negative log likelihood (`nn.GaussianNLLLoss`)
 
-- `--set_for_scoring` and `--metric_for_scoring` are used by the metaparameter search to evaluate a model at the end of training. Set can be `full`, `train`, or `eval` portions, metric can be `mse` or `nll` (the loss values), `ab` (the percentage of pairs of images that are correctly ordered by the model) or `spearman` (spearman rank comparison). Default is to use the specified loss model applied to the eval images only.
+- `--set_for_scoring` and `--metric_for_scoring` are used by the metaparameter search to evaluate a model at the end of training. Set can be `full`, `train`, or `eval` portions, metric can be `mse` or `nll` (the loss values), `ab` (the percentage of pairs of images that are correctly ordered by the model), `spearman` (spearman rank correlation), `pearson` (pearson correlation), or `accuracy` (see below). Default is to use the specified loss model applied to the eval images only.
 
-- `calculate_ab (mse, spearman)` can be specified to calculate these metrics even if they are not being used for scoring. They are saved in the trial arguments (see Optuna Dashboard)
+- `calculate_ab (mse, spearman, pearson, accuracy)` can be specified to calculate these metrics even if they are not being used for scoring. They are saved in the trial arguments (see Optuna Dashboard)
+
+`accuracy` is the percentage of images that are placed on the correct side of a threshold ('good' v. 'bad'). By default the threshold is the median iamge score; you can choose a different value with `--accuracy_divider` 
 
 ### Metaparameters
 
-Model training is so fast that we do a metaparameter search...
+Optuna is used to search through the metaparameter space; 
 
 - `--name` to give the run a name
 - `--trials` to set the number of trials in the run
 - `--sampler` choice of sampler for Optuna metaparameter search
-- `--[min|max]_[train_epochs|warmup_ratio|log_lr|batch_size|dropout]` along with `layer_size` these are the metaparameters varied between trials. 
+
+The metaparameter space consists of the model layer sizes (`first_layer_size` and `second_layer_size`) and training metaparameters ('`train_epochs`', '`warmup_ratio`', '`log_lr`, `batch_size`, `dropout`, `input_dropout`, `output_dropout`). Each is specified with `--min_xxx` and `--max_xxx` (which can be equal to specify a fixed value).
+
+`input_dropout` applies between the feature extractor and the model; `dropout` applies between the two hidden layers of the model, `output_dropout` (default 0) applies after the second hidden layer of the model, before the final projection to a single value. 
+
 
 # Monitoring training
 
