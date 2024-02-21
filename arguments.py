@@ -96,8 +96,7 @@ def _parse_arguments(into:dict):
     into['measures'] = list(o for o in ['ab', 'mse', 'wmse', 'spearman', 'pearson', 'accuracy'] if o==into['loss_model'] or o==into['metric_for_scoring'] or into.get(f"calculate_{o}",False))
 
     into['save_model_path'] = os.path.join(into['directory'], into['model'])
-    into['direction']='maximize' if into['loss_model']=='ab' else 'minimize'
-    into['best_minimize'] = not (into['parameter_for_scoring'].endswith("_ab") or into['parameter_for_scoring'].endswith("_spearman"))
+    into['score_direction'] = 'maximize' if into['metric_for_scoring'] in ['ab', 'spearman', 'pearson', 'accuracy', ] else 'minimize'
     into['output_channels'] = 2 if into['loss_model']=='nll' else 1
 
 class _Args(object):

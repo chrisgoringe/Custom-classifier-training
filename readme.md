@@ -96,11 +96,13 @@ The metaparameter space consists of the model layer sizes (`first_layer_size` an
 
 `input_dropout` applies between the feature extractor and the model; `dropout` applies between the two hidden layers of the model, `output_dropout` (default 0) applies after the second hidden layer of the model, before the final projection to a single value. 
 
-# Monitoring training
+# Other Tools
+
+## Monitoring training
 
 Unless you specify `--no_server`, the trainer will launch an Optuna Dashboard that you can access on `http://127.0.0.1:8080/`
 
-# Spotlight
+## Spotlight
 
 [Spotlight](https://github.com/Renumics/spotlight) is a gui for analysing datasets. After a training run, run `aesthetic_spotlight.py` to see its magic!
 
@@ -110,7 +112,7 @@ Unless you specify `--no_server`, the trainer will launch an Optuna Dashboard th
   --scores SCORES       Filename of scores file (default scores.csv)
 ```
 
-# Data analysis
+## Data analysis
 
 Script `aesthetic_data_analysis.py` can do statistical analysis on scorefiles. Specify the scorefile produced by a training run. The model results are compared with the 'true' scores.
 
@@ -122,6 +124,19 @@ Script `aesthetic_data_analysis.py` can do statistical analysis on scorefiles. S
                         Include training split in analysis (default is eval images only)
   --regex REGEX         Only include images matching this regex
   --directories         Perform separate analysis for each subdirectory
+```
+
+## Scorer
+
+Script `aesthetic_scorer.py` scores the images in a directory into a scorefile (or stdout if `--outfile` not specified).
+
+```
+  -d DIRECTORY, --directory DIRECTORY
+                        Top level directory
+  -m MODEL, --model MODEL
+                        Path to model
+  -o OUTFILE, --outfile OUTFILE
+                        Save to file (.csv) in directory
 ```
 
 # Acknowledgements

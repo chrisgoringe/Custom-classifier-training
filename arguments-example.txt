@@ -56,6 +56,7 @@
 #   Metric to be used for scoring a model when trained (default is the loss_model)
 #--calculate_ab        
 #--calculate_mse       
+#--calculate_wmse  
 #--calculate_spearman  
 #--calculate_pearson 
 #--calculate_accuracy

@@ -83,7 +83,7 @@ def main():
     validate()
     name = f"{Args.get('name','')}_{random.randint(10000,99999)}"
 
-    best_keeper = BestKeeper(save_model_path=Args.save_model_path, minimise=Args.best_minimize)
+    best_keeper = BestKeeper(save_model_path=Args.save_model_path, minimise=Args.score_direction=='minimize')
 
     with Timer('Build datasets'):
         ds = QuickDataset.from_scorefile(top_level_directory=Args.directory, scorefilename=Args.scores)
@@ -133,7 +133,7 @@ def main():
         else: raise NotImplementedError()
 
         storage:optuna.storages.BaseStorage = optuna.storages.RDBStorage(url=r"sqlite:///db.sqlite")
-        study:optuna.study.Study = optuna.create_study(study_name=name, direction=Args.direction, sampler=sampler, storage=storage)
+        study:optuna.study.Study = optuna.create_study(study_name=name, direction=Args.score_direction, sampler=sampler, storage=storage)
         for k in Args.keys: study.set_user_attr(k, Args.get(k))
         study.set_user_attr("image_count", len(ds))
 
