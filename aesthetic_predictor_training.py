@@ -88,6 +88,7 @@ def main():
     with Timer('Build datasets'):
         ds = QuickDataset.from_scorefile(top_level_directory=Args.directory, scorefilename=Args.scores)
         ds.allocate_split(fraction_for_eval=Args.fraction_for_eval, eval_pick_seed=Args.eval_pick_seed, replace=Args.ignore_existing_split)
+        if Args.normalise_weights and ds.has_item('weight'): ds.normalise('weight', mean=1)
 
     with Timer('Create feature_extractor'):
         feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=Args.feature_extractor_model, image_directory=Args.directory, device="cuda", **Args.feature_extractor_extras)

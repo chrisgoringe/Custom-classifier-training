@@ -44,7 +44,8 @@ class CustomTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         targets = inputs['y']
         outputs = model(inputs['x'])
-        loss = self._compute_loss(targets, outputs)
+        weight = inputs.get('weight',None)
+        loss = self._compute_loss(targets, outputs, weight)
         return (loss, outputs) if return_outputs else loss
 
     @classmethod
@@ -55,16 +56,22 @@ class CustomTrainer(Trainer):
             return RankingLossTrainer(**kwargs)
         if loss=='nll':
             return NegativeLogLikelihoodLossTrainer(**kwargs)
+        if loss=='wmes':
+            return WMSELossTrainer(**kwargs)
         raise NotImplementedError(loss)
 
 class MSELossTrainer(CustomTrainer):
     loss_fn = torch.nn.MSELoss()
-    def _compute_loss(self, scores, outputs):
+    def _compute_loss(self, scores, outputs, weight):
         return self.loss_fn(scores, torch.squeeze( outputs ))
+    
+class WMSELossTrainer(CustomTrainer):
+    def _compute_loss(self, scores, outputs, weight):
+        return torch.sum( torch.multiply(torch.square(scores-torch.squeeze( outputs )), weight ) )/len(scores)
     
 class NegativeLogLikelihoodLossTrainer(CustomTrainer):
     loss_fn = torch.nn.GaussianNLLLoss()
-    def _compute_loss(self, scores, outputs):
+    def _compute_loss(self, scores, outputs, weight):
         return self.loss_fn(outputs[:,0],scores,torch.square(outputs[:,1]))
 
     

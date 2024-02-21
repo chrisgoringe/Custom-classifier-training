@@ -1,4 +1,4 @@
-import os, json
+import os, json, statistics
 import pandas as pd
 from typing import Self, Callable
 from collections.abc import Iterable
@@ -85,6 +85,12 @@ class ImageScores:
             self._df[label] = list(cast(v) for v in values)
         else:
             raise NotImplementedError()
+        
+    def normalise(self, label, mean, stdev=None):
+        if stdev:
+            self._df[label] = self._df[label] - statistics.mean(self._df[label])
+            self._df[label] = self._df[label] * stdev/statistics.stdev(self._df[label])
+        self._df[label] = self._df[label] + mean - statistics.mean(self._df[label])
 
     def save_as_scorefile(self, scorefilepath):
         self._df.to_csv(open(scorefilepath, 'w', newline=''), columns=(c for c in self._df.columns if c not in self.exclude_from_save))

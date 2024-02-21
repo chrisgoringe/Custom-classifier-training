@@ -17,11 +17,10 @@ class QuickDataset(Dataset, ImageScores):
         ImageScores.__init__(self, **kwargs)
         self.map = [i for i in range(len(self._df))]
         self.shuffle()
-        #self.children = []
+        self.has_weights = 'weight' in self._df.columns
 
     def subset(self, test:Callable, item:str='relative_path') -> Self:
         qd = QuickDataset(top_level_directory=self.tld, df=self._df.loc[test(self._df[item])])
-        #self.children.append(qd)
         return qd
 
     def allocate_split(self, fraction_for_eval:float=0.25, eval_pick_seed:int=42, replace=False):
@@ -42,13 +41,14 @@ class QuickDataset(Dataset, ImageScores):
             label = 'model_score' if i==0 else f"model_score_{i}"
             p = predictions[:,i].numpy()
             self.add_item(label, p)
-            #for child in self.children:
-            #    child.add_item(label=label, values=lambda a:self.element(label=label, file=a))
 
     def __getitem__(self, i):
         x = self._df['features'].array[self.map[i]]
         y = torch.tensor(self._df['score'].array[self.map[i]], dtype=torch.float)
-        return {"x":x, "y":y}
+        if self.has_weights:
+            w = torch.tensor(self._df['weight'].array[self.map[i]], dtype=torch.float)
+            return {"x":x, "y":y, "weight":w}
+        else: return {"x":x, "y":y}
 
     def __len__(self):
         return len(self.map)
@@ -69,8 +69,12 @@ class QuickDataset(Dataset, ImageScores):
         
     def get_mse(self, **kwargs):
         loss_fn = torch.nn.MSELoss()
-        rmse = loss_fn(torch.tensor(self.item('score')), torch.tensor(self.item('model_score')))
-        return float(rmse)
+        mse = loss_fn(torch.tensor(self.item('score')), torch.tensor(self.item('model_score')))
+        return float(mse)
+    
+    def get_wmse(self, **kwargs):
+        wmse = torch.sum( torch.multiply(torch.square(self.item('score')-self.item('model_score')), self.item('weight') ) )/len(self)
+        return float(wmse)
     
     def get_nll(self, **kwargs):
         loss_fn = torch.nn.GaussianNLLLoss()

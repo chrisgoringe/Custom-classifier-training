@@ -48,11 +48,11 @@
 # Training constants:
 #
 
-#--loss_model={mse,ab,nll}
-#   Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood)
+#--loss_model={mse,ab,nll,wmse}
+#   Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood, wmse=weighted mse)
 #--set_for_scoring={eval,full,train}
 #   Image set to be used for scoring a model when trained (default eval)
-#--metric_for_scoring={mse,ab,nll,spearman,pearson,accuracy}
+#--metric_for_scoring={mse,ab,nll,wmse,spearman,pearson,accuracy}
 #   Metric to be used for scoring a model when trained (default is the loss_model)
 #--calculate_ab        
 #--calculate_mse       
@@ -62,6 +62,8 @@
 #   Calculate the specified metric. Metrics required for loss or for scoring are calculated as required even if not specified
 #--accuracy_divider=ACCURACY_DIVIDER
 #   Divider between 'high' and 'low' for accuracy. If not specified the median score is used.
+#--normalise_weights
+#   If using weights, normalise them to a mean value of 1.0
 #--fraction_for_eval=FRACTION_FOR_EVAL
 #   fraction of images to be reserved for eval (default 0.25)
 #--eval_pick_seed=EVAL_PICK_SEED

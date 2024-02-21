@@ -49,15 +49,16 @@ def _parse_arguments(into:dict):
     features_group.add_argument('--hidden_states_used', default="0", help="Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.)", type=to_int_list)
     features_group.add_argument('--stack_hidden_states', action="store_true", help="Stack multiple hidden states instead of concatenating them")
     
-    training_group.add_argument('--loss_model', default='mse', choices=['mse','ab','nll'], help="Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood)")
+    training_group.add_argument('--loss_model', default='mse', choices=['mse','ab','nll', 'wmse'], help="Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood, wmse=weighted mse )")
     training_group.add_argument('--set_for_scoring', default='eval', choices=['eval', 'full', 'train'], help="Image set to be used for scoring a model when trained (default eval)")
-    training_group.add_argument('--metric_for_scoring', choices=['mse', 'ab', 'nll', 'spearman', 'pearson', 'accuracy'], help="Metric to be used for scoring a model when trained (default is the loss_model)")
+    training_group.add_argument('--metric_for_scoring', choices=['mse', 'ab', 'nll', 'wmse', 'spearman', 'pearson', 'accuracy'], help="Metric to be used for scoring a model when trained (default is the loss_model)")
     training_group.add_argument('--calculate_ab', action="store_true", help="Calculate ab even if not being used for scoring")
     training_group.add_argument('--calculate_mse', action="store_true", help="Calculate mse even if not being used for scoring")
     training_group.add_argument('--calculate_spearman', action="store_true", help="Calculate spearman")
     training_group.add_argument('--calculate_pearson', action="store_true", help="Calculate pearson")
     training_group.add_argument('--calculate_accuracy', action="store_true", help="Calculate accuracy (fraction correct side of accuracy_divider)")
     training_group.add_argument('--accuracy_divider', type=float, help="Divider between 'high' and 'low' for accuracy. If not specified the median score is used.")
+    training_group.add_argument('--normalise_weights', action="store_true", help="If using wmse, normalise the weights to mean of 1.0")
     
     training_group.add_argument('--fraction_for_eval', type=float, default=0.25, help="fraction of images to be reserved for eval (default 0.25)")
     training_group.add_argument('--eval_pick_seed', type=int, default=42, help="Seed for random numbers when choosing eval images (default 42)") 
