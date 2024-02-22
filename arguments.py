@@ -36,7 +36,8 @@ def _parse_arguments(into:dict):
     main_group.add_argument('-s', '--savefile', default="", help="Filename of (csv) scores file to save (default no save)")
     main_group.add_argument('--model', default="model.safetensors", help="Filename to save model (default model.safetensors)")
     main_group.add_argument('--scores', default="scores.json", help="Filename of scores file (default scores.json)")
-    main_group.add_argument('--no_server', action="store_true", help="Don't run an optuna dashboard server")
+    main_group.add_argument('--server', default='on', choices=['on','daemon','off'], help="Start an optuna dashboard server. Use daemon to start in daemon thread (terminates with training), or off for no server")
+    main_group.add_argument('--database', default="sqlite:///db.sqlite", help="Storage for optuna. Set --database= for no database (implies --server=off)")
 
     model_group.add_argument('--final_layer_bias', action="store_true", help="Train with a bias in the final layer") 
     model_group.add_argument('--model_seed', type=int, default=0, help="Seed for initialising model (default none)")

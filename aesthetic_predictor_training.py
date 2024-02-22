@@ -132,14 +132,14 @@ def main():
         elif Args.sampler=="QMC": sampler = optuna.samplers.QMCSampler()
         else: raise NotImplementedError()
 
-        storage:optuna.storages.BaseStorage = optuna.storages.RDBStorage(url=r"sqlite:///db.sqlite")
+        storage:optuna.storages.BaseStorage = optuna.storages.RDBStorage(url=Args.database) if Args.database else None 
         study:optuna.study.Study = optuna.create_study(study_name=name, direction=Args.score_direction, sampler=sampler, storage=storage)
         for k in Args.keys: study.set_user_attr(k, Args.get(k))
         study.set_user_attr("image_count", len(ds))
 
-        if not Args.no_server:
-            logger("Starting optuna dashboard server")
-            threading.Thread(target=run_server,kwargs={'storage':storage}).start()
+        if Args.server!='off' and storage is not None:
+            logger("Starting optuna dashboard server" + " as daemon" if Args.server=='daemon' else "") 
+            threading.Thread(target=run_server,kwargs={'storage':storage}, daemon=(Args.server=='daemon')).start()
 
         study.optimize(objective, n_trials=Args.trials)
 

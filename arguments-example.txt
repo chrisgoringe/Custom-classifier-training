@@ -15,8 +15,10 @@
 #   Where to save final scores as a .csv file which includes the score predicted by the best model, and the train/eval split
 #--name              = my_training_run
 #   Prefix for study name in optuna. Studies are saved in db.sqlite
-#--no_server
-#   Don't start an optuna dashboard server
+#--server={on,daemon,off}
+#   Start an optuna dashboard server. Use daemon to start in daemon thread (terminates with training), or off for no server
+#--database          = sqlite:///db.sqlite
+#   Storage for optuna. Set --database= for no database (implies --server=off)
 
 #
 # Defining the model architecture:

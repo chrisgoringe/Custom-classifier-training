@@ -100,7 +100,9 @@ The metaparameter space consists of the model layer sizes (`first_layer_size` an
 
 ## Monitoring training
 
-Unless you specify `--no_server`, the trainer will launch an Optuna Dashboard that you can access on `http://127.0.0.1:8080/`
+Metaparameter results are saved in a local sqlite database, specified by `--database` (default `sqlite:///db.sqlite`). Set `--database=` (ie blank) to turn this off.
+
+The trainer also launches an Optuna Dashboard that you can access on `http://127.0.0.1:8080/`. Control this with `--server={on,daemon,off}` (daemon will terminate with training).
 
 ## Spotlight
 
