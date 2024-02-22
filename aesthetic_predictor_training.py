@@ -24,10 +24,7 @@ class SupressServerMessages(object):
         self.stdout= sys.stdout
 
     def write(self, message:str):
-        if message.startswith("127.0.0.1"):
-            pass
-        else:
-            self.stdout.write(message)
+        if not message.startswith("127.0.0.1"): self.stdout.write(message)
 
     def flush(self):
         pass
@@ -74,13 +71,9 @@ def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:Qui
 
     return metrics
 
-def validate():
-    assert os.path.isdir(Args.directory), f"{Args.directory} doesn't exist or isn't a directory"
-    assert os.path.exists(os.path.join(Args.directory, Args.scores)), f"{os.path.join(Args.directory, Args.scores)} not found"
-
 def main():
     Args.parse_arguments(show=True)
-    validate()
+    Args.validate()
     name = f"{Args.get('name','')}_{random.randint(10000,99999)}"
 
     best_keeper = BestKeeper(save_model_path=Args.save_model_path, minimise=Args.score_direction=='minimize')
@@ -93,8 +86,11 @@ def main():
     with Timer('Create feature_extractor'):
         feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=Args.feature_extractor_model, image_directory=Args.directory, device="cuda", **Args.feature_extractor_extras)
 
-    with Timer('Extract features:'):
+    with Timer('Extract features:') as logger:
         ds.extract_features(feature_extractor)
+        if not Args.trials:
+            logger("trials set to zero - exiting")
+            return
 
     with Timer('Create test and evaluation subsets') as logger:
         tds = ds.subset(lambda a:a=='train', 'split')
@@ -130,7 +126,7 @@ def main():
         if Args.sampler=="CmaEs": sampler = optuna.samplers.CmaEsSampler()
         elif Args.sampler=="random": sampler = optuna.samplers.RandomSampler()
         elif Args.sampler=="QMC": sampler = optuna.samplers.QMCSampler()
-        else: raise NotImplementedError()
+        else: raise NotImplementedError(f"{Args.sampler} not implemented")
 
         storage:optuna.storages.BaseStorage = optuna.storages.RDBStorage(url=Args.database) if Args.database else None 
         study:optuna.study.Study = optuna.create_study(study_name=name, direction=Args.score_direction, sampler=sampler, storage=storage)
