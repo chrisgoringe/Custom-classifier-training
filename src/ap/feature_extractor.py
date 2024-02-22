@@ -116,7 +116,7 @@ class FeatureExtractor:
     
     def _delete_model(self):
         for model in self.models:
-            model.to('cpu')
+            self.models[model].to('cpu')
         self.models = {}
 
     def _to(self, device, load_if_needed=True):
