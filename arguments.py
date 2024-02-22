@@ -15,6 +15,9 @@ training_args = {
 # Argument processing
 ###
 
+class ArgumentException(Exception):
+    pass
+
 class CommentArgumentParser(argparse.ArgumentParser):
     def convert_arg_line_to_args(self, arg_line):
         if arg_line.startswith('#'): return [] 
@@ -86,9 +89,10 @@ def _parse_arguments(into:dict):
     namespace, unknowns = parser.parse_known_args()
     if unknowns: print(f"\nIgnoring unknown argument(s) {unknowns}")
     d = vars(namespace)
+    into[":Arguments (specified or default)"]=None
     for argument in d: into[argument] = d[argument]
 
-    # Calculated arguments:
+    into[":Derived arguments"]=None
     for argument in ['train_epochs', 'warmup_ratio', 'log_lr', 'batch_size', 'first_layer_size', 'second_layer_size', 'dropout', 'input_dropout', 'output_dropout']:
         into[argument] = d[f"min_{argument}"] if d[f"min_{argument}"] == d[f"max_{argument}"] else (d[f"min_{argument}"], d[f"max_{argument}"])
 
@@ -102,9 +106,8 @@ def _parse_arguments(into:dict):
 
 class _Args(object):
     instance = None
-    exception = Exception()
     def __init__(self):
-        self.args = { "training_args" : training_args }
+        self.args = { ":Set arguments":None, "training_args" : training_args }
         self.arg_sets = {}
 
     def __getattr__(self, attr):
@@ -128,7 +131,17 @@ class _Args(object):
         self.args[key] = value
     
     def show_args(self):
-        for a in self.keys: print("{:>30} : {:<40}".format(a, str(self.get(a))))
+        for a in self.keys: 
+            if a.startswith(':'):
+                print(f"\n{a[1:]}\n")
+            else:
+                print("{:>30} : {:<40}".format(a, str(self.get(a))))
+
+    def validate(self):
+        if not os.path.isdir(self.directory): 
+            raise ArgumentException( f"{self.directory} doesn't exist or isn't a directory" )
+        if not os.path.exists(os.path.join(self.directory, self.scores)):
+            raise ArgumentException(f"{os.path.join(self.directory, self.scores)} not found")
 
     @property
     def keys(self):

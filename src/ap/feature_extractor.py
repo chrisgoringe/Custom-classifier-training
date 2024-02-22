@@ -35,7 +35,7 @@ class FeatureExtractor:
         self.device = device
         self.image_directory = image_directory
         self.pretrained = pretrained
-        self.model = None
+        self.models = {}
         self.use_cache = use_cache
         self.base_directory = base_directory
 
@@ -74,11 +74,16 @@ class FeatureExtractor:
     
     def ensure_in_cache(self, filepath):
         rel = os.path.relpath(filepath, self.image_directory)
+        layers_needed = []
         for layer in self.hidden_states_used:
-            if layer not in self.caches: self.caches[layer] = {}
+            #if layer not in self.caches: self.caches[layer] = {}
             if rel not in self.caches[layer]:
-                self.caches[layer][rel] = self._get_image_features_tensor(Image.open(filepath), layer=layer)
-                self.cache_needs_saving[layer] = True
+                layers_needed.append(layer)
+        if layers_needed:
+            all_layers = self._get_image_features_tensor(Image.open(filepath), layers=layers_needed)
+            for layer in all_layers:
+                self.caches[layer][rel] = all_layers[layer]
+            self.cache_needs_saving[layer] = True
     
     def get_features_from_file(self, filepath, device="cuda", caching=False):
         self.ensure_in_cache(filepath)
@@ -90,7 +95,7 @@ class FeatureExtractor:
     
     def precache(self, filepaths, delete_model=True):
         try:
-            for f in filepaths: self.ensure_in_cache(f)
+            for f in tqdm(filepaths): self.ensure_in_cache(f)
         finally:
             self._save_cache()
         if delete_model: self._delete_model()
@@ -104,42 +109,45 @@ class FeatureExtractor:
     def get_metadata(self):
         return self.metadata
     
-    def _get_image_features_tensor(self, image:Image, layer:int) -> torch.Tensor:
+    def _get_image_features_tensor(self, image:Image, layers:list) -> torch.Tensor:
         raise NotImplementedError()
     
     def _load(self):
         raise NotImplementedError()
     
-    def _to(self, device:str, load_if_needed=True):
-        self.device = device
-        if not self.model or load_if_needed: return
-        if self.model==None: self._load()
-
     def _delete_model(self):
-        if not self.model: return
-        self.model.to('cpu')
-        self.model = None
-        self.processor = None
+        for model in self.models:
+            model.to('cpu')
+        self.models = {}
+
+    def _to(self, device):
+        if self.models.get('model', None) is not None: self.models['model'].to(device)
+        self.device = device
     
 class TextFeatureExtractor:
     def __init__(self, pretrained, device="cuda"):
-        if isinstance(pretrained,list):
-            assert len(pretrained)==1
-            pretrained = pretrained[0]
-        self.model = CLIPModel.from_pretrained(pretrained, cache_dir="models")
-        self.tokenizer = AutoTokenizer.from_pretrained(FeatureExtractor.realname(pretrained), cache_dir="models")
-        self.model.to(device)
+        self.pretrained = pretrained[0] if isinstance(pretrained,list) else pretrained
         self.device = device
+        self.models = {}
+
+    def _load(self):
+        if self.models.get('model', None) is None:
+            self.models['model'] = CLIPModel.from_pretrained(self.pretrained, cache_dir="models")
+            self.models['model'].to(self.device)
+        if self.models.get('tokenizer', None) is None:
+            self.models['tokenizer'] = AutoTokenizer.from_pretrained(FeatureExtractor.realname(self.pretrained), cache_dir="models")
+        self.device = self.device
 
     def get_text_features_tensor(self, text:str, clip_skip:int=None):
-        text_inputs = self.tokenizer( text, padding="max_length", max_length=self.tokenizer.model_max_length, truncation=True, return_tensors="pt" )
+        self._load()
+        text_inputs = self.models['tokenizer']( text, padding="max_length", max_length=self.tokenizer.model_max_length, truncation=True, return_tensors="pt" )
         text_input_ids = text_inputs.input_ids.to(self.device)
         attention_mask = text_inputs.attention_mask.to(self.device)
-        return self.model.get_text_features(text_input_ids, attention_mask)
+        return self.models['model'].get_text_features(text_input_ids, attention_mask)
     
     @property
     def number_of_features(self):
-        return self.model.projection_dim
+        return self.models['model'].projection_dim
    
 class Transformers_FeatureExtractor(FeatureExtractor):
     def __init__(self, **kwargs):
@@ -151,28 +159,33 @@ class Transformers_FeatureExtractor(FeatureExtractor):
         self.metadata['hidden_states_used'] = "_".join(str(x) for x in self.hidden_states_used)
 
     def _load(self):
-        if self.model is not None: return
-        self.model = CLIPModel.from_pretrained(self.pretrained, cache_dir="models")
-        self.number_of_features = self.model.projection_dim
-        self.metadata['number_of_features'] = str(self.number_of_features)
-        self.model.text_model = None
-        self.model.to(self.device)
-        self.processor = AutoProcessor.from_pretrained(self.realname(self.pretrained), cache_dir="models")
+        if self.models.get('model',None) is None: 
+            self.models['model'] = CLIPModel.from_pretrained(self.pretrained, cache_dir="models")
+            self.number_of_features = self.models['model'].projection_dim
+            self.metadata['number_of_features'] = str(self.number_of_features)
+            self.models['model'].text_model = None
+            self.models['model'].to(self.device)
+        if self.models.get('processor',None) is None: 
+            self.models['processor'] = AutoProcessor.from_pretrained(self.realname(self.pretrained), cache_dir="models")
 
-    def _get_image_features_tensor(self, image:Image, layer:int) -> torch.Tensor:
-        if self.model==None: self._load()
+    def _get_image_features_tensor(self, image:Image, layers:list) -> torch.Tensor:
+        self._load()
         with torch.no_grad():
-            inputs = self.processor(images=image, return_tensors="pt")
-            vision_outputs = self.model.vision_model(
+            inputs = self.models['processor'](images=image, return_tensors="pt")
+            vision_outputs = self.models['model'].vision_model(
                 pixel_values=inputs['pixel_values'].to(self.device),
                 output_attentions=False,
                 output_hidden_states=True,
                 return_dict=True,
             )
-            poolable = vision_outputs.hidden_states[-1-layer][:,0,:]
-            pooled_output = self.model.vision_model.post_layernorm(poolable)
-            image_features = self.model.visual_projection(pooled_output)
-            return image_features.flatten()
+
+            results = {}
+            for this_layer in layers:
+                poolable = vision_outputs.hidden_states[-1-this_layer][:,0,:]
+                pooled_output = self.models['model'].vision_model.post_layernorm(poolable)
+                results[this_layer] = self.models['model'].visual_projection(pooled_output)
+            return results
+
 '''     
 class Apple_FeatureExtractor(FeatureExtractor):
     def __init__(self, **kwargs):
