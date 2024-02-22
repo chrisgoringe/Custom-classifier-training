@@ -25,9 +25,9 @@ class FakeFE():
 
 class AestheticPredictor(nn.Module):
     @classmethod
-    def from_pretrained(cls, pretrained:str, **feargs):
+    def from_pretrained(cls, pretrained:str, feature_extractor=None, **feargs):
         metadata, _ = cls.load_metadata_and_sd(pretrained=pretrained, return_sd=False)
-        feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=metadata["feature_extractor_model"], ap_metadata=metadata, **feargs)
+        feature_extractor = feature_extractor or FeatureExtractor.get_feature_extractor(pretrained=metadata["feature_extractor_model"], ap_metadata=metadata, **feargs)
         return AestheticPredictor(feature_extractor=feature_extractor, pretrained=pretrained)
     
     @classmethod

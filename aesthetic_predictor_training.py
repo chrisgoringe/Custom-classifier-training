@@ -142,12 +142,15 @@ def main():
         best_filepath = best_keeper.restore_best()
 
     with Timer('Statistics'):
-        predictor = AestheticPredictor.from_pretrained(pretrained=best_filepath, image_directory=Args.directory)
-        predictor.eval()
-        with torch.no_grad():
-            ds.update_prediction(predictor)
-        compare("Best model",  eds.scores(), eds.item('model_score'))
-        if Args.savefile: ds.save_as_scorefile(os.path.join(Args.directory, Args.savefile))
+        with Timer('Load best model'):
+            predictor = AestheticPredictor.from_pretrained(pretrained=best_filepath, image_directory=Args.directory, feature_extractor=feature_extractor)
+            predictor.eval()
+        with Timer('Update predictions'):
+            with torch.no_grad():   
+                ds.update_prediction(predictor)
+        with Timer('Calculate stats'):
+            compare("Best model",  eds.scores(), eds.item('model_score'))
+            if Args.savefile: ds.save_as_scorefile(os.path.join(Args.directory, Args.savefile))
 
 if __name__=='__main__':
     profile.run('main()', 'profile.stats')

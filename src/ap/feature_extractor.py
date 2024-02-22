@@ -2,8 +2,7 @@ import torch
 from PIL import Image
 from safetensors.torch import save_file, load_file
 import os
-from torch._tensor import Tensor
-from transformers import AutoProcessor, CLIPModel, AutoTokenizer, CLIPTextModelWithProjection
+from transformers import AutoProcessor, CLIPModel, AutoTokenizer
 from tqdm import tqdm
 
 # REALNAMES is used for downloading the (small) preprocessor file
@@ -83,9 +82,9 @@ class FeatureExtractor:
             all_layers = self._get_image_features_tensor(Image.open(filepath), layers=layers_needed)
             for layer in all_layers:
                 self.caches[layer][rel] = all_layers[layer]
-            self.cache_needs_saving[layer] = True
+                self.cache_needs_saving[layer] = True
     
-    def get_features_from_file(self, filepath, device="cuda", caching=False):
+    def get_features_from_file(self, filepath):
         self.ensure_in_cache(filepath)
         rel = os.path.relpath(filepath, self.image_directory)
         if self.stack_hidden_states:
@@ -120,7 +119,8 @@ class FeatureExtractor:
             model.to('cpu')
         self.models = {}
 
-    def _to(self, device):
+    def _to(self, device, load_if_needed=True):
+        if load_if_needed: self._load()
         if self.models.get('model', None) is not None: self.models['model'].to(device)
         self.device = device
     
