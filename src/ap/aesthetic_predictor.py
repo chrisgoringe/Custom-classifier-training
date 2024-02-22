@@ -32,7 +32,7 @@ class AestheticPredictor(nn.Module):
     
     @classmethod
     def no_feature_extractor(cls, pretrained:str):
-        return AestheticPredictor(feature_extractor=None, pretrained=pretrained)
+        return AestheticPredictor(pretrained=pretrained)
     
     def precache(self, image_filepaths:list):
         self.feature_extractor.precache(image_filepaths)
