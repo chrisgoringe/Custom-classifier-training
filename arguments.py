@@ -24,103 +24,109 @@ class CommentArgumentParser(argparse.ArgumentParser):
         line = "=".join(a.strip() for a in arg_line.split('='))
         return [line,] if len(line) else []
 
-def _parse_arguments(into:dict):
-    to_int_list = lambda s : list( int(x.strip()) for x in s.split(',') if x )
-    to_string_list = lambda s : list( x.strip() for x in s.split(',') if x )
-
-    parser = CommentArgumentParser("Compare a series of scorefiles", fromfile_prefix_chars='@')
-    main_group = parser.add_argument_group('Main arguments')
-    model_group = parser.add_argument_group('Defining the model architecture')
-    features_group = parser.add_argument_group('Feature extraction')
-    training_group = parser.add_argument_group('Training constants')
-    metaparameter_group = parser.add_argument_group('Metaparameters')
-
-    main_group.add_argument('-d', '--directory', help="Top level directory", required=True)
-    main_group.add_argument('-s', '--savefile', default="", help="Filename of (csv) scores file to save (default no save)")
-    main_group.add_argument('--model', default="model.safetensors", help="Filename to save model (default model.safetensors)")
-    main_group.add_argument('--scores', default="scores.json", help="Filename of scores file (default scores.json)")
-    main_group.add_argument('--server', default='on', choices=['on','daemon','off'], help="Start an optuna dashboard server. Use daemon to start in daemon thread (terminates with training), or off for no server")
-    main_group.add_argument('--database', default="sqlite:///db.sqlite", help="Storage for optuna. Set --database= for no database (implies --server=off)")
-
-    model_group.add_argument('--final_layer_bias', action="store_true", help="Train with a bias in the final layer") 
-    model_group.add_argument('--model_seed', type=int, default=0, help="Seed for initialising model (default none)")
-    model_group.add_argument('--min_first_layer_size', type=int, default=10, help="Minimum number of features in first hidden layer (default 10)")
-    model_group.add_argument('--max_first_layer_size', type=int, default=1000, help="Maximum number of features in first hidden layer (default 1000)")
-    model_group.add_argument('--min_second_layer_size', type=int, default=10, help="Minimum number of features in second hidden layer (default 10)")
-    model_group.add_argument('--max_second_layer_size', type=int, default=1000, help="Maximum number of features in second hidden layer (default 1000)")
-
-    features_group.add_argument('--feature_extractor_model', default="ChrisGoringe/vitH16", help="Model to use for feature extraction", type=to_string_list)
-    features_group.add_argument('--hidden_states_used', default="0", help="Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.)", type=to_int_list)
-    features_group.add_argument('--stack_hidden_states', action="store_true", help="Stack multiple hidden states instead of concatenating them")
-    
-    training_group.add_argument('--loss_model', default='mse', choices=['mse','ab','nll', 'wmse'], help="Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood, wmse=weighted mse )")
-    training_group.add_argument('--set_for_scoring', default='eval', choices=['eval', 'full', 'train'], help="Image set to be used for scoring a model when trained (default eval)")
-    training_group.add_argument('--metric_for_scoring', choices=['mse', 'ab', 'nll', 'wmse', 'spearman', 'pearson', 'accuracy'], help="Metric to be used for scoring a model when trained (default is the loss_model)")
-    training_group.add_argument('--calculate_ab', action="store_true", help="Calculate ab even if not being used for scoring")
-    training_group.add_argument('--calculate_mse', action="store_true", help="Calculate mse even if not being used for scoring")
-    training_group.add_argument('--calculate_spearman', action="store_true", help="Calculate spearman")
-    training_group.add_argument('--calculate_pearson', action="store_true", help="Calculate pearson")
-    training_group.add_argument('--calculate_accuracy', action="store_true", help="Calculate accuracy (fraction correct side of accuracy_divider)")
-    training_group.add_argument('--accuracy_divider', type=float, help="Divider between 'high' and 'low' for accuracy. If not specified the median score is used.")
-    training_group.add_argument('--normalise_weights', action="store_true", help="If using wmse, normalise the weights to mean of 1.0")
-    
-    training_group.add_argument('--fraction_for_eval', type=float, default=0.25, help="fraction of images to be reserved for eval (default 0.25)")
-    training_group.add_argument('--eval_pick_seed', type=int, default=42, help="Seed for random numbers when choosing eval images (default 42)") 
-    training_group.add_argument('--ignore_existing_split', action="store_true", help="Discard existing train/eval split")
-
-    metaparameter_group.add_argument('--name', help="Name prefix for Optuna")
-    metaparameter_group.add_argument('--trials', type=int, default=200, help="Number of metaparameter trials" )
-    metaparameter_group.add_argument('--sampler', default="CmaEs", choices=['CmaEs', 'random', 'QMC'], help="Metaparameter search algorithm")
-    metaparameter_group.add_argument('--min_train_epochs', type=int, default=5, help="(default 5)")
-    metaparameter_group.add_argument('--max_train_epochs', type=int, default=50, help="(default 50)")
-    metaparameter_group.add_argument('--min_warmup_ratio', type=float, default=0.0, help="(default 0.0)")
-    metaparameter_group.add_argument('--max_warmup_ratio', type=float, default=0.2, help="(default 0.2)")
-    metaparameter_group.add_argument('--min_log_lr', type=float, default=-4.5, help="(default -4.5)")
-    metaparameter_group.add_argument('--max_log_lr', type=float, default=-2.5, help="(default -2.5)")
-    metaparameter_group.add_argument('--min_batch_size', type=int, default=1, help="(default 1)")
-    metaparameter_group.add_argument('--max_batch_size', type=int, default=100, help="(default 100)")    
-    metaparameter_group.add_argument('--min_dropout', type=float, default=0.0, help="Minimum dropout between two hidden layers (default 0.0)")
-    metaparameter_group.add_argument('--max_dropout', type=float, default=0.8, help="Maximum dropout between two hidden layers (default 0.8)")
-    metaparameter_group.add_argument('--min_input_dropout', type=float, default=0.0, help="Minimum dropout between features and first hidden layer (default 0.0)")
-    metaparameter_group.add_argument('--max_input_dropout', type=float, default=0.8, help="Maximum dropout between features and first hidden layer (default 0.8)")
-    metaparameter_group.add_argument('--min_output_dropout', type=float, default=0.0, help="Minimum dropout before final projection (default 0.0)")
-    metaparameter_group.add_argument('--max_output_dropout', type=float, default=0.0, help="Maximum dropout before final projection (default 0.0)")
-
-    namespace, unknowns = parser.parse_known_args()
-    if unknowns: print(f"\nIgnoring unknown argument(s) {unknowns}")
-    d = vars(namespace)
-    into[":Arguments (specified or default)"]=None
-    for argument in d: into[argument] = d[argument]
-
-    into[":Derived arguments"]=None
-    for argument in ['train_epochs', 'warmup_ratio', 'log_lr', 'batch_size', 'first_layer_size', 'second_layer_size', 'dropout', 'input_dropout', 'output_dropout']:
-        into[argument] = d[f"min_{argument}"] if d[f"min_{argument}"] == d[f"max_{argument}"] else (d[f"min_{argument}"], d[f"max_{argument}"])
-
-    into['metric_for_scoring'] = into.get('metric_for_scoring', None) or into['loss_model']
-    into['parameter_for_scoring'] = f"{into['set_for_scoring']}_{into['metric_for_scoring']}"
-    into['measures'] = list(o for o in ['ab', 'mse', 'wmse', 'spearman', 'pearson', 'accuracy'] if o==into['loss_model'] or o==into['metric_for_scoring'] or into.get(f"calculate_{o}",False))
-
-    into['save_model_path'] = os.path.join(into['directory'], into['model'])
-    into['score_direction'] = 'maximize' if into['metric_for_scoring'] in ['ab', 'spearman', 'pearson', 'accuracy', ] else 'minimize'
-    into['output_channels'] = 2 if into['loss_model']=='nll' else 1
-
 class _Args(object):
     instance = None
-    def __init__(self):
-        self.args = { ":Set arguments":None, "training_args" : training_args }
-        self.arg_sets = {}
 
-    def __getattr__(self, attr):
-        return self.get(attr)
-    
-    def parse_arguments(self, show=False):
-        _parse_arguments(self.args)
+    def _parse_arguments():
+        to_int_list = lambda s : list( int(x.strip()) for x in s.split(',') if x )
+        to_string_list = lambda s : list( x.strip() for x in s.split(',') if x )
+
+        parser = CommentArgumentParser("Compare a series of scorefiles", fromfile_prefix_chars='@')
+        main_group = parser.add_argument_group('Main arguments')
+        model_group = parser.add_argument_group('Defining the model architecture')
+        features_group = parser.add_argument_group('Feature extraction')
+        training_group = parser.add_argument_group('Training constants')
+        metaparameter_group = parser.add_argument_group('Metaparameters')
+
+        main_group.add_argument('-d', '--directory', help="Top level directory", required=True)
+        main_group.add_argument('-s', '--savefile', default="", help="Filename of (csv) scores file to save (default no save)")
+        main_group.add_argument('--model', default="model.safetensors", help="Filename to save model (default model.safetensors)")
+        main_group.add_argument('--scores', default="scores.json", help="Filename of scores file (default scores.json)")
+        main_group.add_argument('--server', default='on', choices=['on','daemon','off'], help="Start an optuna dashboard server. Use daemon to start in daemon thread (terminates with training), or off for no server")
+        main_group.add_argument('--database', default="sqlite:///db.sqlite", help="Storage for optuna. Set --database= for no database (implies --server=off)")
+
+        model_group.add_argument('--final_layer_bias', action="store_true", help="Train with a bias in the final layer") 
+        model_group.add_argument('--model_seed', type=int, default=0, help="Seed for initialising model (default none)")
+        model_group.add_argument('--min_first_layer_size', type=int, default=10, help="Minimum number of features in first hidden layer (default 10)")
+        model_group.add_argument('--max_first_layer_size', type=int, default=1000, help="Maximum number of features in first hidden layer (default 1000)")
+        model_group.add_argument('--min_second_layer_size', type=int, default=10, help="Minimum number of features in second hidden layer (default 10)")
+        model_group.add_argument('--max_second_layer_size', type=int, default=1000, help="Maximum number of features in second hidden layer (default 1000)")
+
+        features_group.add_argument('--feature_extractor', default="ChrisGoringe/vitH16", help="Model to use for feature extraction", type=to_string_list)
+        features_group.add_argument('--hidden_states_used', default="0", help="Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.)", type=to_int_list)
+        features_group.add_argument('--stack_hidden_states', action="store_true", help="Stack multiple hidden states instead of concatenating them")
+        
+        training_group.add_argument('--loss_model', default='mse', choices=['mse','ab','nll', 'wmse'], help="Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood, wmse=weighted mse )")
+        training_group.add_argument('--set_for_scoring', default='eval', choices=['eval', 'full', 'train'], help="Image set to be used for scoring a model when trained (default eval)")
+        training_group.add_argument('--metric_for_scoring', choices=['mse', 'ab', 'nll', 'wmse', 'spearman', 'pearson', 'accuracy'], help="Metric to be used for scoring a model when trained (default is the loss_model)")
+        training_group.add_argument('--calculate_ab', action="store_true", help="Calculate ab even if not being used for scoring")
+        training_group.add_argument('--calculate_mse', action="store_true", help="Calculate mse even if not being used for scoring")
+        training_group.add_argument('--calculate_spearman', action="store_true", help="Calculate spearman")
+        training_group.add_argument('--calculate_pearson', action="store_true", help="Calculate pearson")
+        training_group.add_argument('--calculate_accuracy', action="store_true", help="Calculate accuracy (fraction correct side of accuracy_divider)")
+        training_group.add_argument('--accuracy_divider', type=float, help="Divider between 'high' and 'low' for accuracy. If not specified the median score is used.")
+        training_group.add_argument('--normalise_weights', action="store_true", help="If using wmse, normalise the weights to mean of 1.0")
+        
+        training_group.add_argument('--fraction_for_eval', type=float, default=0.25, help="fraction of images to be reserved for eval (default 0.25)")
+        training_group.add_argument('--eval_pick_seed', type=int, default=42, help="Seed for random numbers when choosing eval images (default 42)") 
+        training_group.add_argument('--ignore_existing_split', action="store_true", help="Discard existing train/eval split")
+
+        metaparameter_group.add_argument('--name', help="Name prefix for Optuna")
+        metaparameter_group.add_argument('--trials', type=int, default=200, help="Number of metaparameter trials" )
+        metaparameter_group.add_argument('--sampler', default="CmaEs", choices=['CmaEs', 'random', 'QMC'], help="Metaparameter search algorithm")
+        metaparameter_group.add_argument('--min_train_epochs', type=int, default=5, help="(default 5)")
+        metaparameter_group.add_argument('--max_train_epochs', type=int, default=50, help="(default 50)")
+        metaparameter_group.add_argument('--min_warmup_ratio', type=float, default=0.0, help="(default 0.0)")
+        metaparameter_group.add_argument('--max_warmup_ratio', type=float, default=0.2, help="(default 0.2)")
+        metaparameter_group.add_argument('--min_log_lr', type=float, default=-4.5, help="(default -4.5)")
+        metaparameter_group.add_argument('--max_log_lr', type=float, default=-2.5, help="(default -2.5)")
+        metaparameter_group.add_argument('--min_batch_size', type=int, default=1, help="(default 1)")
+        metaparameter_group.add_argument('--max_batch_size', type=int, default=100, help="(default 100)")    
+        metaparameter_group.add_argument('--min_dropout', type=float, default=0.0, help="Minimum dropout between two hidden layers (default 0.0)")
+        metaparameter_group.add_argument('--max_dropout', type=float, default=0.8, help="Maximum dropout between two hidden layers (default 0.8)")
+        metaparameter_group.add_argument('--min_input_dropout', type=float, default=0.0, help="Minimum dropout between features and first hidden layer (default 0.0)")
+        metaparameter_group.add_argument('--max_input_dropout', type=float, default=0.8, help="Maximum dropout between features and first hidden layer (default 0.8)")
+        metaparameter_group.add_argument('--min_output_dropout', type=float, default=0.0, help="Minimum dropout before final projection (default 0.0)")
+        metaparameter_group.add_argument('--max_output_dropout', type=float, default=0.0, help="Maximum dropout before final projection (default 0.0)")
+
+        into={}
+
+        namespace, unknowns = parser.parse_known_args()
+        if unknowns: print(f"\nIgnoring unknown argument(s) {unknowns}")
+        d = vars(namespace)
+        into[":Arguments (specified or default)"]=None
+        for argument in d: into[argument] = d[argument]
+
+        into[":Derived arguments"]=None
+        for argument in ['train_epochs', 'warmup_ratio', 'log_lr', 'batch_size', 'first_layer_size', 'second_layer_size', 'dropout', 'input_dropout', 'output_dropout']:
+            into[argument] = d[f"min_{argument}"] if d[f"min_{argument}"] == d[f"max_{argument}"] else (d[f"min_{argument}"], d[f"max_{argument}"])
+
+        into['metric_for_scoring'] = into.get('metric_for_scoring', None) or into['loss_model']
+        into['parameter_for_scoring'] = f"{into['set_for_scoring']}_{into['metric_for_scoring']}"
+        into['measures'] = list(o for o in ['ab', 'mse', 'wmse', 'spearman', 'pearson', 'accuracy'] if o==into['loss_model'] or o==into['metric_for_scoring'] or into.get(f"calculate_{o}",False))
+
+        into['save_model_path'] = os.path.join(into['directory'], into['model'])
+        into['score_direction'] = 'maximize' if into['metric_for_scoring'] in ['ab', 'spearman', 'pearson', 'accuracy', ] else 'minimize'
+        into['output_channels'] = 2 if into['loss_model']=='nll' else 1
+
+        into[":Set arguments"]=None
+        into["training_args"] = training_args
+
+        return into
+
+    def __init__(self):
+        self.args = self._parse_arguments(self.args)
         self.arg_sets = {   "feature_extractor_extras" : ['hidden_states_used','stack_hidden_states',],
                             "aesthetic_model_extras" : ['hidden_states_used','stack_hidden_states','model_seed','dropouts','layers','output_channels',],
                             "trainer_extras" : [],
-                            }
-        if show: self.show_args()
-
+                        }
+        self.show_args()
+        for k in list(self.args): 
+            if k.startswith(':'): self.args.pop(k)
+        
+    def __getattr__(self, attr):
+        return self.get(attr)
+    
     def get(self, attr, default=Exception()):
         if attr in self.args: return self.args[attr]
         if attr in self.arg_sets: return { x : self.args[x] for x in self.arg_sets[attr] }
@@ -131,7 +137,7 @@ class _Args(object):
         self.args[key] = value
     
     def show_args(self):
-        for a in self.keys: 
+        for a in self.args: 
             if a.startswith(':'):
                 print(f"\n{a[1:]}\n")
             else:

@@ -84,7 +84,7 @@ def main():
         if Args.normalise_weights and ds.has_item('weight'): ds.normalise('weight', mean=1)
 
     with Timer('Create feature_extractor'):
-        feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=Args.feature_extractor_model, image_directory=Args.directory, device="cuda", **Args.feature_extractor_extras)
+        feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=Args.feature_extractor, image_directory=Args.directory, device="cuda", **Args.feature_extractor_extras)
 
     with Timer('Extract features:') as logger:
         ds.extract_features(feature_extractor)
