@@ -27,7 +27,7 @@ class CommentArgumentParser(argparse.ArgumentParser):
 class _Args(object):
     instance = None
 
-    def _parse_arguments():
+    def _parse_arguments(self):
         to_int_list = lambda s : list( int(x.strip()) for x in s.split(',') if x )
         to_string_list = lambda s : list( x.strip() for x in s.split(',') if x )
 
@@ -115,7 +115,8 @@ class _Args(object):
         return into
 
     def __init__(self):
-        self.args = self._parse_arguments(self.args)
+        self.args = self._parse_arguments()
+        self.validate()
         self.arg_sets = {   "feature_extractor_extras" : ['hidden_states_used','stack_hidden_states',],
                             "aesthetic_model_extras" : ['hidden_states_used','stack_hidden_states','model_seed','dropouts','layers','output_channels',],
                             "trainer_extras" : [],

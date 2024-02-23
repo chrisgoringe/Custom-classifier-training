@@ -72,8 +72,6 @@ def train_predictor(feature_extractor:FeatureExtractor, ds:QuickDataset, eds:Qui
     return metrics
 
 def main():
-    Args.parse_arguments(show=True)
-    Args.validate()
     name = f"{Args.get('name','')}_{random.randint(10000,99999)}"
 
     best_keeper = BestKeeper(save_model_path=Args.save_model_path, minimise=Args.score_direction=='minimize')
