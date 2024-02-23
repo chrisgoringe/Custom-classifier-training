@@ -72,6 +72,8 @@ The predictor can currently use any CLIP model, or the AIM feature extractor. Th
 
 Other important options are `openai/clip-vit-large-patch14` (used by SD1.5) and `laion/CLIP-ViT-bigG-14-laion2B-39B-b160k` (added by SDXL, and, I believe, Stable Cascade).
 
+`ChrisGoringe/bigG-vision-fp16` is a 16 bit version of the vision model from `laion/CLIP-ViT-bigG-14-laion2B-39B-b160k` - a 3.43GB download instead of nearly 10GB.
+
 Other models tested include `apple/aim-600M,` `apple/aim-1B`, `apple/aim-3B`, `apple/aim-7B`, `laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K`.
 
 It is possible to use more than one model and have the features concatenated together. However, this currently isn't support at the command line.

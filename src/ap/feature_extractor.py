@@ -163,7 +163,7 @@ class Transformers_FeatureExtractor(FeatureExtractor):
     def _load(self, model_clazz=CLIPModel):
         if self.models.get('model',None) is None: 
             self.models['model'] = model_clazz.from_pretrained(self.pretrained, cache_dir="models")
-            self.number_of_features = self.models['model'].projection_dim
+            self.number_of_features = self.models['model'].visual_projection.out_features
             self.metadata['number_of_features'] = str(self.number_of_features)
             self.models['model'].text_model = None
             self.models['model'].to(self.device)
@@ -191,6 +191,7 @@ class Transformers_FeatureExtractor(FeatureExtractor):
 class VisionModel_FeatureExtractor(Transformers_FeatureExtractor):
     def _load(self):
         super()._load(model_clazz=CLIPVisionModelWithProjection)
+        self.models['model'].to(self.models['model'].config.torch_dtype)
 
 '''     
 class Apple_FeatureExtractor(FeatureExtractor):

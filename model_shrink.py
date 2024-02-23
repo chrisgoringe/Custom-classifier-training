@@ -3,39 +3,31 @@ from transformers import CLIPModel, CLIPVisionConfig, CLIPVisionModelWithProject
 import os, shutil, json
 from safetensors.torch import save_file, load_file
 
-def halve(clazz, pretrained, cache_dir, save_directory):
-    model = clazz.from_pretrained(pretrained, cache_dir=cache_dir)
-    model.to(torch.half)
-    model.save_pretrained(save_directory=save_directory)
-    find_and_copy_config(os.path.join(cache_dir, f"models--{'--'.join(pretrained.split('/'))}"), save_directory)
+def convert(pretrained, directory):
+    if not os.path.exists(directory): os.makedirs(directory)
+    c = CLIPModel.from_pretrained(pretrained, cache_dir="models")
+    c.text_model = None
+    c.text_projection = None
+    c.to(torch.half)
+    sd = c.state_dict()
+    sd.pop('logit_scale',None)
+    save_file(sd, f"{directory}/model.safetensors", {"format":"pt"})
 
-def find_and_copy_config(from_directory, to_directory):
-    for root, dirs, files in os.walk(from_directory):
-        for dir in dirs:
-            if os.path.exists(os.path.join(root,dir,"config.json")):
-                shutil.copy(os.path.join(root,dir,"config.json"), os.path.join(to_directory,"config.json"))
-                if os.path.exists(os.path.join(root,dir,"preprocessor_config.json")):
-                    shutil.copy(os.path.join(root,dir,"preprocessor_config.json"), os.path.join(to_directory,"preprocessor_config.json"))
-                return
+    vision_config = c.config.vision_config.get_config_dict()
+    with open(os.path.join(directory,"config.json")) as f: print(json.dumps(vision_config, indent=2), file=f)
 
-#for sz in ["600M","1B","3B","7B"]:
-#    halve(AIMForImageClassification, f"apple/aim-{sz}", "models/apple", f"models/apple/aim-{sz}-half")
+    processor = AutoProcessor.from_pretrained(pretrained, cache_dir="models")
+    processor_config = processor.get_config_dict()
+    with open(os.path.join(directory,"preprocessor_config.json")) as f: print(json.dumps(processor_config, indent=2), file=f)
 
-sd = load_file('models/bigG-vision-half/model.safetensors')
-sd.pop('logit_scale')
-save_file(sd, 'models/bigG-vision-fp16/model.safetensors', {"format":"pt"})
+def load(directory):
+    c = CLIPVisionModelWithProjection.from_pretrained(directory)
+    p = AutoProcessor.from_pretrained(directory)
 
-#with open("models/bigG-vision-half/config.json",'r') as f: j = json.load(f)
-#con = CLIPVisionConfig(**j)
-#vision_model = CLIPVisionModelWithProjection(con)
-#sd = load_file("models/bigG-vision-half/model.safetensors")
-#missing, unexpected = vision_model.load_state_dict(sd, strict=False)
 
-#CLIPVisionModelWithProjection.from_pretrained("models/bigG-vision-half")
-#c = AutoModel.from_pretrained("ChrisGoringe/bigG-vision-half")
-c = CLIPVisionModelWithProjection.from_pretrained("models/bigG-vision-fp16")
-p = AutoProcessor.from_pretrained("models/bigG-vision-fp16")
+convert("openai/clip-vit-large-patch14", "models/vit-vision-fp16")
 
+load("models/vit-vision-fp16")
 
 
 pass
