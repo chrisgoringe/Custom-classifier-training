@@ -35,7 +35,7 @@ Create a directory, say `images`, as your `top_level_image_directory`. It can di
 
 There must also be a scorefile. A `.json` file can be generated using the image_ab_scorer from https://github.com/chrisgoringe/image_comparison to capture your personal preferences. 
 
-For other sources of scoring, a `.csv` file is probably more convenient. The `.csv` file should have column names in the first row, and no excess whitespace. The columns must include `relative_path` and `score` (relative path being the location of the image relative to the `.csv` file). Optional columns are `split` (valid values are `eval` and `train`), `weight` (the weight to be given to this image when the loss model is `wmse` (weighted mean square error)). An additional column, `model_score` will be added when the `.csv` file is save (assuming `--savefile=filename.cvs` is specified). Any other columns will be loaded and preserved. So a typical file might begin:
+For other sources of scoring, a `.csv` file is probably more convenient. The `.csv` file should have column names in the first row, and no excess whitespace. The columns must include `relative_path` and `score` (relative path being the location of the image relative to the `.csv` file). Optional columns are `split` (valid values are `eval` and `train`), `weight` (the weight to be given to this image when the loss model is `wmse` (weighted mean square error)). An additional column, `model_score` will be added when the `.csv` file is save (assuming `--savefile=filename.csv` is specified). Any other columns will be loaded and preserved. So a typical file might begin:
 
 ```csv
 relative_path,score,split
@@ -52,13 +52,19 @@ The command line arguments are kept in a text file. Copy the example `arguments-
 
 `python aesthetic_predictor_training.py @arguments.txt`
 
+You can override the values in `arguments.txt` by adding arguments after it on the command line:
+
+`python aesthetic_predictor_training.py @arguments.txt --server=daemon`
+
 You can see all the command line arguments available by running `python aesthetic_predictor_training.py --help`; they are all also described in the `arguments-example.txt` file.
 
 More details of some of them are below.
 
+## Meaning of some of the available arguments
+
 ### Defining the model architecture parameters
 
-The base model takes the features from the feature extractor as a vector (typically 1024 or 1280 long). It then has two hidden layers, each consisting of (`nn.Dropout`, `nn.Linear`, `nn.RELU`) and then a final `nn.Linear` to project the last hidden layer to a single value. The size of the hidden layers is part of the metaparameter search, defined by the limits `--min_first_layer_size`, `--max_first_layer_size`, `--min_second_layer_size`, `--max_second_layer_size`.
+The base model takes the features from the feature extractor as a vector (typically 1024 or 1280 long). It then has two hidden layers (each consisting of `nn.Dropout`, `nn.Linear`, `nn.RELU`), and then a final `nn.Dropout`, `nn.Linear` to project the last hidden layer to a single value. The size of the hidden layers is part of the metaparameter search, defined by the limits `--min_first_layer_size`, `--max_first_layer_size`, `--min_second_layer_size`, `--max_second_layer_size`.
 
 ### Feature extraction
 
