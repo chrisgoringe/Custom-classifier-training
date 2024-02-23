@@ -1,7 +1,7 @@
 import torch
-from aim.torch.models import AIMForImageClassification
-from transformers import CLIPModel
-import os, shutil
+from transformers import CLIPModel, CLIPVisionConfig, CLIPVisionModelWithProjection, AutoModel, AutoProcessor
+import os, shutil, json
+from safetensors.torch import save_file, load_file
 
 def halve(clazz, pretrained, cache_dir, save_directory):
     model = clazz.from_pretrained(pretrained, cache_dir=cache_dir)
@@ -21,7 +21,23 @@ def find_and_copy_config(from_directory, to_directory):
 #for sz in ["600M","1B","3B","7B"]:
 #    halve(AIMForImageClassification, f"apple/aim-{sz}", "models/apple", f"models/apple/aim-{sz}-half")
 
-for x in ["laion/CLIP-ViT-H-14-laion2B-s32B-b79K",]:
-    halve(CLIPModel, x, "models/clip", f"models/clip/{x}-fe-half")
+sd = load_file('models/bigG-vision-half/model.safetensors')
+sd.pop('logit_scale')
+save_file(sd, 'models/bigG-vision-fp16/model.safetensors', {"format":"pt"})
 
-print("Edit the config files to dtype float16 !")
+#with open("models/bigG-vision-half/config.json",'r') as f: j = json.load(f)
+#con = CLIPVisionConfig(**j)
+#vision_model = CLIPVisionModelWithProjection(con)
+#sd = load_file("models/bigG-vision-half/model.safetensors")
+#missing, unexpected = vision_model.load_state_dict(sd, strict=False)
+
+#CLIPVisionModelWithProjection.from_pretrained("models/bigG-vision-half")
+#c = AutoModel.from_pretrained("ChrisGoringe/bigG-vision-half")
+c = CLIPVisionModelWithProjection.from_pretrained("models/bigG-vision-fp16")
+p = AutoProcessor.from_pretrained("models/bigG-vision-fp16")
+
+
+
+pass
+
+
