@@ -2,13 +2,15 @@ import torch
 from PIL import Image
 from safetensors.torch import save_file, load_file
 import os
-from transformers import AutoProcessor, CLIPModel, AutoTokenizer
+from transformers import AutoProcessor, CLIPModel, AutoTokenizer, CLIPVisionModelWithProjection
 from tqdm import tqdm
 
 # REALNAMES is used for downloading the (small) preprocessor file
 REALNAMES = {
     "ChrisGoringe/vitH16" : "laion/CLIP-ViT-H-14-laion2B-s32B-b79K",
 }
+
+VISION_MODELS = ["ChrisGoringe/bigG-vision-fp16",]
 
 class FeatureExtractorException(Exception):
     pass
@@ -27,6 +29,7 @@ class FeatureExtractor:
         #    return Multi_FeatureExtractor(pretrained=pretrained.split("___"), **kwargs)
         #elif "apple" in pretrained:
         #    return Apple_FeatureExtractor(pretrained=pretrained, **kwargs)
+        if pretrained in VISION_MODELS: return VisionModel_FeatureExtractor(pretrained=pretrained, **kwargs)
         return Transformers_FeatureExtractor(pretrained=pretrained, **kwargs)
 
     def __init__(self, pretrained, device="cuda", image_directory=".", use_cache=True, base_directory=".", hidden_states_used=[0,], stack_hidden_states=False):
@@ -157,9 +160,9 @@ class Transformers_FeatureExtractor(FeatureExtractor):
         super().__init__(**kwargs)
         self.metadata['hidden_states_used'] = "_".join(str(x) for x in self.hidden_states_used)
 
-    def _load(self):
+    def _load(self, model_clazz=CLIPModel):
         if self.models.get('model',None) is None: 
-            self.models['model'] = CLIPModel.from_pretrained(self.pretrained, cache_dir="models")
+            self.models['model'] = model_clazz.from_pretrained(self.pretrained, cache_dir="models")
             self.number_of_features = self.models['model'].projection_dim
             self.metadata['number_of_features'] = str(self.number_of_features)
             self.models['model'].text_model = None
@@ -184,6 +187,10 @@ class Transformers_FeatureExtractor(FeatureExtractor):
                 pooled_output = self.models['model'].vision_model.post_layernorm(poolable)
                 results[this_layer] = self.models['model'].visual_projection(pooled_output)
             return results
+        
+class VisionModel_FeatureExtractor(Transformers_FeatureExtractor):
+    def _load(self):
+        super()._load(model_clazz=CLIPVisionModelWithProjection)
 
 '''     
 class Apple_FeatureExtractor(FeatureExtractor):

@@ -17,6 +17,8 @@ input_dropout       : (0.0, 0.06)
 output_dropout      : 0.0
 ```
 
+# ChrisGoringe/vitH16
+
 |layers|best trial|median trial|
 |-|-|-|
 |0|0.2107|0.2041|
@@ -27,4 +29,13 @@ output_dropout      : 0.0
 |5|0.2139|0.2075|
 |6|0.2112|0.2048|
 |7|0.2094|0.2026|
-|8|||
+|8|0.2071|0.2015|
+
+# laion/CLIP-ViT-bigG-14-laion2B-39B-b160k
+
+|layers|best trial|median trial|
+|-|-|-|
+|0|0.2215|0.2137|
+|1|0.2265|0.2184|
+|2|0.2270|0.2203|
+
