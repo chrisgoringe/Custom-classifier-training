@@ -115,8 +115,7 @@ class FeatureExtractor:
         raise NotImplementedError()
     
     def _delete_model(self):
-        for model in self.models:
-            self.models[model].to('cpu')
+        self._to('cpu', load_if_needed=False)
         self.models = {}
 
     def _to(self, device, load_if_needed=True):
