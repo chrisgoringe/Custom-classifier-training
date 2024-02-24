@@ -2,7 +2,7 @@ import torch
 from PIL import Image
 from safetensors.torch import save_file, load_file
 import os
-from transformers import AutoProcessor, CLIPModel, AutoTokenizer, CLIPVisionModelWithProjection
+from transformers import AutoProcessor, CLIPModel, AutoTokenizer, CLIPVisionModelWithProjection, PretrainedConfig
 from tqdm import tqdm
 
 # REALNAMES is used for downloading the (small) preprocessor file
@@ -11,6 +11,7 @@ REALNAMES = {
 }
 
 VISION_MODELS = ["ChrisGoringe/bigG-vision-fp16",]
+APPLE_MODELS = ["apple/aim-600M", "apple/aim-1B", "apple/aim-3B", "apple/aim-7B"]
 
 class FeatureExtractorException(Exception):
     pass
@@ -22,18 +23,16 @@ class FeatureExtractor:
     
     @classmethod
     def get_feature_extractor(cls, pretrained=None, **kwargs):
+        if isinstance(pretrained,str) and len(pretrained.split('__'))>1: pretrained = pretrained.split('__')
         pretrained = pretrained[0] if isinstance(pretrained,list) and len(pretrained)==1 else pretrained
-        #if isinstance(pretrained,list):
-        #    return Multi_FeatureExtractor(pretrained=pretrained, **kwargs)
-        #elif "___" in pretrained:
-        #    return Multi_FeatureExtractor(pretrained=pretrained.split("___"), **kwargs)
-        #elif "apple" in pretrained:
-        #    return Apple_FeatureExtractor(pretrained=pretrained, **kwargs)
+
+        if isinstance(pretrained,list): return Multi_FeatureExtractor(pretrained=pretrained, **kwargs)
+        if pretrained in APPLE_MODELS: return Apple_FeatureExtractor(pretrained=pretrained, **kwargs)
         if pretrained in VISION_MODELS: return VisionModel_FeatureExtractor(pretrained=pretrained, **kwargs)
+
         return Transformers_FeatureExtractor(pretrained=pretrained, **kwargs)
 
-    def __init__(self, pretrained, device="cuda", image_directory=".", use_cache=True, base_directory=".", hidden_states_used=[0,], stack_hidden_states=False):
-        self.metadata = {"feature_extractor_model":pretrained if isinstance(pretrained,str) else "___".join(pretrained)}
+    def __init__(self, pretrained, device="cuda", image_directory=".", use_cache=True, base_directory=".", hidden_states_used=None, hidden_states_mode="join", fp16_features=False):
         self.device = device
         self.image_directory = image_directory
         self.pretrained = pretrained
@@ -41,71 +40,81 @@ class FeatureExtractor:
         self.use_cache = use_cache
         self.base_directory = base_directory
 
-        self.stack_hidden_states = (stack_hidden_states=="True") if isinstance(stack_hidden_states, str) else stack_hidden_states
+        self.hidden_states_mode = hidden_states_mode
         self.hidden_states_used = list(int(x) for x in hidden_states_used[1:-1].split(',') if x) if isinstance(hidden_states_used,str) else hidden_states_used
+        self.hidden_states_used = self.hidden_states_used or self.default_hidden_states
+        self.dtype = torch.half if fp16_features else torch.float
+
+        if   self.hidden_states_mode=='join':    self.post_processing, self.states_per_state = torch.stack , len(self.hidden_states_used)
+        elif self.hidden_states_mode=='weight':  self.post_processing, self.states_per_state = torch.cat , 1
+        elif self.hidden_states_mode=='average': self.post_processing, self.states_per_state = lambda a : torch.stack(a, dim=-1).mean(dim=-1) , 1
 
         self.caches = { l:{} for l in self.hidden_states_used }
         self.cache_needs_saving = { l:False for l in self.hidden_states_used }
 
         for layer in self.hidden_states_used:
-            if os.path.exists(cf := self.cachefile(layer)):
+            if os.path.exists(cf := self._cachefile(layer)):
                 self.caches[layer] = load_file(cf, device=self.device)
                 print(f"Reloaded cache from {cf}")
-                self.number_of_features = next(iter(self.caches[layer].values())).shape[-1]
+                self._number_of_features = next(iter(self.caches[layer].values())).shape[-1]
             else:
                 self._load()
                 print(f"No feature cachefile found at {cf}, will generate features as required")
 
-        self.number_of_features = self.number_of_features * (1 if self.stack_hidden_states else len(self.hidden_states_used))
-
-    def check_model(self, model, hidden_states_used, stack_hidden_states):
-        if model and self.metadata["feature_extractor_model"]!=model:
-            raise FeatureExtractorException(f"Feature extractor has model {self.metadata['feature_extractor_model']} not {model}")
-        if self.stack_hidden_states!=stack_hidden_states:
-            raise FeatureExtractorException("Inconsistency in feature extractor stack_hidden_states")
-        if self.hidden_states_used!=hidden_states_used:
-            raise FeatureExtractorException("Inconsistency in hidden states used")
-
-    def cachefile(self, layer):
-        unique_name = self.pretrained + f"_{layer}"
-        return os.path.join(self.image_directory,f"featurecache.{unique_name.replace('/','_').replace(':','_')}.safetensors")       
+        self.metadata = {"feature_extractor_model":pretrained, 'hidden_states_used':self.hidden_states_used, 'hidden_states_mode':self.hidden_states_mode}
 
     @property
-    def model_path(self):
-        return os.path.join(self.base_directory, self.pretrained)
+    def default_hidden_states(self):
+        return [0,]
     
-    def ensure_in_cache(self, filepath):
+    @property
+    def number_of_features(self):
+        return self._number_of_features * self.states_per_state
+
+    def check_model(self, ap_metadata:dict):
+        def check(self, label, none_ok=False):
+            if none_ok and ap_metadata.get(label,None) is None: return+
+            if (a:=getattr(self, label)) != (b:=ap_metadata[label]): raise FeatureExtractorException(f"Inconsistency in {label}: feature extractor has {a}, model expects {b}")
+
+        check("feature_extractor_model", none_ok=True)
+        check("hidden_states_mode")
+        check("hidden_states_used")
+
+    def _cachefile(self, layer):
+        unique_name = self.pretrained + f"_{layer}"
+        return os.path.join(self.image_directory,f"featurecache.{unique_name.replace('/','_').replace(':','_')}.safetensors")       
+    
+    def _ensure_in_cache(self, filepath):
         rel = os.path.relpath(filepath, self.image_directory)
         layers_needed = []
         for layer in self.hidden_states_used:
-            #if layer not in self.caches: self.caches[layer] = {}
             if rel not in self.caches[layer]:
                 layers_needed.append(layer)
         if layers_needed:
             all_layers = self._get_image_features_tensor(Image.open(filepath), layers=layers_needed)
             for layer in all_layers:
-                self.caches[layer][rel] = all_layers[layer]
+                self.caches[layer][rel] = all_layers[layer].to(self.dtype)
                 self.cache_needs_saving[layer] = True
     
     def get_features_from_file(self, filepath):
-        self.ensure_in_cache(filepath)
+        self._ensure_in_cache(filepath)
         rel = os.path.relpath(filepath, self.image_directory)
-        if self.stack_hidden_states:
-            return torch.stack(list(self.caches[layer][rel] for layer in self.hidden_states_used))
-        else:
-            return torch.cat(list(self.caches[layer][rel] for layer in self.hidden_states_used))
+        return self.post_processing(list(self.caches[layer][rel] for layer in self.hidden_states_used)).to(self.dtype)
     
     def precache(self, filepaths, delete_model=True):
         try:
-            for f in tqdm(filepaths): self.ensure_in_cache(f)
+            for f in tqdm(filepaths): self._ensure_in_cache(f)
         finally:
             self._save_cache()
         if delete_model: self._delete_model()
 
+    def clear_cache(self):
+        self.caches = {}
+
     def _save_cache(self):
         for layer in self.caches:
             if self.cache_needs_saving[layer]:
-                save_file(self.caches[layer], self.cachefile(layer))
+                save_file(self.caches[layer], self._cachefile(layer))
                 self.cache_needs_saving[layer] = False
 
     def get_metadata(self):
@@ -152,8 +161,7 @@ class TextFeatureExtractor:
         return self.models['model'].projection_dim
    
 class Transformers_FeatureExtractor(FeatureExtractor):
-    def __init__(self, **kwargs):
-        ap_metadata = kwargs.pop('ap_metadata', {})
+    def __init__(self, ap_metadata={}, **kwargs):
         kwargs['hidden_states_used'] = kwargs.pop('hidden_states_used', None) or ap_metadata.get('hidden_states_used', None)
         kwargs['stack_hidden_states'] = kwargs.pop('stack_hidden_states') if 'stack_hidden_states' in kwargs else ap_metadata.get('stack_hidden_states', None)
 
@@ -163,12 +171,12 @@ class Transformers_FeatureExtractor(FeatureExtractor):
     def _load(self, model_clazz=CLIPModel):
         if self.models.get('model',None) is None: 
             self.models['model'] = model_clazz.from_pretrained(self.pretrained, cache_dir="models")
-            self.number_of_features = self.models['model'].visual_projection.out_features
             self.metadata['number_of_features'] = str(self.number_of_features)
             self.models['model'].text_model = None
             self.models['model'].to(self.device)
         if self.models.get('processor',None) is None: 
             self.models['processor'] = AutoProcessor.from_pretrained(self.realname(self.pretrained), cache_dir="models")
+        self._number_of_features = self.models['model'].visual_projection.out_features
 
     def _get_image_features_tensor(self, image:Image, layers:list) -> torch.Tensor:
         self._load()
@@ -188,18 +196,19 @@ class Transformers_FeatureExtractor(FeatureExtractor):
                 results[this_layer] = self.models['model'].visual_projection(pooled_output)
             return results
         
+
 class VisionModel_FeatureExtractor(Transformers_FeatureExtractor):
     def _load(self):
         super()._load(model_clazz=CLIPVisionModelWithProjection)
         self.models['model'].to(self.models['model'].config.torch_dtype)
 
-'''     
+
 class Apple_FeatureExtractor(FeatureExtractor):
-    def __init__(self, **kwargs):
-        if (hs := kwargs.pop('hidden_states', None)): print(f"hidden_states not implemented for Apple_FeatureExtractor - ignoring {hs}")
-        kwargs.pop('ap_metadata', None)
-        super().__init__(**kwargs)
-        
+    @property
+    def default_hidden_states(self):
+        config = PretrainedConfig.from_pretrained(self.pretrained, cache_dir="models")
+        return list( config.num_blocks-i-1 for i in config.probe_layers )
+    
     def _load(self):
         try:
             from aim.torch.models import AIMForImageClassification
@@ -208,39 +217,61 @@ class Apple_FeatureExtractor(FeatureExtractor):
             print("AIM not available - pip install git+https://git@github.com/apple/ml-aim.git if you want to use it")
             raise NotImplementedError("AIM not available - pip install git+https://git@github.com/apple/ml-aim.git if you want to use it")
         
-        self.model = AIMForImageClassification.from_pretrained(self.model_path, cache_dir="models").to(self.device)
-        self.number_of_features = self.model.head.bn.num_features
-        self.processor = val_transforms()
+        if self.models.get('model', None) is None:
+            self.models['model'] = AIMForImageClassification.from_pretrained(self.pretrained, cache_dir="models").to(self.device)
+            self.models['model'].trunk.post_transformer_layer = None
+        if self.models.get('processor', None) is None:
+            self.models['processor'] = val_transforms()
 
-    def _get_image_features_tensor(self, image:Image) -> torch.Tensor:
-        if self.model==None: self._load()
-        self.model.to(self.device)
+        self._number_of_features = self.models['model'].head.bn.num_features
+
+        if self.hidden_states_mode!="average" and self.hidden_states_used==self.default_hidden_states:
+            print(f"\n\nUsing AIM with the default hidden states {self.hidden_states_used} and hidden_states_mode='{self.hidden_states_mode}'.")
+            print("Are you sure this is what you want to do? Default behaviour for AIM models is reproduced with hidden_states_mode='average'.\n\n")
+
+    def _get_image_features_tensor(self, image:Image, layers:list) -> torch.Tensor:
+        self._load()
+        self.models['model'].to(self.device)
+        results = {}
+        image = image.convert('RGB') if image.mode!='RGB' else image
         with torch.no_grad():
-            inp = self.processor(image).unsqueeze(0).to(self.device)
-            _, image_features = self.model(inp)
-            return image_features.to(torch.float).flatten()
+            inp = self.models['processor'](image).unsqueeze(0).to(self.device)    
+            x = self.models['model'].preprocessor(inp, mask=None)
+            x, features = self.models['model'].trunk(x, mask=None, max_block_id=-1)
+            for this_layer in layers:
+                tokens = self.models['model'].trunk.post_trunk_norm(features[-1-this_layer])
+                _, image_features = self.models['model'].head(tokens, mask=None)
+                results[this_layer] = image_features.to(torch.float).flatten()
+        return results
         
-class Multi_FeatureExtractor(FeatureExtractor):
-    def __init__(self, pretrained:list, **kwargs):
-        super().__init__(pretrained, **kwargs)
-        self.feature_extractors = [ FeatureExtractor.get_feature_extractor(p, **kwargs) for p in pretrained ]
 
-    def _delete_model(self):
-        for fe in self.feature_extractors: fe._delete_model()
+class Multi_FeatureExtractor():
+    def __init__(self, pretrained:list, hidden_states_used=[0,], stack_hidden_states=False, **kwargs):
+        self.feature_extractors = [ FeatureExtractor.get_feature_extractor(p, hidden_states_used=hidden_states_used, stack_hidden_states=stack_hidden_states, **kwargs) for p in pretrained ]
+        self.metadata = {"feature_extractor_model":"__".join(pretrained)}
+        self.stack_hidden_states = (stack_hidden_states=="True") if isinstance(stack_hidden_states, str) else stack_hidden_states
+        self.hidden_states_used = list(int(x) for x in hidden_states_used[1:-1].split(',') if x) if isinstance(hidden_states_used,str) else hidden_states_used
+        self.device = kwargs.get('device','cuda')
+
+    def check_model(self, **kwargs):
+        FeatureExtractor.check_model(self, **kwargs)
         
-    def _get_image_features_tensor(self, image: Image) -> Tensor:
+    def get_features_from_file(self, **kwargs):
         ift = None
         for fe in self.feature_extractors:
             fe._to(self.device)
-            features = fe._get_image_features_tensor(image)
+            features = fe.get_features_from_file(**kwargs)
             ift = features if ift is None else torch.cat([ift,features])
         return ift
 
-    def _to(self, device:str, load_if_needed=True):
-        for fe in self.feature_extractors: fe._to(device, load_if_needed)
+    def precache(self, **kwargs):
+        for fe in self.feature_extractors: fe.precache(**kwargs)
 
+    def get_metadata(self):
+        return self.metadata
+        
+    
     @property
     def number_of_features(self):
         return sum(fe.number_of_features for fe in self.feature_extractors)
 
-'''

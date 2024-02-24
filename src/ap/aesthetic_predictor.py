@@ -10,7 +10,9 @@ def to_bool(s):
     raise NotImplementedError()
 
 def to_int_list(s):
-    if isinstance(s,str): return list(int(x) for x in s[1:-1].split(',') if x)
+    if isinstance(s,str): 
+        s = s[1:-1] if s.startswith('[') else s
+        return list(int(x) for x in s.split(',') if x)
     if isinstance(s,list): return s
     raise NotImplementedError()
 
@@ -56,22 +58,23 @@ class AestheticPredictor(nn.Module):
         self.kwargs = kwargs
         self.feature_extractor = feature_extractor
 
-        self.output_channels        = self._get_argument('output_channels',         1,      int)
-        self.stack_hidden_states    = self._get_argument('stack_hidden_states',     0,      to_bool)
-        self.hidden_states_used     = self._get_argument('hidden_states_used',      [0,],   to_int_list)
+        self.hidden_states_used     = self._get_argument('hidden_states_used',      feature_extractor.hidden_states_used, to_int_list)
+        self.hidden_states_mode     = self._get_argument('hidden_states_mode',      "join", str)      
+        self.number_of_features     = self._get_argument('number_of_features',      feature_extractor.number_of_features, int)
+        
         self.hidden_layer_sizes     = self._get_argument('layers',                  None,   to_int_list)
-        self.number_of_features     = self._get_argument('number_of_features',      feature_extractor.number_of_features,    int)
+        self.output_channels        = self._get_argument('output_channels',         1,      int)
         self.dropouts               = self._get_argument('dropouts',                [],     to_int_list)
         self.metadata.pop('dropouts')        
         
-        self.feature_extractor.check_model(self.metadata.get("feature_extractor_model", None), self.hidden_states_used, self.stack_hidden_states)
+        self.feature_extractor.check_model(self.metadata.get("feature_extractor_model", None), self.hidden_states_used, self.hidden_states_mode)
 
         if model_seed: torch.manual_seed(model_seed)
 
         self.preprocess = nn.Sequential(
             nn.Linear(len(self.hidden_states_used), 1),
             nn.ReLU()
-         ) if self.stack_hidden_states else None
+         ) if self.hidden_states_mode=="weight" else None
 
         self.main_process = nn.Sequential()
         current_size = self.number_of_features

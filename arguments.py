@@ -28,7 +28,7 @@ class _Args(object):
     instance = None
 
     def _parse_arguments(self):
-        to_int_list = lambda s : list( int(x.strip()) for x in s.split(',') if x )
+        to_int_list = lambda s : list( int(x.strip()) for x in s.split(',') if x ) if s is not None else None
         to_string_list = lambda s : list( x.strip() for x in s.split(',') if x )
 
         parser = CommentArgumentParser("Compare a series of scorefiles", fromfile_prefix_chars='@')
@@ -53,9 +53,10 @@ class _Args(object):
         model_group.add_argument('--max_second_layer_size', type=int, default=1000, help="Maximum number of features in second hidden layer (default 1000)")
 
         features_group.add_argument('--feature_extractor', default="ChrisGoringe/vitH16", help="Model to use for feature extraction", type=to_string_list)
-        features_group.add_argument('--hidden_states_used', default="0", help="Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.)", type=to_int_list)
-        features_group.add_argument('--stack_hidden_states', action="store_true", help="Stack multiple hidden states instead of concatenating them")
-        
+        features_group.add_argument('--hidden_states_used', default=None, help="Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.)", type=to_int_list)
+        features_group.add_argument('--hidden_states_mode', default="join", choices=["join", "average", "weight"], help="Combine multiple layers from feature extractor by join (default), average, or weight")
+        features_group.add_argument('--fp16_features', action="store_true", help="Store features in fp16")
+
         training_group.add_argument('--loss_model', default='mse', choices=['mse','ab','nll', 'wmse'], help="Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood, wmse=weighted mse )")
         training_group.add_argument('--set_for_scoring', default='eval', choices=['eval', 'full', 'train'], help="Image set to be used for scoring a model when trained (default eval)")
         training_group.add_argument('--metric_for_scoring', choices=['mse', 'ab', 'nll', 'wmse', 'spearman', 'pearson', 'accuracy'], help="Metric to be used for scoring a model when trained (default is the loss_model)")
@@ -92,6 +93,7 @@ class _Args(object):
         into={}
 
         namespace, unknowns = parser.parse_known_args()
+
         if unknowns: print(f"\nIgnoring unknown argument(s) {unknowns}")
         d = vars(namespace)
         into[":Arguments (specified or default)"]=None
@@ -117,8 +119,8 @@ class _Args(object):
     def __init__(self):
         self.args = self._parse_arguments()
         self.validate()
-        self.arg_sets = {   "feature_extractor_extras" : ['hidden_states_used','stack_hidden_states',],
-                            "aesthetic_model_extras" : ['hidden_states_used','stack_hidden_states','model_seed','dropouts','layers','output_channels',],
+        self.arg_sets = {   "feature_extractor_extras" : ['hidden_states_used','hidden_states_mode','fp16_features',],
+                            "aesthetic_model_extras" : ['hidden_states_used','hidden_states_mode','model_seed','dropouts','layers','output_channels',],
                             "trainer_extras" : [],
                         }
         self.show_args()

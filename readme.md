@@ -74,13 +74,13 @@ Other important options are `openai/clip-vit-large-patch14` (used by SD1.5) and 
 
 `ChrisGoringe/bigG-vision-fp16` is a 16 bit version of the vision model from `laion/CLIP-ViT-bigG-14-laion2B-39B-b160k` - a 3.43GB download instead of nearly 10GB.
 
-Other models tested include `apple/aim-600M,` `apple/aim-1B`, `apple/aim-3B`, `apple/aim-7B`, `laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K`.
+Other models tested include `apple/aim-600M`, `apple/aim-1B`, `apple/aim-3B`, `apple/aim-7B`, `laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K`.
 
 It is possible to use more than one model and have the features concatenated together. However, this currently isn't support at the command line.
 
-Most image feature extractors provide access to multiple hidden layers, not just the last (using this is analagous to the `CLIP skip` in CLIP text processing). To access these, set `--hidden_states_used` to a comma separated list of integers specifying the layers to use. 0 represents the final output, 1 is the layer before it, 2 the layer before that, etc.. The layers do not need to be consecutive, so `--hidden_states_used=0,2,5` is fine.
+Most image feature extractors provide access to multiple hidden layers, not just the last (using this is analagous to the `CLIP skip` in CLIP text processing). To access these, set `--hidden_states_used` to a comma separated list of integers specifying the layers to use. 0 represents the final output, 1 is the layer before it, 2 the layer before that, etc.. The layers do not need to be consecutive, so `--hidden_states_used=0,2,5` is fine. If you don't specify `--hidden_states_used` the default for the model is used (0 for most models, multiple layers in AIM models).
 
-By default these outputs are concatenated to produce a larger input to the model (so instead of 1024 features, with `--hidden_states_used=0,1` the model would receive 2048 features). Alternatively, with `--weight_hidden_states` the layers are be merged using a `nn.Linear` which gives each layer a single weight which is included in the training.
+By default these outputs are concatenated to produce a larger input to the model (so instead of 1024 features, with `--hidden_states_used=0,1` the model would receive 2048 features). Alternatively, with `--hidden_states_mode=weight` the layers are be merged using a `nn.Linear` which gives each layer a single weight which is included in the training, or with `--hidden_states_mode=average` they are averaged (choose this to reproduce the default behaviour of AIM models)
 
 ### Training constants
 

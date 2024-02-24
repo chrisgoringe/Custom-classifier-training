@@ -12,12 +12,13 @@ pd.options.mode.copy_on_write = True
 
 class QuickDataset(Dataset, ImageScores):
     exclude_from_save = ImageScores.exclude_from_save + ('features',)
-    def __init__(self, **kwargs):
+    def __init__(self, dtype = torch.float, **kwargs):
         Dataset.__init__(self)
         ImageScores.__init__(self, **kwargs)
         self.map = [i for i in range(len(self._df))]
         self.shuffle()
         self.has_weights = 'weight' in self._df.columns
+        self.dtype = dtype
 
     def subset(self, test:Callable, item:str='relative_path') -> Self:
         qd = QuickDataset(top_level_directory=self.tld, df=self._df.loc[test(self._df[item])])
@@ -35,7 +36,7 @@ class QuickDataset(Dataset, ImageScores):
         self.add_item('features', feature_extractor.get_features_from_file, fullpath=True, cast=lambda a:a.cpu())
 
     def update_prediction(self, predictor:AestheticPredictor):
-        data = torch.stack(self.item('features')).to(predictor.device)
+        data = torch.stack(self.item('features')).to(predictor.device).to(self.dtype)
         predictions = predictor(data).cpu()
         for i in range(predictor.output_channels):
             label = 'model_score' if i==0 else f"model_score_{i}"
@@ -43,10 +44,10 @@ class QuickDataset(Dataset, ImageScores):
             self.add_item(label, p)
 
     def __getitem__(self, i):
-        x = self._df['features'].array[self.map[i]]
-        y = torch.tensor(self._df['score'].array[self.map[i]], dtype=torch.float)
+        x = self._df['features'].array[self.map[i]].to(self.dtype)
+        y = torch.tensor(self._df['score'].array[self.map[i]], dtype=self.dtype)
         if self.has_weights:
-            w = torch.tensor(self._df['weight'].array[self.map[i]], dtype=torch.float)
+            w = torch.tensor(self._df['weight'].array[self.map[i]], dtype=self.dtype)
             return {"x":x, "y":y, "weight":w}
         else: return {"x":x, "y":y}
 
