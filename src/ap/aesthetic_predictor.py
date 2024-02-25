@@ -67,7 +67,9 @@ class AestheticPredictor(nn.Module):
         self.dropouts               = self._get_argument('dropouts',                [],     to_int_list)
         self.metadata.pop('dropouts')
 
-        if self.hidden_states_mode == "default": self.hidden_states_mode = self.feature_extractor.default_hidden_states_mode   
+        if self.hidden_states_mode == "default": 
+            self.hidden_states_mode = self.feature_extractor.default_hidden_states_mode
+            self.metadata['hidden_states_mode'] = self.hidden_states_mode
         
         self.feature_extractor.check_model(self.metadata)
 

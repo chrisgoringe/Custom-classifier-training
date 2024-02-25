@@ -53,8 +53,10 @@ class FeatureExtractor:
         self.hidden_states_used = self.hidden_states_used or self.default_hidden_states
         self.dtype = torch.half if fp16_features else torch.float
 
-        if   self.hidden_states_mode=='join':    self.post_processing, self.states_per_state = torch.stack , len(self.hidden_states_used)
-        elif self.hidden_states_mode=='weight':  self.post_processing, self.states_per_state = torch.cat , 1
+        if self.hidden_states_mode=='default': self.hidden_states_mode = self.default_hidden_states_mode
+
+        if   self.hidden_states_mode=='join':    self.post_processing, self.states_per_state = torch.cat , len(self.hidden_states_used)
+        elif self.hidden_states_mode=='weight':  self.post_processing, self.states_per_state = torch.stack , 1
         elif self.hidden_states_mode=='average': self.post_processing, self.states_per_state = lambda a : torch.stack(a, dim=-1).mean(dim=-1) , 1
 
         self.caches = { l:{} for l in self.hidden_states_used }
@@ -86,7 +88,7 @@ class FeatureExtractor:
     def check_model(self, ap_metadata:dict):
         def check(label, none_ok=False):
             if none_ok and ap_metadata.get(label,None) is None: return
-            if (a:=str(getattr(self, label))) != (b:=ap_metadata[label]): raise FeatureExtractorException(f"Inconsistency in {label}: feature extractor has {a}, model expects {b}")
+            if (a:=str(self.metadata[label])) != (b:=ap_metadata[label]): raise FeatureExtractorException(f"Inconsistency in {label}: feature extractor has {a}, model expects {b}")
 
         check("feature_extractor_model", none_ok=True)
         check("hidden_states_mode")
@@ -240,10 +242,6 @@ class Apple_FeatureExtractor(FeatureExtractor):
             self.models['processor'] = val_transforms()
 
         self._number_of_features = self.models['model'].head.bn.num_features
-
-        if self.hidden_states_mode!="average" and self.hidden_states_used==self.default_hidden_states:
-            print(f"\n\nUsing AIM with the default hidden states {self.hidden_states_used} and hidden_states_mode='{self.hidden_states_mode}'.")
-            print("Are you sure this is what you want to do? Default behaviour for AIM models is reproduced with hidden_states_mode='average'.\n\n")
 
     def _get_image_features_tensor(self, image:Image, layers:list) -> torch.Tensor:
         self._load()
