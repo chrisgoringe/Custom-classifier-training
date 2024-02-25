@@ -42,11 +42,11 @@
 #--feature_extractor_model=FEATURE_EXTRACTOR_MODEL
 #   Model to use for feature extraction
 #--hidden_states_used=HIDDEN_STATES_USED
-#   Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.)
-#--hidden_states_mode={"join", "average", "weight"}
-#   Combine multiple layers from feature extractor by join (default), average, or weight
+#   Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.). Model default used if not specified.
+#--hidden_states_mode={"default", "join", "average", "weight"}
+#   Combine multiple layers from feature extractor by join, average, or weight. Model default used if not specified.
 #--fp16_features
-#   Store features in fp16
+#   Store features in fp16. Significantly reduces VRAM usage
 
 #
 # Training constants:

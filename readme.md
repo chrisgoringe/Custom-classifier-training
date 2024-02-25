@@ -68,19 +68,30 @@ The base model takes the features from the feature extractor as a vector (typica
 
 ### Feature extraction
 
-The predictor can currently use any CLIP model, or the AIM feature extractor. The default is `ChrisGoringe/vitH16`, which is a 16 bit version of `laion/CLIP-ViT-H-14-laion2B-s32B-b79K`.
+The predictor can currently use any CLIP model, or any of the apple AIM feature extractors. A number of models have been reduced in size by converting them to fp16 and, in the case of CLIP, removing the text part. The following are available:
 
-Other important options are `openai/clip-vit-large-patch14` (used by SD1.5) and `laion/CLIP-ViT-bigG-14-laion2B-39B-b160k` (added by SDXL, and, I believe, Stable Cascade).
+|name|original name|architecture|notes|
+|-|-|-|-|
+|ChrisGoringe/vit-large-p14-vision-fp16|openai/clip-vit-large-patch14|CLIPVisionModelWithProjection|SD1.5, 0.6GB, current default|
+|ChrisGoringe/bigG-vision-fp16|laion/CLIP-ViT-bigG-14-laion2B-39B-b160k|CLIPVisionModelWithProjection|SDXL and Stable Cascade, 3.4GB|
+|ChrisGoringe/aim-600M-fp16|apple/AIM-600M|AIM|1.3GB|
+|ChrisGoringe/aim-1B-fp16|apple/AIM-1B|AIM|2.4GB|
+|ChrisGoringe/aim-3B-fp16|apple/AIM-3B|AIM|5.3GB|
+|ChrisGoringe/aim-7B-fp16|apple/AIM-7B|AIM|12.6GB|
 
-`ChrisGoringe/bigG-vision-fp16` is a 16 bit version of the vision model from `laion/CLIP-ViT-bigG-14-laion2B-39B-b160k` - a 3.43GB download instead of nearly 10GB.
-
-Other models tested include `apple/aim-600M`, `apple/aim-1B`, `apple/aim-3B`, `apple/aim-7B`, `laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K`.
+The script `model_shrink.py` can be used (maybe) to reduce a CLIP or AIM model (but this is not maintained, documented, or recommended!)
 
 It is possible to use more than one model and have the features concatenated together. However, this currently isn't support at the command line.
 
 Most image feature extractors provide access to multiple hidden layers, not just the last (using this is analagous to the `CLIP skip` in CLIP text processing). To access these, set `--hidden_states_used` to a comma separated list of integers specifying the layers to use. 0 represents the final output, 1 is the layer before it, 2 the layer before that, etc.. The layers do not need to be consecutive, so `--hidden_states_used=0,2,5` is fine. If you don't specify `--hidden_states_used` the default for the model is used (0 for most models, multiple layers in AIM models).
 
-By default these outputs are concatenated to produce a larger input to the model (so instead of 1024 features, with `--hidden_states_used=0,1` the model would receive 2048 features). Alternatively, with `--hidden_states_mode=weight` the layers are be merged using a `nn.Linear` which gives each layer a single weight which is included in the training, or with `--hidden_states_mode=average` they are averaged (choose this to reproduce the default behaviour of AIM models)
+The way multiple layers are combined is governed by `--hidden_states_mode` which can be:
+
+- `default` - the default, which is `join` for CLIP models and `average` for AIM models
+- `join` - outputs are concatenated to produce a larger input to the model - the number of features is multiplied by the number of layers used
+- `average` - the layer outputs are averaged on a per-feature basis
+- `weight` - the layers weighted-averaged using a `nn.Linear`, with the same weights used for each feature 
+
 
 ### Training constants
 

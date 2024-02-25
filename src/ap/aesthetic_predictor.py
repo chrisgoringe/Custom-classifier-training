@@ -65,7 +65,9 @@ class AestheticPredictor(nn.Module):
         self.hidden_layer_sizes     = self._get_argument('layers',                  None,   to_int_list)
         self.output_channels        = self._get_argument('output_channels',         1,      int)
         self.dropouts               = self._get_argument('dropouts',                [],     to_int_list)
-        self.metadata.pop('dropouts')        
+        self.metadata.pop('dropouts')
+
+        if self.hidden_states_mode == "default": self.hidden_states_mode = self.feature_extractor.default_hidden_states_mode   
         
         self.feature_extractor.check_model(self.metadata)
 

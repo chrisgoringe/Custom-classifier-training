@@ -6,11 +6,14 @@ from transformers import AutoProcessor, CLIPModel, AutoTokenizer, CLIPVisionMode
 from tqdm import tqdm
 
 # REALNAMES is used for downloading the (small) preprocessor file
-REALNAMES = {
-    "ChrisGoringe/vitH16" : "laion/CLIP-ViT-H-14-laion2B-s32B-b79K",
-}
+#REALNAMES = {
+#    "ChrisGoringe/vitH16" : "laion/CLIP-ViT-H-14-laion2B-s32B-b79K",
+#}
 
+# VISION_MODELS are CLIP models that have been reduced by removal of the text part (and often conversion to fp16)
 VISION_MODELS = ["ChrisGoringe/bigG-vision-fp16",]
+
+# Models that load using the apple/ml-aim framework (not yet very well integrated into transformers)
 APPLE_MODELS = ["apple/aim-600M", "ChrisGoringe/aim-600M-fp16", 
                 "apple/aim-1B",   "ChrisGoringe/aim-1B-fp16", 
                 "apple/aim-3B",   "ChrisGoringe/aim-3B-fp16", 
@@ -23,7 +26,8 @@ class FeatureExtractorException(Exception):
 class FeatureExtractor:
     @classmethod
     def realname(cls, pretrained):
-        return REALNAMES.get(pretrained, pretrained)
+        return pretrained
+        #return REALNAMES.get(pretrained, pretrained)
     
     @classmethod
     def get_feature_extractor(cls, pretrained=None, **kwargs):
@@ -70,6 +74,10 @@ class FeatureExtractor:
     @property
     def default_hidden_states(self):
         return [0,]
+    
+    @property
+    def default_hidden_states_mode(self):
+        return "join"
     
     @property
     def number_of_features(self):
@@ -212,6 +220,10 @@ class Apple_FeatureExtractor(FeatureExtractor):
     def default_hidden_states(self):
         config = PretrainedConfig.from_pretrained(self.pretrained, cache_dir="models")
         return list( config.num_blocks-i-1 for i in config.probe_layers )
+    
+    @property
+    def default_hidden_states_mode(self):
+        return "average"
     
     def _load(self):
         try:

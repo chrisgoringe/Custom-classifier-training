@@ -52,9 +52,9 @@ class _Args(object):
         model_group.add_argument('--min_second_layer_size', type=int, default=10, help="Minimum number of features in second hidden layer (default 10)")
         model_group.add_argument('--max_second_layer_size', type=int, default=1000, help="Maximum number of features in second hidden layer (default 1000)")
 
-        features_group.add_argument('--feature_extractor', default="ChrisGoringe/vitH16", help="Model to use for feature extraction", type=to_string_list)
+        features_group.add_argument('--feature_extractor', default="ChrisGoringe/vit-large-p14-vision-fp16", help="Model to use for feature extraction", type=to_string_list)
         features_group.add_argument('--hidden_states_used', default=None, help="Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.)", type=to_int_list)
-        features_group.add_argument('--hidden_states_mode', default="join", choices=["join", "average", "weight"], help="Combine multiple layers from feature extractor by join (default), average, or weight")
+        features_group.add_argument('--hidden_states_mode', default="default", choices=["default", "join", "average", "weight"], help="Combine multiple layers from feature extractor by join (default), average, or weight")
         features_group.add_argument('--fp16_features', action="store_true", help="Store features in fp16")
 
         training_group.add_argument('--loss_model', default='mse', choices=['mse','ab','nll', 'wmse'], help="Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood, wmse=weighted mse )")
