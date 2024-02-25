@@ -31,9 +31,11 @@ class QuickDataset(Dataset, ImageScores):
         random.seed(eval_pick_seed)
         self.add_item('split', lambda a: "eval" if random.random() < fraction_for_eval else "train")
 
-    def extract_features(self, feature_extractor:FeatureExtractor):
+    def extract_features(self, feature_extractor:FeatureExtractor, just_precache=False, clear_cache_after=False):
         feature_extractor.precache(self.image_files(fullpath=True))
+        if just_precache: return
         self.add_item('features', feature_extractor.get_features_from_file, fullpath=True, cast=lambda a:a.cpu())
+        if clear_cache_after: feature_extractor.clear_cache()
 
     def update_prediction(self, predictor:AestheticPredictor):
         data = torch.stack(self.item('features')).to(predictor.device).to(self.dtype)

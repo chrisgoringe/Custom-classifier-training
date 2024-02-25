@@ -11,7 +11,11 @@ REALNAMES = {
 }
 
 VISION_MODELS = ["ChrisGoringe/bigG-vision-fp16",]
-APPLE_MODELS = ["apple/aim-600M", "apple/aim-1B", "apple/aim-3B", "apple/aim-7B"]
+APPLE_MODELS = ["apple/aim-600M", "ChrisGoringe/aim-600M-fp16", 
+                "apple/aim-1B",   "ChrisGoringe/aim-1B-fp16", 
+                "apple/aim-3B",   "ChrisGoringe/aim-3B-fp16", 
+                "apple/aim-7B",   "ChrisGoringe/aim-7B-fp16", 
+                ]
 
 class FeatureExtractorException(Exception):
     pass
@@ -72,9 +76,9 @@ class FeatureExtractor:
         return self._number_of_features * self.states_per_state
 
     def check_model(self, ap_metadata:dict):
-        def check(self, label, none_ok=False):
-            if none_ok and ap_metadata.get(label,None) is None: return+
-            if (a:=getattr(self, label)) != (b:=ap_metadata[label]): raise FeatureExtractorException(f"Inconsistency in {label}: feature extractor has {a}, model expects {b}")
+        def check(label, none_ok=False):
+            if none_ok and ap_metadata.get(label,None) is None: return
+            if (a:=str(getattr(self, label))) != (b:=ap_metadata[label]): raise FeatureExtractorException(f"Inconsistency in {label}: feature extractor has {a}, model expects {b}")
 
         check("feature_extractor_model", none_ok=True)
         check("hidden_states_mode")
@@ -163,20 +167,20 @@ class TextFeatureExtractor:
 class Transformers_FeatureExtractor(FeatureExtractor):
     def __init__(self, ap_metadata={}, **kwargs):
         kwargs['hidden_states_used'] = kwargs.pop('hidden_states_used', None) or ap_metadata.get('hidden_states_used', None)
-        kwargs['stack_hidden_states'] = kwargs.pop('stack_hidden_states') if 'stack_hidden_states' in kwargs else ap_metadata.get('stack_hidden_states', None)
+        kwargs['hidden_states_mode'] = kwargs.pop('hidden_states_mode', None) or ap_metadata.get('hidden_states_mode', None)
 
         super().__init__(**kwargs)
         self.metadata['hidden_states_used'] = "_".join(str(x) for x in self.hidden_states_used)
 
     def _load(self, model_clazz=CLIPModel):
         if self.models.get('model',None) is None: 
-            self.models['model'] = model_clazz.from_pretrained(self.pretrained, cache_dir="models")
-            self.metadata['number_of_features'] = str(self.number_of_features)
+            self.models['model'] = model_clazz.from_pretrained(self.pretrained, cache_dir="models")           
             self.models['model'].text_model = None
             self.models['model'].to(self.device)
         if self.models.get('processor',None) is None: 
             self.models['processor'] = AutoProcessor.from_pretrained(self.realname(self.pretrained), cache_dir="models")
         self._number_of_features = self.models['model'].visual_projection.out_features
+        self.metadata['number_of_features'] = str(self.number_of_features)
 
     def _get_image_features_tensor(self, image:Image, layers:list) -> torch.Tensor:
         self._load()

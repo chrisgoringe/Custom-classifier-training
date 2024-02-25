@@ -67,7 +67,7 @@ class AestheticPredictor(nn.Module):
         self.dropouts               = self._get_argument('dropouts',                [],     to_int_list)
         self.metadata.pop('dropouts')        
         
-        self.feature_extractor.check_model(self.metadata.get("feature_extractor_model", None), self.hidden_states_used, self.hidden_states_mode)
+        self.feature_extractor.check_model(self.metadata)
 
         if model_seed: torch.manual_seed(model_seed)
 
