@@ -84,14 +84,15 @@ def main():
     with Timer('Create feature_extractor') as logger:
         feature_extractor = FeatureExtractor.get_feature_extractor(pretrained=Args.feature_extractor, image_directory=Args.directory, device="cuda", **Args.feature_extractor_extras)
         Args.set('hidden_states_used', feature_extractor.hidden_states_used)
-        for k in feature_extractor.metadata: logger("{:>20} : {:<40}".format(k, feature_extractor.metadata[k]))
+        for k in feature_extractor.metadata: logger("{:>20}".format(k)+f" : {feature_extractor.metadata[k]}")
 
     with Timer('Extract features:') as logger:
-        ds.extract_features(feature_extractor)
-        feature_extractor.clear_cache()
         if not Args.trials:
+            ds.extract_features(feature_extractor, just_precache=True)
             logger("trials set to zero - exiting")
             return
+        else:
+            ds.extract_features(feature_extractor, clear_cache_after=True)
 
     with Timer('Create test and evaluation subsets') as logger:
         tds = ds.subset(lambda a:a=='train', 'split')
