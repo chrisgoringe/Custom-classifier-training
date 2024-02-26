@@ -236,7 +236,7 @@ class Apple_FeatureExtractor(FeatureExtractor):
             raise NotImplementedError("AIM not available - pip install git+https://git@github.com/apple/ml-aim.git if you want to use it")
         
         if self.models.get('model', None) is None:
-            self.models['model'] = AIMForImageClassification.from_pretrained(self.pretrained, cache_dir="models").to(self.device)
+            self.models['model'] = AIMForImageClassification.from_pretrained(self.pretrained, cache_dir="models").to(self.dtype).to(self.device)
             self.models['model'].trunk.post_transformer_layer = None
         if self.models.get('processor', None) is None:
             self.models['processor'] = val_transforms()
@@ -249,13 +249,14 @@ class Apple_FeatureExtractor(FeatureExtractor):
         results = {}
         image = image.convert('RGB') if image.mode!='RGB' else image
         with torch.no_grad():
-            inp = self.models['processor'](image).unsqueeze(0).to(self.device)    
-            x = self.models['model'].preprocessor(inp, mask=None)
-            x, features = self.models['model'].trunk(x, mask=None, max_block_id=-1)
-            for this_layer in layers:
-                tokens = self.models['model'].trunk.post_trunk_norm(features[-1-this_layer])
-                _, image_features = self.models['model'].head(tokens, mask=None)
-                results[this_layer] = image_features.to(torch.float).flatten()
+            with torch.autocast(device_type="cuda"):
+                inp = self.models['processor'](image).unsqueeze(0).to(self.device)    
+                x = self.models['model'].preprocessor(inp, mask=None)
+                x, features = self.models['model'].trunk(x, mask=None, max_block_id=-1)
+                for this_layer in layers:
+                    tokens = self.models['model'].trunk.post_trunk_norm(features[-1-this_layer])
+                    _, image_features = self.models['model'].head(tokens, mask=None)
+                    results[this_layer] = image_features.to(self.dtype).flatten()
         return results
         
 

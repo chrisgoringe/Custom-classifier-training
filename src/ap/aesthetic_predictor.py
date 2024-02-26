@@ -48,7 +48,8 @@ class AestheticPredictor(nn.Module):
     def _get_argument(self, p:str, default, cast:callable):
         value = self.metadata[p] if p in self.metadata else (self.kwargs[p] if p in self.kwargs else default)
         if value is None: raise Exception(f"No value found for {p}")
-        self.metadata[p] = str(value)
+        if isinstance(value, list): self.metadata[p] = ",".join(str(x) for x in value)
+        else: self.metadata[p] = str(value)
         return cast(value)
 
     def __init__(self, feature_extractor:FeatureExtractor=FakeFE(), pretrained="", device="cuda", model_seed=None, **kwargs):  
