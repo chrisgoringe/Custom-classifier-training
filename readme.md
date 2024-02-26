@@ -72,7 +72,7 @@ The predictor can currently use any CLIP model, or any of the apple AIM feature 
 
 |name|original name|architecture|notes|
 |-|-|-|-|
-|ChrisGoringe/vit-large-p14-vision-fp16|openai/clip-vit-large-patch14|CLIPVisionModelWithProjection|SD1.5, 0.6GB, current default|
+|ChrisGoringe/vit-large-p14-vision-fp16|openai/clip-vit-large-patch14|CLIPVisionModelWithProjection|SD1.5, 0.6GB, default|
 |ChrisGoringe/bigG-vision-fp16|laion/CLIP-ViT-bigG-14-laion2B-39B-b160k|CLIPVisionModelWithProjection|SDXL and Stable Cascade, 3.4GB|
 |ChrisGoringe/aim-600M-fp16|apple/AIM-600M|AIM|1.3GB|
 |ChrisGoringe/aim-1B-fp16|apple/AIM-1B|AIM|2.4GB|
