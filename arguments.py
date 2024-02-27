@@ -29,7 +29,7 @@ class _Args(object):
 
     def _parse_arguments(self):
         to_int_list = lambda s : list( int(x.strip()) for x in s.split(',') if x ) if s is not None else None
-        to_string_list = lambda s : list( x.strip() for x in s.split(',') if x )
+        to_string_list = lambda s : list( x.strip() for x in s.split(',') if x ) if s is not None else None
 
         parser = CommentArgumentParser("Compare a series of scorefiles", fromfile_prefix_chars='@')
         main_group = parser.add_argument_group('Main arguments')
@@ -52,8 +52,8 @@ class _Args(object):
         model_group.add_argument('--min_second_layer_size', type=int, default=10, help="Minimum number of features in second hidden layer (default 10)")
         model_group.add_argument('--max_second_layer_size', type=int, default=1000, help="Maximum number of features in second hidden layer (default 1000)")
 
-        features_group.add_argument('--feature_extractor', default="ChrisGoringe/vit-large-p14-vision-fp16", help="Model to use for feature extraction", type=to_string_list)
-        features_group.add_argument('--hidden_states_used', default=None, help="Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.)", type=to_int_list)
+        features_group.add_argument('--feature_extractor', type=to_string_list, default="ChrisGoringe/vit-large-p14-vision-fp16", help="Model to use for feature extraction")
+        features_group.add_argument('--hidden_states_used', type=to_int_list, default=None, help="Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.)")
         features_group.add_argument('--hidden_states_mode', default="default", choices=["default", "join", "average", "weight"], help="Combine multiple layers from feature extractor by join (default), average, or weight")
         features_group.add_argument('--fp16_features', action="store_true", help="Store features in fp16")
 
@@ -81,6 +81,8 @@ class _Args(object):
         metaparameter_group.add_argument('--max_warmup_ratio', type=float, default=0.2, help="(default 0.2)")
         metaparameter_group.add_argument('--min_log_lr', type=float, default=-4.5, help="(default -4.5)")
         metaparameter_group.add_argument('--max_log_lr', type=float, default=-2.5, help="(default -2.5)")
+        metaparameter_group.add_argument('--min_log_weight_lr', type=float, default=-4.5, help="(default -4.5)")
+        metaparameter_group.add_argument('--max_log_weight_lr', type=float, default=-2.5, help="(default -2.5)")
         metaparameter_group.add_argument('--min_batch_size', type=int, default=1, help="(default 1)")
         metaparameter_group.add_argument('--max_batch_size', type=int, default=100, help="(default 100)")    
         metaparameter_group.add_argument('--min_dropout', type=float, default=0.0, help="Minimum dropout between two hidden layers (default 0.0)")
@@ -91,17 +93,18 @@ class _Args(object):
         metaparameter_group.add_argument('--max_output_dropout', type=float, default=0.0, help="Maximum dropout before final projection (default 0.0)")
 
         into={}
-
         namespace, unknowns = parser.parse_known_args()
-
         if unknowns: print(f"\nIgnoring unknown argument(s) {unknowns}")
+
         d = vars(namespace)
         into[":Arguments (specified or default)"]=None
         for argument in d: into[argument] = d[argument]
 
         into[":Derived arguments"]=None
-        for argument in ['train_epochs', 'warmup_ratio', 'log_lr', 'batch_size', 'first_layer_size', 'second_layer_size', 'dropout', 'input_dropout', 'output_dropout']:
+
+        for argument in list(a[4:] for a in into if a.startswith('min_')):
             into[argument] = d[f"min_{argument}"] if d[f"min_{argument}"] == d[f"max_{argument}"] else (d[f"min_{argument}"], d[f"max_{argument}"])
+        if into['hidden_states_mode']!='weight': into['log_weight_lr'] = 0
 
         into['metric_for_scoring'] = into.get('metric_for_scoring', None) or into['loss_model']
         into['parameter_for_scoring'] = f"{into['set_for_scoring']}_{into['metric_for_scoring']}"
@@ -118,12 +121,13 @@ class _Args(object):
 
     def __init__(self):
         self.args = self._parse_arguments()
+        self.show_args()
         self.validate()
         self.arg_sets = {   "feature_extractor_extras" : ['hidden_states_used','hidden_states_mode','fp16_features',],
                             "aesthetic_model_extras" : ['hidden_states_used','hidden_states_mode','model_seed','dropouts','layers','output_channels',],
-                            "trainer_extras" : [],
+                            "trainer_extras" : ['weight_learning_rate'],
                         }
-        self.show_args()
+
         for k in list(self.args): 
             if k.startswith(':'): self.args.pop(k)
         

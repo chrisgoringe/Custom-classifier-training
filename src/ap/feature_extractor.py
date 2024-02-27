@@ -55,8 +55,9 @@ class FeatureExtractor:
 
         if self.hidden_states_mode=='default': self.hidden_states_mode = self.default_hidden_states_mode
 
-        if   self.hidden_states_mode=='join':    self.post_processing, self.states_per_state = lambda a : torch.cat(a,dim=-1) , len(self.hidden_states_used)
-        elif self.hidden_states_mode=='weight':  self.post_processing, self.states_per_state = torch.stack , 1
+        # input to post_processing is a list length n of tensors shape [1,_number_of_features]  (n = len(hidden_states_used)
+        if   self.hidden_states_mode=='join':    self.post_processing, self.states_per_state = lambda a : torch.cat(a,dim=-1), len(self.hidden_states_used)
+        elif self.hidden_states_mode=='weight':  self.post_processing, self.states_per_state = lambda a : torch.cat(a, dim=0), 1
         elif self.hidden_states_mode=='average': self.post_processing, self.states_per_state = lambda a : torch.stack(a, dim=-1).mean(dim=-1) , 1
 
         self.caches = { l:{} for l in self.hidden_states_used }

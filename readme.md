@@ -90,7 +90,7 @@ The way multiple layers are combined is governed by `--hidden_states_mode` which
 - `default` - the default, which is `join` for CLIP models and `average` for AIM models
 - `join` - outputs are concatenated to produce a larger input to the model - the number of features is multiplied by the number of layers used
 - `average` - the layer outputs are averaged on a per-feature basis
-- `weight` - the layers weighted-averaged using a `nn.Linear`, with the same weights used for each feature 
+- `weight` - the layers weighted-averaged using a weighting pre-processor; a `nn.Linear`, with the same weights used for each feature 
 
 
 ### Training constants
@@ -112,6 +112,8 @@ Optuna is used to search through the metaparameter space. Use
 - `--sampler` choice of sampler for Optuna metaparameter search
 
 The metaparameter space consists of the model layer sizes (`first_layer_size` and `second_layer_size`) and training metaparameters (`train_epochs`, `warmup_ratio`, `log_lr`, `batch_size`, `dropout`, `input_dropout`, `output_dropout`). Each is specified with `--min_xxx` and `--max_xxx` (which can be equal to specify a fixed value).
+
+When `--hidden_states_mode==weight`, an additional metaparameter, `log_weight_lr` is available; it controls the learning rate for the weighting pre-processor.
 
 `input_dropout` applies between the feature extractor and the model; `dropout` applies between the two hidden layers of the model, `output_dropout` (default 0) applies after the second hidden layer of the model, before the final projection to a single value. 
 

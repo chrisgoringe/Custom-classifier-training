@@ -31,10 +31,11 @@ class EvaluationCallback(TrainerCallback):
         pass
 
 class CustomTrainer(Trainer):
-    def __init__(self, model, train_dataset, eval_dataset, **kwargs):
+    def __init__(self, model, train_dataset, eval_dataset, weight_learning_rate=0.0, **kwargs):
         super().__init__(model, **kwargs)
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
+        self.weight_learning_rate = weight_learning_rate
         self.training_args:TrainingArguments = kwargs['args']
 
     def get_train_dataloader(self):
@@ -61,6 +62,16 @@ class CustomTrainer(Trainer):
         if loss=='wmse':
             return WMSELossTrainer(**kwargs)
         raise NotImplementedError(loss)
+    
+    def create_optimizer(self):
+        if self.optimizer is None:
+            oa = [
+                {"params": list(p for (n,p) in self.model.named_parameters() if not self.model.is_weight_parameter(n))},
+                {"params": list(p for (n,p) in self.model.named_parameters() if self.model.is_weight_parameter(n)), "lr": self.weight_learning_rate},
+            ]
+            optimizer_cls, optimizer_kwargs = Trainer.get_optimizer_cls_and_kwargs(self.args)
+            self.optimizer = optimizer_cls(oa, **optimizer_kwargs)
+        return self.optimizer
 
 class MSELossTrainer(CustomTrainer):
     loss_fn = torch.nn.MSELoss()

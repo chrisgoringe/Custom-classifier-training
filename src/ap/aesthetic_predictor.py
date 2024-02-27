@@ -76,10 +76,14 @@ class AestheticPredictor(nn.Module):
 
         if model_seed: torch.manual_seed(model_seed)
 
-        self.preprocess = nn.Sequential(
-            nn.Linear(len(self.hidden_states_used), 1),
-            nn.ReLU()
-         ) if self.hidden_states_mode=="weight" else None
+        if self.hidden_states_mode=="weight":
+            self.weight = nn.Sequential(
+                nn.Linear(len(self.hidden_states_used), 1),
+                nn.ReLU()
+            )            
+            self.preprocess = lambda a : self.weight(torch.transpose(a,-2,-1)).reshape((a.shape[0],-1))
+        else:
+            self.preprocess = lambda a : a
 
         self.main_process = nn.Sequential()
         current_size = self.number_of_features
@@ -96,11 +100,14 @@ class AestheticPredictor(nn.Module):
 
     def info(self):
         if self.preprocess:
-            ws = self.preprocess[0].weight.squeeze()
-            b = self.preprocess[0].bias
+            ws = self.weight[0].weight.squeeze()
+            b = self.weight[0].bias
             last = float(ws[-1].item())
             return { "normalised_hidden_layer_projection" : ",".join("{:>8.4f}".format(x.item()/last) for x in ws) + " (bias {:>8.4f}".format(b.item()) }
         return {}
+    
+    def is_weight_parameter(self, parameter_name):
+        return parameter_name.startswith('weight')
 
     @classmethod
     def load_metadata_and_sd(cls, pretrained, return_sd=True):
@@ -118,12 +125,7 @@ class AestheticPredictor(nn.Module):
     def get_metadata(self): return self.metadata
 
     def forward(self, x, **kwargs) -> torch.Tensor:
-        if self.preprocess:
-            xp = self.preprocess(x.permute((0,2,1)))
-            xp = xp.reshape((x.shape[0],-1))
-        else:
-            xp = x
-        return self.main_process(xp)
+        return self.main_process(self.preprocess(x))
         
     def evaluate_image(self, img):
         return self(self.feature_extractor._get_image_features_tensor(img).to(self.device))

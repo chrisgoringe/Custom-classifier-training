@@ -104,6 +104,7 @@ def main():
         def objective(trial:optuna.trial.Trial):
             ta['num_train_epochs']            =             Args.meta(trial.suggest_int,  'num_train_epochs',  Args.train_epochs)
             ta['learning_rate']               = math.pow(10,Args.meta(trial.suggest_float,'log_learning_rate', Args.log_lr))
+            Args.set('weight_learning_rate',    math.pow(10,Args.meta(trial.suggest_float,'log_weight_learning_rate', Args.log_weight_lr)))
             ta['per_device_train_batch_size'] =             Args.meta(trial.suggest_int,  'batch_size',        Args.batch_size)
             ta['warmup_ratio']                =             Args.meta(trial.suggest_float,'warmup_ratio',      Args.warmup_ratio)
             if Args.loss_model=='nll': ta['per_device_train_batch_size'] = ((ta['per_device_train_batch_size']+1)//2)*2

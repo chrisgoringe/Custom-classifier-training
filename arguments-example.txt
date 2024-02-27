@@ -98,6 +98,10 @@
 #   (default -4.5)
 #--max_log_lr=MAX_LOG_LR
 #   (default -2.5)
+#--min_log_weight_lr=MIN_LOG_WEIGHT_LR
+#   (default -4.5)
+#--max_log_weight_lr=MAX_LOG_WEIGHT_LR
+#   (default -2.5)
 #--min_batch_size=MIN_BATCH_SIZE
 #   (default 1)
 #--max_batch_size=MAX_BATCH_SIZE
