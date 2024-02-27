@@ -55,7 +55,7 @@ class FeatureExtractor:
 
         if self.hidden_states_mode=='default': self.hidden_states_mode = self.default_hidden_states_mode
 
-        if   self.hidden_states_mode=='join':    self.post_processing, self.states_per_state = torch.cat , len(self.hidden_states_used)
+        if   self.hidden_states_mode=='join':    self.post_processing, self.states_per_state = lambda a : torch.cat(a,dim=-1) , len(self.hidden_states_used)
         elif self.hidden_states_mode=='weight':  self.post_processing, self.states_per_state = torch.stack , 1
         elif self.hidden_states_mode=='average': self.post_processing, self.states_per_state = lambda a : torch.stack(a, dim=-1).mean(dim=-1) , 1
 
@@ -71,7 +71,7 @@ class FeatureExtractor:
                 self._load()
                 print(f"No feature cachefile found at {cf}, will generate features as required")
 
-        self.metadata = {"feature_extractor_model":pretrained, 'hidden_states_used':self.hidden_states_used, 'hidden_states_mode':self.hidden_states_mode}
+        self.metadata = {"feature_extractor_model":pretrained, 'hidden_states_used':",".join(str(x) for x in self.hidden_states_used), 'hidden_states_mode':self.hidden_states_mode}
 
     @property
     def default_hidden_states(self):
@@ -88,7 +88,7 @@ class FeatureExtractor:
     def check_model(self, ap_metadata:dict):
         def check(label, none_ok=False):
             if none_ok and ap_metadata.get(label,None) is None: return
-            if (a:=str(self.metadata[label])) != (b:=ap_metadata[label]): raise FeatureExtractorException(f"Inconsistency in {label}: feature extractor has {a}, model expects {b}")
+            if (a:=self.metadata[label]) != (b:=ap_metadata[label]): raise FeatureExtractorException(f"Inconsistency in {label}: feature extractor has {a}, model expects {b}")
 
         check("feature_extractor_model", none_ok=True)
         check("hidden_states_mode")
@@ -178,9 +178,7 @@ class Transformers_FeatureExtractor(FeatureExtractor):
     def __init__(self, ap_metadata={}, **kwargs):
         kwargs['hidden_states_used'] = kwargs.pop('hidden_states_used', None) or ap_metadata.get('hidden_states_used', None)
         kwargs['hidden_states_mode'] = kwargs.pop('hidden_states_mode', None) or ap_metadata.get('hidden_states_mode', None)
-
         super().__init__(**kwargs)
-        self.metadata['hidden_states_used'] = "_".join(str(x) for x in self.hidden_states_used)
 
     def _load(self, model_clazz=CLIPModel):
         if self.models.get('model',None) is None: 
