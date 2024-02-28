@@ -106,7 +106,7 @@ class _Args(object):
 
         for argument in list(a[4:] for a in into if a.startswith('min_')):
             into[argument] = d[f"min_{argument}"] if d[f"min_{argument}"] == d[f"max_{argument}"] else (d[f"min_{argument}"], d[f"max_{argument}"])
-        if into['hidden_states_mode']!='weight': into['log_weight_lr'] = 0
+        if into['hidden_states_mode']!='weight' or into['fixed_hidden_state_weights'] is not None: into['log_weight_lr'] = 0
 
         into['metric_for_scoring'] = into.get('metric_for_scoring', None) or into['loss_model']
         into['parameter_for_scoring'] = f"{into['set_for_scoring']}_{into['metric_for_scoring']}"
