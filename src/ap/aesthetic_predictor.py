@@ -83,9 +83,10 @@ class AestheticPredictor(nn.Module):
             )            
             self.preprocess = lambda a : self.weight(torch.transpose(a,-2,-1)).reshape((a.shape[0],-1))
             if (weights := kwargs.get('fixed_hidden_state_weights',None)):
-                details = {"dtype":self.weight[0].weight.dtype, "device":self.weight[0].weight.device}
-                self.weight[0].weight = torch.nn.parameter.Parameter(torch.tensor(data=weights[:-1], **details), requires_grad=False)
-                self.weight[0].bias = torch.nn.parameter.Parameter(torch.tensor(data=weights[-1], **details), requires_grad=False)
+                old = self.weight[0]
+                details = {"dtype":old.weight.dtype, "device":old.weight.device}
+                self.weight[0].weight = torch.nn.parameter.Parameter(torch.tensor(data=weights[:-1], **details).reshape_as(old.weight), requires_grad=False)
+                self.weight[0].bias = torch.nn.parameter.Parameter(torch.tensor(data=weights[-1], **details).reshape_as(old.bias), requires_grad=False)
         else:
             self.preprocess = lambda a : a
 
