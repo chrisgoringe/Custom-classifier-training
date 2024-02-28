@@ -144,7 +144,7 @@ Script `aesthetic_data_analysis.py` can do statistical analysis on scorefiles. S
 ```
   -d DIRECTORY, --directory DIRECTORY
                         Top level directory
-  --scores SCORES       Filename of scores file (default scores.json)
+  --scores SCORES       Filename of scores file (default scores.csv)
   --include_train_split
                         Include training split in analysis (default is eval images only)
   --regex REGEX         Only include images matching this regex

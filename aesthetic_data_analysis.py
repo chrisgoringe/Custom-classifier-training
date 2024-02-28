@@ -1,14 +1,13 @@
-import statistics, os, argparse, json, re
+import statistics, os, argparse, re
 import scipy.stats
-from src.ap.aesthetic_predictor import AestheticPredictor
 from src.ap.image_scores import ImageScores
 import torch
-from src.ap.create_scorefiles import create_scorefiles
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser("Statistics of scored files")
     parser.add_argument('-d', '--directory', help="Top level directory", required=True)
-    parser.add_argument('--scores', default="scores.json", help="Filename of scores file (default scores.json)")
+    parser.add_argument('--scores', default="scores.csv", help="Filename of scores file (default scores.csv)")
     parser.add_argument('--include_train_split', action="store_true", help="Include training split in analysis (default is eval images only)")
     parser.add_argument('--regex', default="", help="Only include images matching this regex")
     parser.add_argument('--directories', action="store_true", help="Perform separate analysis for each subdirectory")
