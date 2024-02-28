@@ -127,6 +127,10 @@ Metaparameter results are saved in a local sqlite database, specified by `--data
 
 The trainer also launches an Optuna Dashboard that you can access on `http://127.0.0.1:8080/`. Control this with `--server={on,daemon,off}` (daemon will terminate with training).
 
+## Training to csv
+
+Save a metaparameter search as a csv file with `study_to_csv.py`. `--database` defaults to `sqlite:///db.sqlite`. Specify `--study_name` and `--outfile`. If you omit either, you get a list of available study names.
+
 ## Spotlight
 
 [Spotlight](https://github.com/Renumics/spotlight) is a gui for analysing datasets. After a training run, run `aesthetic_spotlight.py` to see its magic!
