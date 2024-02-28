@@ -90,7 +90,9 @@ The way multiple layers are combined is governed by `--hidden_states_mode` which
 - `default` - the default, which is `join` for CLIP models and `average` for AIM models
 - `join` - outputs are concatenated to produce a larger input to the model - the number of features is multiplied by the number of layers used
 - `average` - the layer outputs are averaged on a per-feature basis
-- `weight` - the layers weighted-averaged using a weighting pre-processor; a `nn.Linear`, with the same weights used for each feature 
+- `weight` - the layers weighted-averaged using a weighting pre-processor; a `nn.Linear`, with the same weights used for each feature. 
+
+You can fix the values of the weighting pre-processor with `--fixed_hidden_state_weights`, which takes of comma separated list of weights (in same order as `--hidden_states_used`) followed by the bias. This can be useful if a metaparameter search shows that the best few results have very similar weights; you can then fix those weights and search the smaller metaparameter space more efficiently.
 
 
 ### Training constants

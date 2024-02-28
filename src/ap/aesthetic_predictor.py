@@ -82,6 +82,10 @@ class AestheticPredictor(nn.Module):
                 nn.ReLU()
             )            
             self.preprocess = lambda a : self.weight(torch.transpose(a,-2,-1)).reshape((a.shape[0],-1))
+            if (weights := kwargs.get('fixed_hidden_state_weights',None)):
+                details = {"dtype":self.weight[0].weight.dtype, "device":self.weight[0].weight.device}
+                self.weight[0].weight = torch.nn.parameter.Parameter(torch.tensor(data=weights[:-1], **details), requires_grad=False)
+                self.weight[0].bias = torch.nn.parameter.Parameter(torch.tensor(data=weights[-1], **details), requires_grad=False)
         else:
             self.preprocess = lambda a : a
 
@@ -100,10 +104,8 @@ class AestheticPredictor(nn.Module):
 
     def info(self):
         if self.preprocess:
-            ws = self.weight[0].weight.squeeze()
-            b = self.weight[0].bias
-            last = float(ws[-1].item())
-            return { "normalised_hidden_layer_projection" : ",".join("{:>8.4f}".format(x.item()/last) for x in ws) + " (bias {:>8.4f}".format(b.item()) }
+            return {"preprocess_weights" : ",".join("{:>9.5f}".format(x.item()) for x in self.weight[0].weight.squeeze()),
+                    "preprocess_bias" :  "{:>9.5f}".format(self.weight[0].bias.item())}
         return {}
     
     def is_weight_parameter(self, parameter_name):

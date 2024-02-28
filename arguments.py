@@ -29,6 +29,7 @@ class _Args(object):
 
     def _parse_arguments(self):
         to_int_list = lambda s : list( int(x.strip()) for x in s.split(',') if x ) if s is not None else None
+        to_float_list = lambda s : list( float(x.strip()) for x in s.split(',') if x ) if s is not None else None
         to_string_list = lambda s : list( x.strip() for x in s.split(',') if x ) if s is not None else None
 
         parser = CommentArgumentParser("Compare a series of scorefiles", fromfile_prefix_chars='@')
@@ -55,6 +56,7 @@ class _Args(object):
         features_group.add_argument('--feature_extractor', type=to_string_list, default="ChrisGoringe/vit-large-p14-vision-fp16", help="Model to use for feature extraction")
         features_group.add_argument('--hidden_states_used', type=to_int_list, default=None, help="Comma separated list of the hidden states to extract features from (0 is output layer, 1 is last hidden layer etc.)")
         features_group.add_argument('--hidden_states_mode', default="default", choices=["default", "join", "average", "weight"], help="Combine multiple layers from feature extractor by join (default), average, or weight")
+        features_group.add_argument('--fixed_hidden_state_weights', type=to_float_list, default=None, help="When hidden_states_mode=weight, fix the weights and bias (list of float, last entry is bias)")
         features_group.add_argument('--fp16_features', action="store_true", help="Store features in fp16")
 
         training_group.add_argument('--loss_model', default='mse', choices=['mse','ab','nll', 'wmse'], help="Loss model (default mse) (mse=mean square error, ab=ab ranking, nll=negative log likelihood, wmse=weighted mse )")
@@ -124,7 +126,7 @@ class _Args(object):
         self.show_args()
         self.validate()
         self.arg_sets = {   "feature_extractor_extras" : ['hidden_states_used','hidden_states_mode','fp16_features',],
-                            "aesthetic_model_extras" : ['hidden_states_used','hidden_states_mode','model_seed','dropouts','layers','output_channels',],
+                            "aesthetic_model_extras" : ['hidden_states_used','hidden_states_mode','fixed_hidden_state_weights','model_seed','dropouts','layers','output_channels',],
                             "trainer_extras" : ['weight_learning_rate'],
                         }
 
@@ -155,6 +157,8 @@ class _Args(object):
             raise ArgumentException( f"{self.directory} doesn't exist or isn't a directory" )
         if not os.path.exists(os.path.join(self.directory, self.scores)):
             raise ArgumentException(f"{os.path.join(self.directory, self.scores)} not found")
+#        if self.hidden_states_mode=='weight' and self.fixed_hidden_state_weights is not None and len(self.fixed_hidden_state_weights)!=len(self.hidden_states_used)+1:
+#            raise ArgumentException(f"Need {len(self.hidden_states_used)+1} values for fixed_hidden_state_weights (weights followed by bias), got {self.fixed_hidden_state_weights}")
 
     @property
     def keys(self):
