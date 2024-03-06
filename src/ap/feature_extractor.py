@@ -6,9 +6,9 @@ from transformers import AutoProcessor, CLIPModel, AutoTokenizer, CLIPVisionMode
 from tqdm import tqdm
 
 # REALNAMES is used for downloading the (small) preprocessor file
-#REALNAMES = {
-#    "ChrisGoringe/vitH16" : "laion/CLIP-ViT-H-14-laion2B-s32B-b79K",
-#}
+REALNAMES = {
+    "ChrisGoringe/vitH16" : "laion/CLIP-ViT-H-14-laion2B-s32B-b79K",
+}
 
 # VISION_MODELS are CLIP models that have been reduced by removal of the text part (and often conversion to fp16)
 VISION_MODELS = ["ChrisGoringe/bigG-vision-fp16",]
@@ -26,8 +26,8 @@ class FeatureExtractorException(Exception):
 class FeatureExtractor:
     @classmethod
     def realname(cls, pretrained):
-        return pretrained
-        #return REALNAMES.get(pretrained, pretrained)
+        #return pretrained
+        return REALNAMES.get(pretrained, pretrained)
     
     @classmethod
     def get_feature_extractor(cls, pretrained=None, **kwargs):
