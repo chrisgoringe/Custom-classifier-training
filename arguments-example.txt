@@ -8,7 +8,9 @@
 --directory         = my_image_directory
 #   Where the images are saved. Subfolders are included. .png, .jpg and .jpeg are considered images
 #--model             = model.safetensors
-#   File to save the model in when trained. 
+#--modelpath
+#   File to save the model in when trained. --model is relative to --directory, or --modelpath is full path.
+#   If both are set, modelpath is used.
 #--scores            = saved_scores.csv
 #   Where to find the scores for the images. Can be a .json file or a .csv file 
 #--savefile          = saved_scores.csv

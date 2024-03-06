@@ -14,15 +14,14 @@ def parse_arguments():
 
 def main():
     database_scores = ImageScores.from_scorefile(top_level_directory=Args.directory, scorefilename=Args.scores)
-
+    database_scores.sort(add_rank_column='rank')
+    
     if not database_scores.has_item('model_score'):
         print(f"{Args.scores} doesn't contain model_scores column")
-        return
-
-    database_scores.add_item('error',lambda a:database_scores.element('score',a)-database_scores.element('model_score',a), cast=float)
-    database_scores.sort(add_rank_column='rank')
-    database_scores.sort(by='model_score', add_rank_column='model_rank', resort_after=True)
-    database_scores.add_item('rank_error',lambda a:abs(database_scores.element('rank',a)-database_scores.element('model_rank',a)), cast=int)
+    else:
+        database_scores.add_item('error',lambda a:database_scores.element('score',a)-database_scores.element('model_score',a), cast=float)
+        database_scores.sort(by='model_score', add_rank_column='model_rank', resort_after=True)
+        database_scores.add_item('rank_error',lambda a:abs(database_scores.element('rank',a)-database_scores.element('model_rank',a)), cast=int)
             
     spotlight.show(database_scores.dataframe)
 

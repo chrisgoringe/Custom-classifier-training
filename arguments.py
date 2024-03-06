@@ -36,7 +36,8 @@ class _Args(object):
 
         main_group.add_argument('-d', '--directory', help="Top level directory", required=True)
         main_group.add_argument('-s', '--savefile', default="", help="Filename of (csv) scores file to save (default no save)")
-        main_group.add_argument('--model', default="model.safetensors", help="Filename to save model (default model.safetensors)")
+        main_group.add_argument('--model', default="model.safetensors", help="Filename to save model (relative to --directory, default model.safetensors)")
+        main_group.add_argument('--modelpath', help="Full path of model (if set, --model is ignored)")
         main_group.add_argument('--scores', default="scores.json", help="Filename of scores file (default scores.json)")
         main_group.add_argument('--server', default='on', choices=['on','daemon','off'], help="Start an optuna dashboard server. Use daemon to start in daemon thread (terminates with training), or off for no server")
         main_group.add_argument('--database', default="sqlite:///db.sqlite", help="Storage for optuna. Set --database= for no database (implies --server=off)")
@@ -107,7 +108,7 @@ class _Args(object):
         into['parameter_for_scoring'] = f"{into['set_for_scoring']}_{into['metric_for_scoring']}"
         into['measures'] = list(o for o in ['ab', 'mse', 'wmse', 'spearman', 'pearson', 'accuracy'] if o==into['loss_model'] or o==into['metric_for_scoring'] or into.get(f"calculate_{o}",False))
 
-        into['save_model_path'] = os.path.join(into['directory'], into['model'])
+        into['save_model_path'] = into.get('modelpath',None) or os.path.join(into['directory'], into['model'])
         into['score_direction'] = 'maximize' if into['metric_for_scoring'] in ['ab', 'spearman', 'pearson', 'accuracy', ] else 'minimize'
         into['output_channels'] = 2 if into['loss_model']=='nll' else 1
 
@@ -154,6 +155,7 @@ class _Args(object):
             raise ArgumentException(f"{os.path.join(self.directory, self.scores)} not found")
 #        if self.hidden_states_mode=='weight' and self.fixed_hidden_state_weights is not None and len(self.fixed_hidden_state_weights)!=len(self.hidden_states_used)+1:
 #            raise ArgumentException(f"Need {len(self.hidden_states_used)+1} values for fixed_hidden_state_weights (weights followed by bias), got {self.fixed_hidden_state_weights}")
+        if self.get('model',None) and self.get('modelpath',None): print(f"--model ignored because --modelpath was set")
 
     @property
     def keys(self):
