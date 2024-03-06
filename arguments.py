@@ -1,4 +1,5 @@
-import os, argparse
+import os
+from src.comment_argument_parser import CommentArgumentParser
 
 # training_args are passed directly into the TrainingArguments object.
 # Below are the most common of the 101 arguments available
@@ -17,12 +18,6 @@ training_args = {
 
 class ArgumentException(Exception):
     pass
-
-class CommentArgumentParser(argparse.ArgumentParser):
-    def convert_arg_line_to_args(self, arg_line):
-        if arg_line.startswith('#'): return [] 
-        line = "=".join(a.strip() for a in arg_line.split('='))
-        return [line,] if len(line) else []
 
 class _Args(object):
     instance = None

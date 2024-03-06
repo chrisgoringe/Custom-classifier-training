@@ -1,13 +1,7 @@
 from src.ap.image_scores import ImageScores
 import os, sys
 from src.ap.aesthetic_predictor import AestheticPredictor
-import argparse
-
-class CommentArgumentParser(argparse.ArgumentParser):
-    def convert_arg_line_to_args(self, arg_line):
-        if arg_line.startswith('#'): return [] 
-        line = "=".join(a.strip() for a in arg_line.split('='))
-        return [line,] if len(line) else []
+from src.comment_argument_parser import CommentArgumentParser
     
 def parse_arguments():
     parser = CommentArgumentParser("Score a set of images using a model", fromfile_prefix_chars='@')

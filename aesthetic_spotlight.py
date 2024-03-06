@@ -1,12 +1,12 @@
 
 from renumics import spotlight
 from src.ap.image_scores import ImageScores
-import argparse
+from src.comment_argument_parser import CommentArgumentParser
 
 def parse_arguments():
-    parser = argparse.ArgumentParser("Score a set of images by a series of AB comparisons")
+    parser = CommentArgumentParser("Score a set of images by a series of AB comparisons", fromfile_prefix_chars='@')
     parser.add_argument('-d', '--directory', help="Top level directory", required=True)
-    parser.add_argument('--scores', default="scores.csv", help="Filename of scores file (default scores.json)")
+    parser.add_argument('--scores', default="scores.csv", help="Filename of scores file (default scores.csv)")
 
     global Args
     Args, unknowns = parser.parse_known_args()
