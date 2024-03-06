@@ -1,6 +1,6 @@
 import os, json, statistics
 import pandas as pd
-from typing import Self, Callable
+#from typing import Self, Callable
 from collections.abc import Iterable
 from numpy import ndarray
 
@@ -19,11 +19,11 @@ class ImageScores:
         self._df.set_index('relative_path',drop=False,inplace=True)
         pass
         
-    def subset(self, test:Callable, item:str='relative_path') -> Self:
+    def subset(self, test, item:str='relative_path'):
         return ImageScores(top_level_directory=self.tld, df=self._df.loc[test(self._df[item])])
 
     @classmethod
-    def from_scorefile(cls, top_level_directory:str, scorefilename) -> Self:
+    def from_scorefile(cls, top_level_directory:str, scorefilename):
         if os.path.splitext(scorefilename)[1]==".json":
             with open(os.path.join(top_level_directory,scorefilename),'r') as f:
                 image_scores_dict = json.load(f)
@@ -38,12 +38,12 @@ class ImageScores:
         return imsc
     
     @classmethod
-    def from_evaluator(cls, evaluator:Callable, images:list[str], top_level_directory, fullpath=True) -> Self:
+    def from_evaluator(cls, evaluator, images:list[str], top_level_directory, fullpath=True):
         scores = list(float(evaluator(os.path.join(top_level_directory,k) if fullpath else k)) for k in images)
         return cls(top_level_directory=top_level_directory, files=images, scores=scores) 
 
     @classmethod
-    def from_directory(cls, top_level_directory, evaluator:Callable=lambda a:0) -> Self:
+    def from_directory(cls, top_level_directory, evaluator=lambda a:0):
         images = []
         valid_image = lambda f : os.path.splitext(f)[1] in ['.png','.jpg','.jpeg']
         def recursively_add_images(d=""):
@@ -56,7 +56,7 @@ class ImageScores:
         return cls.from_evaluator(evaluator, images, top_level_directory)
     
     @classmethod
-    def from_baid(cls, top_level_directory, include=('eval', 'train', 'test')) -> Self:
+    def from_baid(cls, top_level_directory, include=('eval', 'train', 'test')):
         images = []
         scores = []
         splits = []
@@ -72,7 +72,7 @@ class ImageScores:
         imsc.add_item('split',splits)
         return imsc
     
-    def add_item(self, label, values:dict|list|Callable|Self, fullpath=False, cast:Callable=lambda a:a):
+    def add_item(self, label, values, fullpath=False, cast=lambda a:a):
         if isinstance(values, dict):
             self._df[label] = list(cast(values[f]) for f in self.image_files(fullpath=fullpath))
         elif callable(values):
