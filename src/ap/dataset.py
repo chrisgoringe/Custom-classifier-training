@@ -6,7 +6,6 @@ import random, statistics
 import torch
 from torch.utils.data import Dataset
 import scipy.stats
-from typing import Self, Callable
 
 pd.options.mode.copy_on_write = True
 
@@ -20,7 +19,7 @@ class QuickDataset(Dataset, ImageScores):
         self.has_weights = 'weight' in self._df.columns
         self.dtype = dtype
 
-    def subset(self, test:Callable, item:str='relative_path') -> Self:
+    def subset(self, test, item:str='relative_path'):
         qd = QuickDataset(top_level_directory=self.tld, df=self._df.loc[test(self._df[item])])
         return qd
 
