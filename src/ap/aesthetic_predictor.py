@@ -100,17 +100,27 @@ class AestheticPredictor(nn.Module):
         self.main_process.append(nn.Dropout(self.dropouts[-1] if self.dropouts else 0.0))
         self.main_process.append(nn.Linear(current_size, self.output_channels))
 
-        if sd: self.load_state_dict(sd)
+        if sd: self.backwards_compatible_load(sd)
         self.to(device)
 
     def info(self):
-        if self.preprocess:
+        if self.hidden_states_mode=="weight":
             return {"preprocess_weights" : ",".join("{:>9.5f}".format(x.item()) for x in self.weight[0].weight.squeeze()),
                     "preprocess_bias" :  "{:>9.5f}".format(self.weight[0].bias.item())}
         return {}
     
     def is_weight_parameter(self, parameter_name):
         return parameter_name.startswith('weight')
+
+    def backwards_compatible_load(self, sd:dict):
+        remove = list(key for key in sd if key.startswith("parallel_blocks.0"))
+        for key in remove: sd[key.replace("parallel_blocks.0","main_process")] = sd.pop(key)
+        missing, unexpected = self.load_state_dict(state_dict=sd, strict=False)
+        for key in (k for k in missing if k.endswith(".bias")): self[key[:-5]].apply(lambda m :  m.bias.fill_(0.0))
+        still_missing = (k for k in missing if not k.endswith(".bias"))
+
+        if unexpected: print(f"\n\nUnexpected keys in state dictionary - this is bad {unexpected}.")
+        if still_missing: print(f"\n\Missing keys in state dictionary - this is bad {still_missing}.")
 
     @classmethod
     def load_metadata_and_sd(cls, pretrained, return_sd=True):
