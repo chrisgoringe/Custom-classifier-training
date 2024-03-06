@@ -4,7 +4,7 @@ from src.ap.aesthetic_predictor import AestheticPredictor
 import argparse
 
 def parse_arguments():
-    parser = argparse.ArgumentParser("Score a set of images by a series of AB comparisons")
+    parser = argparse.ArgumentParser("Score a set of images using a model")
     parser.add_argument('-d', '--directory', help="Top level directory", required=True)
     parser.add_argument('-m', '--model', help="Path to model", required=True)
     parser.add_argument('-o', '--outfile', default="", help="Save to file (.csv) in directory")
