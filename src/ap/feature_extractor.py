@@ -40,7 +40,7 @@ class FeatureExtractor:
 
         return Transformers_FeatureExtractor(pretrained=pretrained, **kwargs)
 
-    def __init__(self, pretrained, device="cuda", image_directory=".", use_cache=True, base_directory=".", hidden_states_used=None, hidden_states_mode="join", fp16_features=False):
+    def __init__(self, pretrained, device="cuda", image_directory=".", use_cache=True, base_directory=".", hidden_states_used=None, hidden_states_mode=None, fp16_features=False):
         self.device = device
         self.image_directory = image_directory
         self.pretrained = pretrained
@@ -48,7 +48,7 @@ class FeatureExtractor:
         self.use_cache = use_cache
         self.base_directory = base_directory
 
-        self.hidden_states_mode = hidden_states_mode
+        self.hidden_states_mode = hidden_states_mode or "default"
         self.hidden_states_used = list(int(x) for x in hidden_states_used[1:-1].split(',') if x) if isinstance(hidden_states_used,str) else hidden_states_used
         self.hidden_states_used = self.hidden_states_used or self.default_hidden_states
         self.dtype = torch.half if fp16_features else torch.float
