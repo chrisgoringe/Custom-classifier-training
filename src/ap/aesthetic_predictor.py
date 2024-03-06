@@ -117,10 +117,10 @@ class AestheticPredictor(nn.Module):
         for key in remove: sd[key.replace("parallel_blocks.0","main_process")] = sd.pop(key)
         missing, unexpected = self.load_state_dict(state_dict=sd, strict=False)
         for key in (k for k in missing if k.endswith(".bias")): self[key[:-5]].apply(lambda m :  m.bias.fill_(0.0))
-        still_missing = (k for k in missing if not k.endswith(".bias"))
+        still_missing = list(k for k in missing if not k.endswith(".bias"))
 
         if unexpected: print(f"\n\nUnexpected keys in state dictionary - this is bad {unexpected}.")
-        if still_missing: print(f"\n\Missing keys in state dictionary - this is bad {still_missing}.")
+        if still_missing: print(f"\n\nMissing keys in state dictionary - this is bad {still_missing}.")
 
     @classmethod
     def load_metadata_and_sd(cls, pretrained, return_sd=True):
