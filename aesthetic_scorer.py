@@ -3,10 +3,16 @@ import os, sys
 from src.ap.aesthetic_predictor import AestheticPredictor
 import argparse
 
+class CommentArgumentParser(argparse.ArgumentParser):
+    def convert_arg_line_to_args(self, arg_line):
+        if arg_line.startswith('#'): return [] 
+        line = "=".join(a.strip() for a in arg_line.split('='))
+        return [line,] if len(line) else []
+    
 def parse_arguments():
-    parser = argparse.ArgumentParser("Score a set of images using a model")
+    parser = CommentArgumentParser("Score a set of images using a model", fromfile_prefix_chars='@')
     parser.add_argument('-d', '--directory', help="Top level directory", required=True)
-    parser.add_argument('-m', '--model', help="Path to model", required=True)
+    parser.add_argument('-m', '--modelpath', help="Path to model", required=True)
     parser.add_argument('-o', '--outfile', default="", help="Save to file (.csv) in directory")
 
     global Args
@@ -15,7 +21,7 @@ def parse_arguments():
 
 def print_image_scores():
     image_score_file = ImageScores.from_directory(Args.directory)
-    ap = AestheticPredictor.from_pretrained(pretrained=Args.model)
+    ap = AestheticPredictor.from_pretrained(pretrained=Args.modelpath, image_directory=Args.directory)
     ap.precache(image_score_file.image_files(fullpath=True))
     image_score_file.set_scores(ap.evaluate_file)
     
