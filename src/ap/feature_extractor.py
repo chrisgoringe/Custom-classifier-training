@@ -47,14 +47,15 @@ class FeatureExtractor:
         self.models = {}
         self.use_cache = use_cache
         self.base_directory = base_directory
+        self.metadata = {}
 
         self.hidden_states_mode = hidden_states_mode or "default"
         self.hidden_states_used = list(int(x) for x in hidden_states_used[1:-1].split(',') if x) if isinstance(hidden_states_used,str) else hidden_states_used
         self.hidden_states_used = self.hidden_states_used or self.default_hidden_states
+
         self.dtype = torch.half if fp16_features else torch.float
 
         if self.hidden_states_mode=='default': self.hidden_states_mode = self.default_hidden_states_mode
-
         # input to post_processing is a list length n of tensors shape [1,_number_of_features]  (n = len(hidden_states_used)
         if   self.hidden_states_mode=='join':    self.post_processing, self.states_per_state = lambda a : torch.cat(a,dim=-1), len(self.hidden_states_used)
         elif self.hidden_states_mode=='weight':  self.post_processing, self.states_per_state = lambda a : torch.cat(a, dim=0), 1
@@ -72,7 +73,10 @@ class FeatureExtractor:
                 self._load()
                 print(f"No feature cachefile found at {cf}, will generate features as required")
 
-        self.metadata = {"feature_extractor_model":pretrained, 'hidden_states_used':",".join(str(x) for x in self.hidden_states_used), 'hidden_states_mode':self.hidden_states_mode}
+        self.metadata["feature_extractor_model"] = pretrained
+        self.metadata['hidden_states_used'] = ",".join(str(x) for x in self.hidden_states_used)
+        self.metadata['hidden_states_mode'] = self.hidden_states_mode
+        self.metadata['number_of_features'] = str(self.number_of_features)
 
     @property
     def default_hidden_states(self):
@@ -189,7 +193,6 @@ class Transformers_FeatureExtractor(FeatureExtractor):
         if self.models.get('processor',None) is None: 
             self.models['processor'] = AutoProcessor.from_pretrained(self.realname(self.pretrained), cache_dir="models")
         self._number_of_features = self.models['model'].visual_projection.out_features
-        self.metadata['number_of_features'] = str(self.number_of_features)
 
     def _get_image_features_tensor(self, image:Image, layers:list) -> torch.Tensor:
         self._load()
