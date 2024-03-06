@@ -1,6 +1,5 @@
 import os, json, statistics
 import pandas as pd
-#from typing import Self, Callable
 from collections.abc import Iterable
 from numpy import ndarray
 
